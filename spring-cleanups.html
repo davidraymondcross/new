@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spring Cleanups | David's Landscaping</title>
+  <meta name="description" content="Spring cleanup services from David's Landscaping: leaf and debris removal, bed edging, mulching, pruning, lawn dethatching and first mow of the season.">
+  <style>
+    :root {
+      --green-900: #1f3d2b;
+      --green-700: #2f6b3f;
+      --green-500: #4c9a5b;
+      --green-100: #e8f3ea;
+      --sun: #f2c14e;
+      --ink: #1d2420;
+      --muted: #5b665f;
+      --bg: #fbfcf9;
+      --card: #ffffff;
+      --line: #dfe6e0;
+      --radius: 12px;
+      --max: 1100px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+
+    a { color: var(--green-700); }
+
+    .container {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    /* Header */
+    .site-header {
+      background: var(--green-900);
+      color: #fff;
+    }
+    .site-header .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-top: 14px;
+      padding-bottom: 14px;
+    }
+    .logo {
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: #fff;
+      text-decoration: none;
+      letter-spacing: 0.01em;
+    }
+    .logo span { color: var(--sun); }
+    .site-nav a {
+      color: #dbe9de;
+      text-decoration: none;
+      margin-left: 18px;
+      font-size: 0.95rem;
+    }
+    .site-nav a:hover,
+    .site-nav a[aria-current="page"] { color: #fff; text-decoration: underline; }
+
+    /* Hero */
+    .hero {
+      background:
+        linear-gradient(135deg, rgba(31, 61, 43, 0.92), rgba(47, 107, 63, 0.85)),
+        radial-gradient(circle at 80% 20%, var(--sun), transparent 40%);
+      color: #fff;
+      padding: 72px 0 80px;
+    }
+    .hero .eyebrow {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.8rem;
+      color: var(--sun);
+      font-weight: 600;
+      margin: 0 0 8px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      line-height: 1.15;
+      margin: 0 0 16px;
+      max-width: 720px;
+    }
+    .hero p.lead {
+      font-size: 1.15rem;
+      max-width: 620px;
+      color: #e4efe6;
+      margin: 0 0 28px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 12px 22px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 2px solid transparent;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .btn-primary { background: var(--sun); color: var(--green-900); }
+    .btn-primary:hover { background: #f5cf72; }
+    .btn-ghost { border-color: #fff; color: #fff; margin-left: 10px; }
+    .btn-ghost:hover { background: rgba(255, 255, 255, 0.1); }
+
+    /* Sections */
+    section { padding: 64px 0; }
+    section.alt { background: var(--green-100); }
+    h2 {
+      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+      margin: 0 0 12px;
+      color: var(--green-900);
+    }
+    .section-intro {
+      color: var(--muted);
+      max-width: 680px;
+      margin: 0 0 36px;
+      font-size: 1.05rem;
+    }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+    }
+    .card .icon {
+      font-size: 1.8rem;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+    .card h3 {
+      margin: 0 0 6px;
+      font-size: 1.1rem;
+      color: var(--green-900);
+    }
+    .card p { margin: 0; color: var(--muted); }
+
+    /* Why section */
+    .two-col {
+      display: grid;
+      gap: 40px;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      align-items: start;
+    }
+    .checklist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .checklist li {
+      position: relative;
+      padding-left: 32px;
+      margin-bottom: 14px;
+    }
+    .checklist li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--green-500);
+      color: #fff;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    .callout {
+      background: var(--green-900);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+    .callout h3 { margin-top: 0; color: var(--sun); }
+    .callout p { color: #dbe9de; }
+
+    /* Process */
+    .steps {
+      counter-reset: step;
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .step {
+      counter-increment: step;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      position: relative;
+    }
+    .step::before {
+      content: counter(step);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--sun);
+      color: var(--green-900);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .step h3 { margin: 0 0 6px; font-size: 1.05rem; color: var(--green-900); }
+    .step p { margin: 0; color: var(--muted); }
+
+    /* Pricing factors */
+    .pricing-note {
+      background: var(--card);
+      border-left: 4px solid var(--sun);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 18px 22px;
+      margin-top: 28px;
+      color: var(--muted);
+    }
+
+    /* FAQ */
+    details {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 12px;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--green-900);
+    }
+    details p { margin: 10px 0 0; color: var(--muted); }
+
+    /* Quote form */
+    .quote form {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+    .quote label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+    }
+    .quote input,
+    .quote select,
+    .quote textarea {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: inherit;
+      background: #fff;
+    }
+    .quote input:focus,
+    .quote select:focus,
+    .quote textarea:focus {
+      outline: 2px solid var(--green-500);
+      border-color: var(--green-500);
+    }
+    .quote .full { grid-column: 1 / -1; }
+    .quote fieldset {
+      border: none;
+      padding: 0;
+      margin: 0;
+    }
+    .quote legend {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+    }
+    .options {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    .options label {
+      font-weight: 400;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin: 0;
+    }
+    .options input { width: auto; }
+    .quote .btn-primary { border: none; }
+
+    /* Footer */
+    .site-footer {
+      background: var(--green-900);
+      color: #c9dccd;
+      padding: 32px 0;
+      font-size: 0.95rem;
+    }
+    .site-footer .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .site-footer a { color: #fff; }
+
+    @media (max-width: 600px) {
+      .site-nav a { margin-left: 0; margin-right: 14px; }
+      .btn-ghost { margin-left: 0; margin-top: 10px; }
+      section { padding: 48px 0; }
+      .hero { padding: 56px 0 60px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a class="logo" href="index.html">David's <span>Landscaping</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="index.html">Home</a>
+        <a href="spring-cleanups.html" aria-current="page">Spring Cleanups</a>
+        <a href="#quote">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <div class="hero">
+      <div class="container">
+        <p class="eyebrow">Seasonal Service</p>
+        <h1>Spring Cleanups that get your yard ready to grow</h1>
+        <p class="lead">
+          Winter leaves behind matted leaves, broken branches, and tired beds.
+          David's Landscaping clears it all out and sets your lawn and gardens
+          up for a healthy, great-looking season.
+        </p>
+        <a class="btn btn-primary" href="#quote">Get a Free Quote</a>
+        <a class="btn btn-ghost" href="#included">What's Included</a>
+      </div>
+    </div>
+
+    <!-- What's included -->
+    <section id="included">
+      <div class="container">
+        <h2>What's included</h2>
+        <p class="section-intro">
+          Every spring cleanup is tailored to your property, but most include
+          the following. Tell us what you need and we'll build the visit around it.
+        </p>
+
+        <div class="grid">
+          <div class="card">
+            <div class="icon" aria-hidden="true">🍂</div>
+            <h3>Leaf &amp; debris removal</h3>
+            <p>We rake and blow out leftover leaves, sticks, and winter debris from lawns, beds, and along fences and foundations.</p>
+          </div>
+          <div class="card">
+            <div class="icon" aria-hidden="true">🌱</div>
+            <h3>Lawn dethatching &amp; raking</h3>
+            <p>Removing the matted layer of dead grass lets air, water, and nutrients reach the roots so the lawn greens up faster.</p>
+          </div>
+          <div class="card">
+            <div class="icon" aria-hidden="true">✂️</div>
+            <h3>Pruning &amp; cutbacks</h3>
+            <p>We cut back perennials and ornamental grasses, and prune shrubs and small trees to remove dead or damaged growth.</p>
+          </div>
+          <div class="card">
+            <div class="icon" aria-hidden="true">🪴</div>
+            <h3>Bed cleanup &amp; edging</h3>
+            <p>Beds are weeded and cleared, then given a crisp, clean edge that keeps grass out and makes the whole yard look sharp.</p>
+          </div>
+          <div class="card">
+            <div class="icon" aria-hidden="true">🟫</div>
+            <h3>Fresh mulch</h3>
+            <p>A new layer of mulch holds in moisture, keeps weeds down, and gives your beds a finished, well-kept look.</p>
+          </div>
+          <div class="card">
+            <div class="icon" aria-hidden="true">🚜</div>
+            <h3>First mow &amp; haul-away</h3>
+            <p>We can finish with the first mow of the season, and every bit of debris is hauled away so you're left with nothing to clean up.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Why -->
+    <section class="alt">
+      <div class="container two-col">
+        <div>
+          <h2>Why a spring cleanup matters</h2>
+          <p class="section-intro">
+            A thorough cleanup early in the season pays off all year long.
+          </p>
+          <ul class="checklist">
+            <li><strong>Healthier lawn.</strong> Clearing leaves and thatch prevents mold, snow mold damage, and bare patches.</li>
+            <li><strong>Fewer weeds.</strong> Cleaning and mulching beds early stops weeds before they get established.</li>
+            <li><strong>Stronger plants.</strong> Proper cutbacks and pruning encourage vigorous new growth and better blooms.</li>
+            <li><strong>Pest prevention.</strong> Removing debris eliminates hiding places for ticks, insects, and rodents.</li>
+            <li><strong>Instant curb appeal.</strong> A clean, edged, freshly mulched yard looks great from day one.</li>
+          </ul>
+        </div>
+        <div class="callout">
+          <h3>Book early — spring fills up fast</h3>
+          <p>
+            Our spring schedule books up quickly once the snow melts. Reserve
+            your spot now and we'll get you on the calendar as soon as the
+            ground is ready.
+          </p>
+          <a class="btn btn-primary" href="#quote">Reserve My Cleanup</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Process -->
+    <section>
+      <div class="container">
+        <h2>How it works</h2>
+        <p class="section-intro">Simple from start to finish.</p>
+        <div class="steps">
+          <div class="step">
+            <h3>Request a quote</h3>
+            <p>Fill out the form below or give us a call with a few details about your property.</p>
+          </div>
+          <div class="step">
+            <h3>Get your estimate</h3>
+            <p>We'll walk the property or review photos and send a clear, up-front price.</p>
+          </div>
+          <div class="step">
+            <h3>We do the work</h3>
+            <p>Our crew arrives on the scheduled day and takes care of everything on the list.</p>
+          </div>
+          <div class="step">
+            <h3>Enjoy your yard</h3>
+            <p>Debris hauled away, beds finished, lawn ready to grow — nothing left for you to do.</p>
+          </div>
+        </div>
+
+        <div class="pricing-note">
+          <strong>About pricing:</strong> Every yard is different, so each
+          cleanup is quoted individually. The price depends on property size,
+          the amount of leaves and debris, the number of beds, and any extras
+          like mulch or dethatching. Estimates are always free.
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="alt">
+      <div class="container">
+        <h2>Frequently asked questions</h2>
+        <p class="section-intro">Have another question? Just ask when you request your quote.</p>
+
+        <details>
+          <summary>When is the best time for a spring cleanup?</summary>
+          <p>Usually as soon as the snow is gone and the ground has firmed up enough to work on without damaging the lawn — typically early to mid spring.</p>
+        </details>
+        <details>
+          <summary>How long does a cleanup take?</summary>
+          <p>Most residential cleanups are finished in a single visit. Larger properties or yards with heavy debris may take a bit longer; we'll let you know when we quote the job.</p>
+        </details>
+        <details>
+          <summary>Do I need to be home?</summary>
+          <p>No. As long as we can access the yard, you don't need to be there. We'll let you know when the work is done.</p>
+        </details>
+        <details>
+          <summary>What do you do with the debris?</summary>
+          <p>We bag or load all leaves, branches, and clippings and haul them away, so there's nothing left at the curb.</p>
+        </details>
+        <details>
+          <summary>Can I add mulch or other services?</summary>
+          <p>Absolutely. Mulching, dethatching, the first mow, and other services can be added to your cleanup. Just check them off on the quote form.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- Quote form -->
+    <section id="quote" class="quote">
+      <div class="container">
+        <h2>Get your free spring cleanup quote</h2>
+        <p class="section-intro">
+          Tell us a little about your property and we'll get back to you with an estimate.
+        </p>
+
+        <!-- TODO: point the form action at your form handler or email service. -->
+        <form action="#" method="post">
+          <div>
+            <label for="name">Name</label>
+            <input id="name" name="name" type="text" autocomplete="name" required>
+          </div>
+          <div>
+            <label for="phone">Phone</label>
+            <input id="phone" name="phone" type="tel" autocomplete="tel" required>
+          </div>
+          <div>
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="email">
+          </div>
+          <div>
+            <label for="address">Property address</label>
+            <input id="address" name="address" type="text" autocomplete="street-address" required>
+          </div>
+          <div>
+            <label for="size">Approximate yard size</label>
+            <select id="size" name="size">
+              <option value="">Select one</option>
+              <option>Small (under 1/4 acre)</option>
+              <option>Medium (1/4 – 1/2 acre)</option>
+              <option>Large (1/2 – 1 acre)</option>
+              <option>Over 1 acre</option>
+            </select>
+          </div>
+          <div>
+            <label for="timing">Preferred timing</label>
+            <select id="timing" name="timing">
+              <option value="">Select one</option>
+              <option>As soon as possible</option>
+              <option>Early spring</option>
+              <option>Mid spring</option>
+              <option>Flexible</option>
+            </select>
+          </div>
+
+          <fieldset class="full">
+            <legend>Services you're interested in</legend>
+            <div class="options">
+              <label><input type="checkbox" name="services" value="leaf-removal" checked> Leaf &amp; debris removal</label>
+              <label><input type="checkbox" name="services" value="dethatching"> Lawn dethatching</label>
+              <label><input type="checkbox" name="services" value="pruning"> Pruning &amp; cutbacks</label>
+              <label><input type="checkbox" name="services" value="bed-edging"> Bed cleanup &amp; edging</label>
+              <label><input type="checkbox" name="services" value="mulch"> Fresh mulch</label>
+              <label><input type="checkbox" name="services" value="first-mow"> First mow of the season</label>
+            </div>
+          </fieldset>
+
+          <div class="full">
+            <label for="notes">Anything else we should know?</label>
+            <textarea id="notes" name="notes" rows="4" placeholder="Gate codes, problem areas, pets, etc."></textarea>
+          </div>
+
+          <div class="full">
+            <button class="btn btn-primary" type="submit">Request My Free Quote</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div>&copy; <span id="year"></span> David's Landscaping. All rights reserved.</div>
+      <!-- TODO: add phone number and email -->
+      <div><a href="#quote">Request a quote</a></div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
