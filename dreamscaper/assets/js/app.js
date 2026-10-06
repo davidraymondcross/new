@@ -1,35 +1,37 @@
 /* DreamScaper – app shell: gallery, project flow, editor UI, autosave. */
-import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.5.0';
-import { store } from './store.js?v=2.5.0';
-import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.5.0';
-import { openAssetMaker } from './assetmaker.js?v=2.5.0';
-import { voiceButton } from './voice.js?v=2.5.0';
-import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.5.0';
-import { thumb, sprite } from './sprites.js?v=2.5.0';
-import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.5.0';
-import { Editor } from './editor.js?v=2.5.0';
-import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.5.0';
-import { sampleYard } from './sample.js?v=2.5.0';
-import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.5.0';
-import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.5.0';
-import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.5.0';
-import { openStudio } from './dsai.js?v=2.5.0';
-import { panelAI } from './aitools.js?v=2.5.0';
-import { shareSheet, printDesign } from './share.js?v=2.5.0';
-import { openPlantId } from './plantid.js?v=2.5.0';
-import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.5.0';
-import { onRewards } from './api.js?v=2.5.0';
-import { segment } from './aiclient.js?v=2.5.0';
-import { historyPanel } from './history.js?v=2.5.0';
-import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.5.0';
-import { logoArt, logoMark, wordmark } from './logo.js?v=2.5.0';
-import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.5.0';
-import { initStorage, openStorage } from './storage.js?v=2.5.0';
-import { initHub, openHub, isPro, newQuote, resumeWithDesign } from './crm.js?v=2.5.0';
-import { initHire, openFind, openProjects } from './hire.js?v=2.5.0';
-import { dreamscapeToPlan } from './takeoff.js?v=2.5.0';
-import { openGuide, guideBar } from './guide.js?v=2.5.0';
-import { initCredits, openCredits, handleReturn } from './credits.js?v=2.5.0';
+import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.6.0';
+import { store } from './store.js?v=2.6.0';
+import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.6.0';
+import { openAssetMaker } from './assetmaker.js?v=2.6.0';
+import { voiceButton } from './voice.js?v=2.6.0';
+import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.6.0';
+import { thumb, sprite } from './sprites.js?v=2.6.0';
+import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.6.0';
+import { Editor } from './editor.js?v=2.6.0';
+import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.6.0';
+import { sampleYard } from './sample.js?v=2.6.0';
+import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.6.0';
+import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.6.0';
+import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.6.0';
+import { openStudio } from './dsai.js?v=2.6.0';
+import { panelAI } from './aitools.js?v=2.6.0';
+import { shareSheet, printDesign } from './share.js?v=2.6.0';
+import { openPlantId } from './plantid.js?v=2.6.0';
+import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.6.0';
+import { onRewards } from './api.js?v=2.6.0';
+import { segment } from './aiclient.js?v=2.6.0';
+import { historyPanel } from './history.js?v=2.6.0';
+import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.6.0';
+import { logoArt, logoMark, wordmark } from './logo.js?v=2.6.0';
+import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.6.0';
+import { initStorage, openStorage } from './storage.js?v=2.6.0';
+import { initHub, openHub, isPro, newQuote, resumeWithDesign } from './crm.js?v=2.6.0';
+import { initHire, openFind, openProjects } from './hire.js?v=2.6.0';
+import { dreamscapeToPlan } from './takeoff.js?v=2.6.0';
+import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.6.0';
+import { initBoard, openBoard, addToBoard } from './board.js?v=2.6.0';
+import { openGuide, guideBar } from './guide.js?v=2.6.0';
+import { initCredits, openCredits, handleReturn } from './credits.js?v=2.6.0';
 
 const CFG = (() => {
 	try { return JSON.parse(document.getElementById('dreamscaper-config').textContent); } catch (e) { return {}; }
@@ -42,7 +44,9 @@ const TOOLS = [
 	['select', 'select', 'Select & move', 'V'],
 	['plants', 'plant', 'Plants & features', 'P'],
 	['paint', 'paint', 'Paint ground cover', 'B'],
-	['bed', 'bed', 'Draw a garden bed', 'L'],
+	['bed', 'shapes', 'Beds, patios, walks & walls', 'L'],
+	['measure', 'ruler', 'Measure & zones', 'M'],
+	['adjust', 'adjust', 'Adjust photo', 'J'],
 	['eraser', 'wand', 'Magic eraser', 'E'],
 	['ai', 'sparkle', 'AI tools', 'A'],
 	['scale', 'scale', 'Scale & perspective', 'S'],
@@ -95,6 +99,13 @@ function open() {
 	initCommunity(communityCtx());
 	initHub(hubCtx());
 	initHire(hubCtx());
+	initBoard({
+		get root() { return app.root; }, toast, store, ALL, MATERIALS, swatch, thumbFor, requireSignIn, plantFacts,
+		page: (title, sub, ...kids) => pageShell(title, sub, ...kids),
+		materialPicker: (on) => swatches(null, on),
+		capture: (k) => capture(k, { angles: [] }),
+		startAI: (prefill) => { leaveEditor(); openStudioFor(null, null, { prefill }); }
+	});
 	onRewards(showRewards);
 	root.addEventListener('pointerdown', pressFx);
 	let wasIn = null;
@@ -222,6 +233,7 @@ async function home() {
 			h('nav', { class: 'ds-home-links', 'aria-label': 'Help' },
 				h('button', { class: 'ds-btn ds-ghost', onclick: () => guide('start') }, '📖 How it works'),
 				h('button', { class: 'ds-btn ds-ghost', onclick: () => startTour('home', true) }, '🧭 Take the tour'),
+				h('button', { class: 'ds-btn ds-ghost', onclick: () => openBoard() }, '💡 Inspiration Board'),
 				h('button', { class: 'ds-btn ds-ghost', onclick: startSample }, '🏡 Try a sample yard')));
 	root.append(homeMain);
 	syncHireTiles();
@@ -483,6 +495,10 @@ function newProject() {
 				if (mode === 'ai') await createAIProject(nm, shot);
 				else await createProject(nm, shot, { id: uid(), angles: [] });
 			}),
+			h('details', { class: 'ds-start-from' }, h('summary', null, 'Or start from…'),
+				h('div', { class: 'ds-row ds-wrap' },
+					h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { m.remove(); startFromDesign(mode, name.value.trim()); } }, icon('folder', 16), ' One of my Dreamscapes or saved views'),
+					mode === 'ai' ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: async () => { m.remove(); const items = (await store.listBoard().catch(() => [])).filter((x) => x.blob).slice(0, 3); const refs = []; for (const it of items) { const b = await store.getBlob(it.blob); if (b) refs.push(await blobToBitmap(b)); } if (!refs.length) toast('Your Inspiration Board has no pictures yet — add some first.', 4500); openStudioFor(null, null, { prefill: { refs, words: '' } }); } }, '💡 My Inspiration Board') : null)),
 			h('label', { class: 'ds-label ds-wiz-name' }, 'Name (optional)', name),
 			h('button', { class: 'ds-link', onclick: step1 }, '← Back'));
 	};
@@ -497,6 +513,30 @@ async function createAIProject(name, shot) {
 	const saved = await store.putProject(p);
 	pushSoon('design', saved);
 	openStudioFor(p, null, { image: shot.bitmap, aerial: shot.kind === 'aerial', view: v.id, toEditor: true });
+}
+
+/** New Dreamscape from an existing one: copy the whole design, or start fresh from one of its views' photo. */
+async function startFromDesign(mode, nm) {
+	const list = await store.listProjects().catch(() => []);
+	if (!list.length) { toast('No Dreamscapes yet — start with a photo.'); return newProject(); }
+	const close = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => m.remove() }, icon('close'));
+	const box = h('div', { class: 'ds-hub-list' });
+	for (const p of list) {
+		box.append(h('div', { class: 'ds-ver-card' }, p.thumb ? h('img', { src: p.thumb, alt: '' }) : h('span', { class: 'ds-qthumb' }, '🏡'),
+			h('div', { class: 'ds-grow' }, h('b', null, p.name), h('small', null, `${p.views.length} view${p.views.length > 1 ? 's' : ''}`)),
+			h('div', { class: 'ds-row ds-wrap' },
+				mode !== 'ai' ? h('button', { class: 'ds-btn ds-sm', onclick: async () => { m.remove(); const c = await store.duplicate(p, nm || p.name + ' (copy)'); openProject(c.id); } }, 'Copy whole design') : null,
+				...p.views.map((v) => h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: async () => {
+					m.remove();
+					const b = await store.getBlob(v.before || v.base);
+					if (!b) return toast('That photo is missing.');
+					const bm = await blobToBitmap(b);
+					const shot = { blob: b, W: v.W, H: v.H, kind: v.kind, bitmap: bgFit(bm), ppf: v.ppf, where: v.where, cam: v.cam ? { ...v.cam } : undefined, label: v.label };
+					if (mode === 'ai') await createAIProject(nm || 'AI ' + p.name, shot);
+					else await createProject(nm || p.name + ' – new idea', shot, { id: uid(), angles: p.angles || [] });
+				} }, `Fresh from “${v.label}”`)))));
+	}
+	const m = modal(app.root, 'Start from one of my Dreamscapes', [h('p', { class: 'ds-hint' }, 'Copy a whole design to try a new idea, or start fresh from the original photo of any saved view.'), box], close, 'ds-modal-wide');
 }
 
 async function startSample() {
@@ -552,6 +592,7 @@ async function loadView(i, bitmap) {
 		img = await blobToBitmap(blob);
 	}
 	app.editor.open(p, v, img);
+	store.getBlob(v.before || v.base).then((b) => (b ? blobToBitmap(b) : null)).then((bm) => { if (app && app.editor && app.editor.view === v) app.editor.setOriginal(bm); }).catch(() => {});
 	renderTabs();
 	syncScenebar();
 	if (!v.coached) {
@@ -579,11 +620,18 @@ function buildEditorUI() {
 		h('div', { class: 'ds-spacer' }),
 		ui.status, ui.undo, ui.redo,
 		(ui.histBtn = h('button', { class: 'ds-icon-btn', 'aria-label': 'History', title: 'History — see every change and go back to any step', onclick: () => toggleHistory() }, icon('history'))),
+		(ui.layBtn = h('button', { class: 'ds-icon-btn', 'aria-label': 'Layers', title: 'Layers — show, hide, lock and arrange everything', onclick: () => toggleLayers() }, icon('layers'))),
 		(ui.cloud = h('span', { class: 'ds-cloud', hidden: !session.user, title: 'Saved to your account' }, icon('cloud', 18))),
 		pidButton(),
 		h('button', { class: 'ds-btn ds-ai-btn ds-sm', onclick: sendToAI, title: 'Send this design to Dreamscape AI' }, icon('sparkle', 18), h('span', { class: 'ds-hide-sm' }, ' Dreamscape AI')),
 		CFG.share ? h('button', { class: 'ds-btn ds-sm ds-send-btn', onclick: () => share() }, icon('send', 18), h('span', { class: 'ds-hide-sm' }, ' Send to ' + (CFG.shortBrand || 'us'))) : null,
 		moreMenu([
+			['versions', 'Design versions & notes', () => openVersions(edCtx())],
+			['compare', 'Compare designs', () => compareDialog(edCtx())],
+			['eye', 'Presentation mode', () => presentation(edCtx())],
+			['board', 'Save to my Inspiration Board', () => saveDesignToBoard()],
+			['chat', 'Request a consultation', () => contactUs('consult')],
+			['leaf', 'Ask a question', () => contactUs('question')],
 			['globe', 'Post to Dreamscape Browser', () => postFromEditor()],
 			...(session.crm && session.crm.on ? [['send', 'Get a quote from a local contractor', () => quoteFromEditor()]] : []),
 			...(isPro() ? [['edit', 'Turn into a quote (Contractor Hub)', () => proQuoteFromEditor()]] : []),
@@ -616,9 +664,11 @@ function buildEditorUI() {
 	app.editor = new Editor(ui.stage, {
 		onSelect: (o, soft) => { if (app.tool === 'select' || app.tool === 'plants') { if (soft && o && ui.inspector && ui.inspector.obj === o) updateInspector(); else renderPanel(); } },
 		onChange: (kind) => { saveSoon(kind); },
-		onHistory: () => { ui.undo.disabled = !app.editor.undoStack.length; ui.redo.disabled = !app.editor.redoStack.length; if (ui.hist) ui.hist.refresh(); },
+		onHistory: () => { ui.undo.disabled = !app.editor.undoStack.length; ui.redo.disabled = !app.editor.redoStack.length; if (ui.hist) ui.hist.refresh(); if (ui.layers) ui.layers.refresh(); },
 		onTool: (t) => { if (t === 'select' && app.tool !== 'select' && app.tool !== 'plants') { app.tool = 'select'; markTool(); renderPanel(); } },
 		onBed: () => app.tool === 'bed' && renderPanel(),
+		onSelectOp: (op, soft) => { if (app.tool === 'select' || app.tool === 'plants') { if (op && !soft && app.tool === 'plants') { app.tool = 'select'; markTool(); } renderPanel(); } if (ui.layers) ui.layers.refresh(); },
+		onMeasure: () => { if (app.tool === 'measure') renderPanel(); },
 		onMask: (n) => { if (app.tool === 'ai' && !!n !== !!app._aiSel) { app._aiSel = !!n; renderPanel(); } if (ui.eraseBtn) { ui.eraseBtn.disabled = !n; ui.eraseInfo.textContent = n ? `${n.toLocaleString()} pixels selected` : 'Nothing selected yet'; } },
 		toast
 	});
@@ -678,10 +728,13 @@ function scenebar() {
 	ui.play = h('button', { class: 'ds-icon-btn', 'aria-label': 'Play growth', title: 'Watch it grow', onclick: playGrowth }, icon('play', 18));
 	ui.night = h('button', { class: 'ds-icon-btn', title: 'Day / night', 'aria-label': 'Toggle night lighting', onclick: () => { p().night = !p().night; syncScenebar(); app.editor.render(); saveSoon(); } }, icon('moon', 18));
 	ui.sunBtn = h('button', { class: 'ds-icon-btn ds-sun', title: 'Flip sunlight direction', 'aria-label': 'Flip sunlight direction', onclick: () => { p().sun = -(p().sun || -1); app.editor.render(); saveSoon(); } }, icon('sun', 18));
+	ui.origBtn = h('button', { class: 'ds-icon-btn', title: 'Hold to see the original photo', 'aria-label': 'Hold to see the original photo' }, icon('eye', 18));
+	ui.origBtn.addEventListener('pointerdown', () => peekOriginal(true));
+	for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) ui.origBtn.addEventListener(ev, () => peekOriginal(false));
 	return h('div', { class: 'ds-scenebar' },
 		ui.seasons,
 		h('div', { class: 'ds-timeline' }, ui.play, h('span', { class: 'ds-muted' }, 'Time'), ui.years, ui.yearLabel),
-		h('div', { class: 'ds-row' }, ui.sunBtn, ui.night));
+		h('div', { class: 'ds-row' }, ui.origBtn, ui.sunBtn, ui.night));
 }
 
 function syncScenebar() {
@@ -727,6 +780,7 @@ function setTool(t) {
 	const ed = app.editor;
 	if (t === 'plants') ed.setTool(ed.placeItem ? 'place' : 'select');
 	else if (t === 'ai') ed.setTool('eraser');
+	else if (t === 'adjust') ed.setTool('pan');
 	else ed.setTool(t);
 	markTool();
 	renderPanel();
@@ -745,8 +799,10 @@ function renderPanel() {
 	requestAnimationFrame(() => { ui.panel.scrollTop = keepScroll ? st : 0; });
 	const t = app.tool;
 	if ((t === 'select' || t === 'plants') && ed.sel) return inspector(ed.sel);
+	if (t === 'select' && ed.selOp) return opInspector(ui.panel, ed.selOp, edCtx());
 	const P = {
-		select: panelSelect, plants: panelLibrary, paint: panelPaint, bed: panelBed, eraser: panelEraser, scale: panelScale, pan: panelPan,
+		select: panelSelect, plants: panelLibrary, paint: panelPaint, bed: (el) => panelShapes(el, edCtx()), eraser: panelEraser, scale: panelScale, pan: panelPan,
+		measure: (el) => panelMeasure(el, edCtx()), adjust: (el) => panelAdjust(el, edCtx()),
 		ai: (el) => panelAI(el, toolCtx())
 	}[t] || panelSelect;
 	P(ui.panel);
@@ -773,12 +829,12 @@ function panelSelect(el) {
 	const v = app.editor.view;
 	const n = v.objects.length;
 	add(el,
-		sect('Select & move', h('p', { class: 'ds-muted' }, n ? 'Tap a plant or feature to move it, resize it with the corner handle, or change its age.' : 'Nothing placed yet. Open the plant library to start designing.')),
+		sect('Select & move', h('p', { class: 'ds-muted' }, n || v.ops.length ? 'Tap a plant or feature to move, resize, rotate, flip, duplicate, blend or arrange it. Tap a bed, patio, walkway or wall to reshape it.' : 'Nothing placed yet. Open the plant library to start designing.')),
 		n ? null : sect(null, h('button', { class: 'ds-btn ds-wide', onclick: () => setTool('plants') }, icon('plant', 18), ' Open plant library')),
 		sect('In this view', h('div', { class: 'ds-stats' },
 			stat(n, 'plants & features'), stat(v.ops.length, 'ground areas'))),
 		sect('Shortcuts', h('ul', { class: 'ds-keys' },
-			...[['V P B L E S H', 'Switch tools'], ['Delete', 'Remove selected'], ['Ctrl D', 'Duplicate'], ['Ctrl Z', 'Undo'], ['Space-drag', 'Pan'], ['+ / −', 'Zoom']].map(([k, d]) => h('li', null, h('kbd', null, k), d)))));
+			...[['V P B L M J E S H', 'Switch tools'], ['Delete', 'Remove selected'], ['Ctrl D', 'Duplicate'], ['Arrows', 'Nudge selected'], ['[ / ]', 'Rotate selected'], ['Ctrl Z', 'Undo'], ['Space-drag', 'Pan'], ['+ / −', 'Zoom']].map(([k, d]) => h('li', null, h('kbd', null, k), d)))));
 }
 function stat(n, t) { return h('div', { class: 'ds-stat' }, h('b', null, String(n)), h('small', null, t)); }
 
@@ -1064,11 +1120,18 @@ function swatches(cur, on) {
 
 function panelPaint(el) {
 	const o = app.editor.opts.paint;
+	const mode = o.restore ? 'restore' : o.erase ? 'erase' : 'paint';
 	el.append(
-		sect('Paint ground cover', h('p', { class: 'ds-muted' }, 'Brush mulch, stone, lawn or pavers right onto the ground. Textures shrink into the distance and pick up real shadows from your photo.')),
-		sect(null, seg([['paint', 'Paint'], ['erase', 'Remove paint']], o.erase ? 'erase' : 'paint', (k) => { o.erase = k === 'erase'; })),
-		sect(null, slider('Brush size', 6, 260, 2, o.size, (v) => v + ' px', (v) => { o.size = v; })),
-		sect('Material', swatches(o.mat, (id) => { o.mat = id; o.erase = false; const bs = el.querySelectorAll('.ds-seg button'); bs.forEach((b, i) => { b.classList.toggle('on', i === 0); b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false'); }); })));
+		sect('Brush', h('p', { class: 'ds-muted' }, 'Brush mulch, stone, lawn or pavers right onto the ground. Textures shrink into the distance and pick up real shadows from your photo.')),
+		sect(null, seg([['paint', 'Paint'], ['erase', 'Erase paint'], ['restore', 'Restore photo']], mode, (k) => { o.erase = k === 'erase'; o.restore = k === 'restore'; renderPanel(); })),
+		o.restore ? h('p', { class: 'ds-hint ds-pad-x' }, 'Brush over any spot to bring back the original photo there — undoes erasing and AI changes just in that spot.') : null,
+		sect(null, slider('Brush size', 6, 260, 2, o.size, (v) => v + ' px', (v) => { o.size = v; }),
+			h('div', { class: 'ds-row ds-wrap' }, h('button', { class: 'ds-btn ds-ghost ds-sm', 'aria-label': 'Smaller brush', onclick: () => { o.size = Math.max(6, Math.round(o.size / 1.25)); renderPanel(); } }, icon('minus', 16), ' Smaller'), h('button', { class: 'ds-btn ds-ghost ds-sm', 'aria-label': 'Bigger brush', onclick: () => { o.size = Math.min(260, Math.round(o.size * 1.25)); renderPanel(); } }, icon('plus', 16), ' Bigger')),
+			seg([['0', 'Hard edge'], ['6', 'Soft edge']], (o.soft || 0) > 0 ? '6' : '0', (k) => { o.soft = +k; renderPanel(); }),
+			o.soft ? slider('Softness', 1, 24, 1, o.soft, (v) => v + ' px', (v) => { o.soft = v; }) : null,
+			o.restore ? null : slider('Opacity', 10, 100, 1, Math.round((o.alpha == null ? 1 : o.alpha) * 100), (v) => v + '%', (v) => { o.alpha = v / 100; })),
+		o.restore ? null :
+		sect('Material', swatches(o.mat, (id) => { o.mat = id; o.erase = false; o.restore = false; const bs = el.querySelectorAll('.ds-seg button'); bs.forEach((b, i) => { b.classList.toggle('on', i === 0); b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false'); }); })));
 }
 
 function panelBed(el) {
@@ -1096,7 +1159,16 @@ function panelEraser(el) {
 			slider('Expand edges', 0, 12, 1, o.grow, (v) => v + ' px', (v) => { o.grow = v; })),
 		sect('Fine-tune with a brush', seg([['', 'Tap select'], ['add', 'Brush add'], ['sub', 'Brush remove']], o.brush || '', (k) => { o.brush = k || null; ed._drawOverlay(); }),
 			slider('Brush size', 6, 160, 2, o.size, (v) => v + ' px', (v) => { o.size = v; })),
-		sect(null, ui.eraseBtn, ui.eraseInfo, h('button', { class: 'ds-btn ds-ghost ds-wide', onclick: () => ed.clearSelection() }, 'Clear selection')));
+		sect(null, ui.eraseBtn, ui.eraseInfo, h('button', { class: 'ds-btn ds-ghost ds-wide', onclick: () => ed.clearSelection() }, 'Clear selection')),
+		sect('Mask', h('p', { class: 'ds-hint' }, 'Shape the selection before you erase or fill it.'),
+			h('div', { class: 'ds-grid2' },
+				h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => ed.invertSelection() }, '⇄ Invert'),
+				h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => ed.growSelection(4) }, '＋ Expand'),
+				h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => ed.growSelection(-4) }, '－ Contract'),
+				h('button', { class: 'ds-btn ds-ghost ds-sm', disabled: !(session.ai && session.ai.segment), title: 'Use AI Smart Select in the AI tools', onclick: () => setTool('ai') }, '✨ Auto (AI)'))),
+		sect('Smart fill', h('p', { class: 'ds-hint' }, 'Fill the selection with a material — replace lawn, mulch, stone or pavement in one tap.'),
+			slider('Feather edge', 0, 16, 1, o.feather || 2, (v) => v + ' px', (v) => { o.feather = v; }),
+			swatches(null, (id) => { if (ed.fillSelection(id, o.feather == null ? 2 : o.feather)) toast('Filled! Undo anytime.'); else toast('Select an area first.'); })));
 }
 
 function panelScale(el) {
@@ -1136,11 +1208,9 @@ function inspector(o) {
 		box.push(sect('Growth over time', chart, h('p', { class: 'ds-hint' }, 'Use the Time slider below the picture to watch everything grow.')));
 		box.push(sect(null, slider('Age when planted', 0, maxAge(item), 1, o.age || 0, (v) => (v === 0 ? 'Seedling' : v + (v === 1 ? ' yr' : ' yrs')), (v) => { ed.updateSelected({ age: v }); updateInspector(); })));
 	}
-	box.push(sect(null, slider('Fine-tune size', 50, 200, 5, Math.round((o.scale || 1) * 100), (v) => v + '%', (v) => { ed.updateSelected({ scale: v / 100 }); updateInspector(); })));
+	box.push(...objectControls(o, edCtx()));
 	box.push(sect(null, h('div', { class: 'ds-actions' },
-		h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => ed.updateSelected({ flip: !o.flip }) }, icon('flip', 16), ' Flip'),
-		h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => ed.duplicateSelected() }, icon('copy', 16), ' Duplicate'),
-		h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => ed.frontSelected() }, icon('front', 16), ' To front'),
+		h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => addToBoard({ kind: 'plant', ref: item.id, name: item.name, thumb: thumbFor(item) }).then(() => toast('Saved to your Inspiration Board.')) }, '♡ Save to board'),
 		h('button', { class: 'ds-btn ds-danger ds-sm', onclick: () => ed.deleteSelected() }, icon('trash', 16), ' Remove'))));
 	box.push(sect(null, h('button', { class: 'ds-link', onclick: () => { ed.select(null); } }, '← Done')));
 	ui.panel.append(...box);
@@ -1390,6 +1460,98 @@ function toggleHistory() {
 	ui.stageWrap.append(ui.hist.el);
 }
 
+function toggleLayers() {
+	const ui = app.ui;
+	if (ui.layers) { ui.layers.close(); return; }
+	if (ui.hist) ui.hist.close();
+	ui.layers = layersPanel({ ...edCtx(), onClose: () => { ui.layers = null; ui.layBtn.classList.remove('on'); } });
+	ui.layBtn.classList.add('on');
+	ui.stageWrap.append(ui.layers.el);
+}
+
+/** Context for the 2.6 editor tool panels. */
+function edCtx() {
+	return {
+		ed: app.editor, root: app.root, toast, sect, slider, seg, swatches, byId, thumbFor, store,
+		project: () => app.project, renderPanel, setTool, saveSoon: () => saveSoon(),
+		refresh: () => renderPanel(),
+		defaultMat: (kind) => {
+			const g = kind === 'wall' ? ['Natural Stone', 'Pavers'] : kind === 'paver' ? ['Pavers', 'Natural Stone'] : ['Lawn & Groundcover'];
+			const re = kind === 'wall' ? /wall|block|fieldstone|ledge/i : kind === 'lawn' ? /lawn|grass|turf/i : /paver|bluestone|brick/i;
+			const list = MATERIALS.filter((m) => g.includes(m.group));
+			return (list.find((m) => re.test(m.name)) || list[0] || MATERIALS[0]).id;
+		},
+		peek: peekOriginal,
+		originalPhoto: async () => { const v = app.editor.view; const b = await store.getBlob(v.before || v.base); return b ? bgFit(await blobToBitmap(b)) : app.editor.baseCanvas(); },
+		addTransformedView,
+		restoreVersion: (ver) => restoreVersionInto(edCtx(), ver),
+		sceneChanged: () => { syncScenebar(); renderPanel(); },
+		download, share: shareDesign
+	};
+}
+
+let peekImg = null;
+async function peekOriginal(on) {
+	const ed = app.editor;
+	if (!ed) return;
+	if (!on) { ed.setPeek(null); return; }
+	if (!peekImg || peekImg._v !== ed.view.id) {
+		const b = await store.getBlob(ed.view.before || ed.view.base);
+		peekImg = b ? await blobToBitmap(b) : null;
+		if (peekImg) peekImg._v = ed.view.id;
+	}
+	ed.setPeek(peekImg);
+}
+
+/** A cropped / straightened / perspective-corrected copy of the current view becomes a new view. */
+async function addTransformedView(c, nv) {
+	const p = app.project;
+	const blob = await canvasToBlob(c, 'image/jpeg', 0.94);
+	const base = await store.putBlob(blob);
+	const v = { ...nv, id: uid(), label: (app.editor.view.label || 'View') + ' · straightened', base, edited: null, before: null, W: c.width, H: c.height, coached: true };
+	p.views.push(v);
+	await store.putProject(cleanProject());
+	loadView(p.views.length - 1, c);
+	renderTabs();
+}
+
+async function saveDesignToBoard() {
+	const pic = app.editor.composite(900);
+	await addToBoard({ kind: 'design', name: app.project.name, image: pic, ref: app.project.id });
+	toast('Saved to your Inspiration Board.');
+}
+
+/** Request a consultation / ask a question — goes to the business with the design attached. */
+async function contactUs(kind) {
+	const u = session.user || {};
+	const name = h('input', { type: 'text', value: u.name || '', autocomplete: 'name' });
+	const email = h('input', { type: 'email', value: u.email || '', autocomplete: 'email' });
+	const phone = h('input', { type: 'tel', value: u.phone || '', autocomplete: 'tel' });
+	const when = h('select', null, ...['Any time', 'Weekday mornings', 'Weekday afternoons', 'Evenings', 'Weekends'].map((x) => h('option', null, x)));
+	const how = h('select', null, ...['At my home', 'Phone call', 'Video call'].map((x) => h('option', null, x)));
+	const msg = h('textarea', { rows: 4, placeholder: kind === 'consult' ? 'What would you like to talk about? (budget, timing, what matters most)' : 'Your question about this design…' });
+	const err = h('p', { class: 'ds-err' });
+	const send = h('button', { class: 'ds-btn ds-wide' }, icon('send', 18), kind === 'consult' ? ' Request my consultation' : ' Send my question');
+	const close = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => m.remove() }, icon('close'));
+	const m = modal(app.root, kind === 'consult' ? 'Request a design consultation' : 'Ask a question', [
+		h('p', { class: 'ds-hint' }, `${CFG.brand} will see this design (${app.editor.view.label}), its plant list and your message.`),
+		h('div', { class: 'ds-form-grid' }, h('label', { class: 'ds-field' }, h('span', null, 'Name'), name), h('label', { class: 'ds-field' }, h('span', null, 'Email'), email), h('label', { class: 'ds-field' }, h('span', null, 'Phone'), phone)),
+		kind === 'consult' ? h('div', { class: 'ds-form-grid' }, h('label', { class: 'ds-field' }, h('span', null, 'Best time'), when), h('label', { class: 'ds-field' }, h('span', null, 'Where'), how)) : null,
+		h('label', { class: 'ds-field' }, h('span', null, kind === 'consult' ? 'Message' : 'Question'), msg), err, send], close);
+	send.onclick = async () => {
+		err.textContent = '';
+		if (kind === 'question' && msg.value.trim().length < 3) { err.textContent = 'Type your question first.'; return; }
+		send.disabled = true;
+		try {
+			const r = await fetch(CFG.api + 'share', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(session.nonce ? { 'X-WP-Nonce': session.nonce } : {}) }, credentials: 'same-origin', body: JSON.stringify({ kind, name: name.value, email: email.value, phone: phone.value, town: u.town || '', project: app.project.name, view: app.editor.view.label, plants: summarize(), message: (kind === 'consult' ? `Preferred: ${when.value}, ${how.value}\n` : '') + msg.value, image: finalImage(1600).toDataURL('image/jpeg', 0.86) }) });
+			const j = await r.json().catch(() => ({}));
+			if (!r.ok) throw new Error(j.message || 'Couldn’t send. Please try again.');
+			m.remove();
+			toast(kind === 'consult' ? 'Request sent! We’ll call you to set a time.' : 'Question sent! We’ll get back to you soon.', 5000);
+		} catch (e) { err.textContent = e.message; send.disabled = false; }
+	};
+}
+
 function guide(topic) { openGuide(app.root, CFG.brand, topic || 'start', tourSettings); }
 function tourSettings() {
 	openTourSettings(async (k) => {
@@ -1602,15 +1764,18 @@ function onKey(e) {
 	if (mod && k === 'y') { e.preventDefault(); ed.redo(); return; }
 	if (mod && k === 'd') { e.preventDefault(); ed.duplicateSelected(); return; }
 	if (mod) return;
-	if (k === 'delete' || k === 'backspace') { if (ed.sel) { e.preventDefault(); ed.deleteSelected(); } return; }
-	if (k === 'escape') { if (ed.tool === 'bed') ed.cancelBed(); else if (ed.tool === 'place') { ed.setTool('select'); renderPanel(); } else ed.select(null); return; }
+	if (k === 'delete' || k === 'backspace') { if (ed.sel) { e.preventDefault(); ed.deleteSelected(); } else if (ed.selOp) { e.preventDefault(); ed.deleteOp(ed.selOp); } return; }
+	if (k === 'escape') { if (ed.tool === 'bed') ed.cancelBed(); else if (ed.tool === 'measure') ed.cancelMeasure(); else if (ed.tool === 'place') { ed.setTool('select'); renderPanel(); } else { ed.select(null); ed.selectOp(null); } return; }
 	if (k === 'enter' && ed.tool === 'bed') { ed.finishBed(); return; }
+	if (k === 'enter' && ed.tool === 'measure') { ed.finishMeasure(); renderPanel(); return; }
+	if (ed.sel && k.startsWith('arrow')) { e.preventDefault(); const st = e.shiftKey ? 3 : 0.5; ed.nudgeSelected(k === 'arrowleft' ? -st : k === 'arrowright' ? st : 0, k === 'arrowup' ? st : k === 'arrowdown' ? -st : 0); return; }
+	if (ed.sel && (k === '[' || k === ']')) { ed.updateSelected({ rot: ((ed.sel.rot || 0) + (k === '[' ? -5 : 5) + 540) % 360 - 180 }); return; }
 	if (k === ' ') { if (!ed.spaceDown) { ed.spaceDown = true; window.addEventListener('keyup', (u) => { if (u.key === ' ') ed.spaceDown = false; }, { once: true }); } e.preventDefault(); return; }
 	if (k === '+' || k === '=') return ed.zoomBy(1.25);
 	if (k === '-') return ed.zoomBy(0.8);
 	if (k === '0') return ed.fit();
 	if (k === 'n') { app.project.night = !app.project.night; syncScenebar(); ed.render(); saveSoon(); return; }
-	const map = { v: 'select', p: 'plants', b: 'paint', l: 'bed', e: 'eraser', s: 'scale', h: 'pan' };
+	const map = { v: 'select', p: 'plants', b: 'paint', l: 'bed', m: 'measure', j: 'adjust', e: 'eraser', s: 'scale', h: 'pan' };
 	if (map[k]) setTool(map[k]);
 }
 

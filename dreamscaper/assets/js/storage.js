@@ -1,8 +1,8 @@
 /* DreamScaper – online storage: see what's used, what's left, and buy more (Stripe Checkout). */
-import { h, put, icon } from './util.js?v=2.5.0';
-import { session, api, setStorage } from './api.js?v=2.5.0';
-import { openAuth } from './account.js?v=2.5.0';
-import { modal } from './capture.js?v=2.5.0';
+import { h, put, icon } from './util.js?v=2.6.0';
+import { session, api, setStorage } from './api.js?v=2.6.0';
+import { openAuth } from './account.js?v=2.6.0';
+import { modal } from './capture.js?v=2.6.0';
 
 let ROOT = null;
 export function initStorage(root) { ROOT = root; }

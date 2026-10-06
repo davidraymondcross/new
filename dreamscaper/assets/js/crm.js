@@ -5,17 +5,17 @@
  * text, shortcodes) · Jobs & job costing · Schedule / dispatch · Invoices (Stripe Connect) ·
  * Settings (business, costs & markups, price book, terms, follow-up plan, crew, payments).
  */
-import { h, put, icon } from './util.js?v=2.5.0';
-import { session, api, refreshSession } from './api.js?v=2.5.0';
-import { modal, aerial, pickFile } from './capture.js?v=2.5.0';
-import { openPlan } from './siteplan.js?v=2.5.0';
-import { segment } from './aiclient.js?v=2.5.0';
-import { ALL, matchesWords, searchScore } from './library.js?v=2.5.0';
+import { h, put, icon } from './util.js?v=2.6.0';
+import { session, api, refreshSession } from './api.js?v=2.6.0';
+import { modal, aerial, pickFile } from './capture.js?v=2.6.0';
+import { openPlan } from './siteplan.js?v=2.6.0';
+import { segment } from './aiclient.js?v=2.6.0';
+import { ALL, matchesWords, searchScore } from './library.js?v=2.6.0';
 import {
 	PRICEBOOK, DEFAULT_COSTS, DEFAULT_FOLLOWUPS, DEFAULT_TERMS, SHORTCODES, KINDS,
 	mergeBook, mergeCosts, planToSections, priceEstimate, buildDocuments, scheduleFollowups, merge, missingCodes,
 	money, fmtArea, fmtFtIn, measure, round2
-} from './takeoff.js?v=2.5.0';
+} from './takeoff.js?v=2.6.0';
 
 let X = null; // { ctx, body, stack, cur, me }
 const STAGES = [['lead', 'Lead'], ['prospect', 'Prospect'], ['customer', 'Customer'], ['past', 'Past customer'], ['lost', 'Lost']];

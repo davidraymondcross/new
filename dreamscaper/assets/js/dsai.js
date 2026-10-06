@@ -2,16 +2,29 @@
  * Talk, tap ideas, add inspiration photos — any mix — and the prompt writes itself.
  * Every generation is kept; tweaks can always be undone back to the original.
  */
-import { h, put, icon, uid, canvas, canvasToBlob, blobToBitmap } from './util.js?v=2.5.0';
-import { session, onSession } from './api.js?v=2.5.0';
-import { openAuth, creditsPill } from './account.js?v=2.5.0';
-import { openCredits, confirmCredit } from './credits.js?v=2.5.0';
-import { SELECT, REMOVE, ADD, removePrompt, replacePrompt, improvePrompt, addPrompt } from './aitoolkit.js?v=2.5.0';
-import { historyPanel } from './history.js?v=2.5.0';
-import { maybeTour } from './tour.js?v=2.5.0';
-import { voiceButton, voiceSupported } from './voice.js?v=2.5.0';
-import { IDEAS, IDEA_GROUPS, GOAL_GROUPS, REF_ROLES, TWEAKS, buildPrompt, summarize, tweakPrompt, regionPrompt } from './aiprompt.js?v=2.5.0';
-import { runEdit, compositeMasked, loadImage, aiReady, segment, dilateMask } from './aiclient.js?v=2.5.0';
+import { h, put, icon, uid, canvas, canvasToBlob, blobToBitmap } from './util.js?v=2.6.0';
+import { session, onSession, api } from './api.js?v=2.6.0';
+import { openAuth, creditsPill } from './account.js?v=2.6.0';
+import { openCredits, confirmCredit } from './credits.js?v=2.6.0';
+import { SELECT, REMOVE, ADD, removePrompt, replacePrompt, improvePrompt, addPrompt } from './aitoolkit.js?v=2.6.0';
+import { historyPanel } from './history.js?v=2.6.0';
+import { maybeTour } from './tour.js?v=2.6.0';
+import { voiceButton, voiceSupported } from './voice.js?v=2.6.0';
+import { IDEAS, IDEA_GROUPS, GOAL_GROUPS, REF_ROLES, TWEAKS, STYLES, buildPrompt, summarize, tweakPrompt, regionPrompt, stylePrompt, KEEP_TEXT } from './aiprompt.js?v=2.6.0';
+import { runEdit, compositeMasked, loadImage, aiReady, segment, dilateMask, toJpeg } from './aiclient.js?v=2.6.0';
+
+/** AI design assistant tools (left rail → "AI tools"). Thinking tools are free; making an image uses credits. */
+const AI_TOOLS = [
+	['ask', '💬', 'Ask DreamScaper'],
+	['ideas', '💡', 'Give me ideas'],
+	['analyze', '🔍', 'Analyze my landscape'],
+	['style', '🎨', 'Change style'],
+	['variations', '🎲', 'Variations'],
+	['similar', '🧬', 'Generate similar'],
+	['keep', '🔒', 'Keep / change'],
+	['explain', '🧠', 'Explain this design']
+];
+const ASK_EXAMPLES = ['Make the front yard look better', 'Add more privacy', 'Create a low-maintenance landscape', 'Add a curved planting bed', 'Replace the lawn with a garden', 'Add a walkway to the front door', 'Make this backyard better for entertaining'];
 
 /**
  * ctx: { root, toast, store, brand, capture(kind) → shot, pickLibrary() → canvas|null,
@@ -65,6 +78,8 @@ export function openStudio(ctx, opts = {}) {
 	let sel = null;     // one-click selection { id, label, what, ideas, mask, W, H }
 	let place = null;   // one-click Add in progress { id, label, def, ideas, detail }
 	let railTab = 'select';
+	let aiTool = null;      // AI assistant tool open in the panel
+	let analysis = null, explained = null, asked = null, styleId = 'traditional', varN = 3, ideaCat = '';
 	let hist = null;
 	function drawViewer() {
 		viewer.innerHTML = '';
@@ -153,6 +168,7 @@ export function openStudio(ctx, opts = {}) {
 		panel.innerHTML = '';
 		if (!session.user || !session.ai.enabled) panel.append(lockedNote());
 		if (!photo) panel.append(stepPhoto());
+		else if (aiTool) panel.append(aiToolUI());
 		else if (place) panel.append(addUI());
 		else if (sel) panel.append(selectionUI());
 		else if (mode === 'build') panel.append(...buildUI());
@@ -357,9 +373,15 @@ export function openStudio(ctx, opts = {}) {
 	function drawRail() {
 		rail.innerHTML = '';
 		const off = !photo || busy;
-		const tabs = [['select', 'Select', 'select'], ['remove', 'Remove', 'trash'], ['add', 'Add', 'plus']];
+		const tabs = [['select', 'Select', 'select'], ['remove', 'Remove', 'trash'], ['add', 'Add', 'plus'], ['ai', 'AI tools', 'sparkle']];
 		const lists = { select: SELECT, remove: REMOVE, add: ADD };
 		const tabBar = h('div', { class: 'ds-rail-tabs', role: 'tablist' }, ...tabs.map(([id, label, ic]) => h('button', { role: 'tab', 'aria-selected': String(railTab === id), class: railTab === id ? 'on' : '', onclick: () => { railTab = id; drawRail(); } }, icon(ic, 16), ' ', label)));
+		if (railTab === 'ai') {
+			put(rail, h('div', { class: 'ds-rail-head' }, h('b', null, 'AI design assistant'), h('small', null, 'Ideas & advice are free · making a picture uses credits')), tabBar,
+				h('div', { class: 'ds-rail-list' }, ...AI_TOOLS.map(([id, e, label]) => h('button', { class: 'ds-rail-btn' + (aiTool === id ? ' on' : ''), disabled: !photo, onclick: () => { aiTool = aiTool === id ? null : id; sel = null; place = null; drawPanel(); drawViewer(); } }, h('span', { class: 'ds-rail-e' }, e), h('span', null, label)))),
+				!photo ? h('p', { class: 'ds-hint' }, 'Choose a photo first.') : null);
+			return;
+		}
 		const note = railTab === 'select' ? 'Free · highlights it, then choose what to do' : '1 AI credit each · only that one thing changes';
 		const list = h('div', { class: 'ds-rail-list' }, ...lists[railTab].map((t) => h('button', {
 			class: 'ds-rail-btn' + ((sel && sel.id === t[0] && railTab === 'select') || (place && place.id === t[0] && railTab === 'add') ? ' on' : ''),
@@ -557,6 +579,126 @@ export function openStudio(ctx, opts = {}) {
 		if (!session.ai.unlimited && session.ai.left <= 0) { openCredits(`You’ve used today’s ${session.ai.limit} free AI credits. They refill tomorrow — or add more now. Your designs are saved either way.`); return false; }
 		return confirmCredit(what);
 	}
+	/* ----------------------------------------------------- AI design assistant */
+	const keepList = () => { const k = S.goals.keep; return k instanceof Set ? [...k] : []; };
+	async function thinking(btn, label, fn) {
+		if (!session.user) { await openAuth({ reason: 'Sign in to use Dreamscape AI.' }); return; }
+		btn.disabled = true;
+		const t = btn.innerHTML;
+		btn.innerHTML = '';
+		btn.append(h('span', { class: 'ds-spin ds-spin-sm' }), ' ' + label);
+		try { await fn(); } catch (e) { toast(e.message, 5000); }
+		btn.disabled = false;
+		btn.innerHTML = t;
+	}
+	/** Make one picture from an instruction: a small change edits the current version, a full design starts from the photo. */
+	async function makeFrom(instruction, label, small) {
+		if (small && run.cur >= 0) return tweak(instruction, label);
+		if (!(await guard(label))) return;
+		setBusy(true, 'Designing…');
+		try {
+			const r = await runEdit({ image: photo, prompt: instruction, mode: 'dream', summary: label, lead: true, onProgress: (t) => { progress.querySelector('b').textContent = t; } });
+			await addVersion(r.img, r.blob, instruction, label.slice(0, 40), -1);
+			mode = 'perfect';
+			toast('Done! Drag the slider to compare.');
+		} catch (e) { toast(e.message, 5000); }
+		setBusy(false);
+		drawViewer();
+	}
+	function aiToolUI() {
+		const sec = h('section', { class: 'ds-ss ds-aitool' });
+		const head = AI_TOOLS.find((x) => x[0] === aiTool);
+		put(sec, h('div', { class: 'ds-row ds-between' }, h('h4', null, head[1] + ' ' + head[2]), h('button', { class: 'ds-icon-btn', 'aria-label': 'Close', onclick: () => { aiTool = null; drawPanel(); } }, icon('close', 18))));
+		const cur = run.cur >= 0 ? verImgs.get(run.cur) : null;
+		const left = session.ai.unlimited ? '' : ` · ${session.ai.left} left today`;
+		if (aiTool === 'ask') {
+			const ta = h('textarea', { rows: 3, placeholder: 'Ask in your own words… e.g. “Make this backyard better for entertaining”' }, asked ? asked.request : '');
+			const mic = voiceButton(ta, { raw: true, append: true, label: 'Tap and talk', listening: 'Listening…', onError: toast });
+			const go = h('button', { class: 'ds-btn' }, icon('sparkle', 16), ' Ask');
+			go.onclick = () => thinking(go, 'Thinking…', async () => {
+				const q = ta.value.trim();
+				if (q.length < 4) { toast('Tell DreamScaper what you’d like.'); return; }
+				const r = await api('ai/ask', { body: { request: q, image: toJpeg(cur || photo, 1024, 0.86), aerial: run.aerial, keep: keepList() } });
+				asked = { request: q, ...r };
+				drawPanel();
+			});
+			put(sec, h('p', { class: 'ds-hint' }, 'Describe what you want in plain words. DreamScaper turns it into exact design instructions for your photo — you see them before anything is made.'),
+				h('div', { class: 'ds-chips ds-chips-sm' }, ...ASK_EXAMPLES.map((x) => h('button', { class: 'ds-chip', onclick: () => { ta.value = x; } }, x))),
+				h('div', { class: 'ds-talk' }, mic ? h('div', { class: 'ds-talk-mic' }, mic) : null, ta), go);
+			if (asked) {
+				const ins = h('textarea', { rows: 4, class: 'ds-prompt' }, asked.instruction);
+				put(sec, h('div', { class: 'ds-ai-answer' },
+					h('p', null, asked.explain), asked.note ? h('p', { class: 'ds-hint' }, 'ℹ️ ' + asked.note) : null,
+					h('details', null, h('summary', null, 'The exact instructions (you can edit them)'), ins),
+					h('button', { class: 'ds-btn ds-wide', disabled: busy, onclick: () => makeFrom(ins.value.trim(), asked.request, asked.scope === 'small') }, icon('sparkle', 16), asked.scope === 'small' && cur ? ` Make this change (1 credit${left})` : ` Create this design (1 credit${left})`)));
+			}
+		} else if (aiTool === 'ideas' || aiTool === 'analyze') {
+			const go = h('button', { class: 'ds-btn' }, icon('sparkle', 16), analysis ? ' Look again' : aiTool === 'ideas' ? ' Give me ideas (free)' : ' Analyze my landscape (free)');
+			go.onclick = () => thinking(go, 'Looking at your yard…', async () => { analysis = await api('ai/analyze', { body: { image: toJpeg(photo, 1280, 0.86) } }); drawPanel(); });
+			put(sec, h('p', { class: 'ds-hint' }, aiTool === 'ideas' ? 'AI looks at your photo and suggests the improvements that would make the biggest difference. Tap “Try it” to see one.' : 'A full check of your yard: curb appeal, privacy, planting, hardscape, lighting, drainage, erosion, underused areas and maintenance — only what it can actually see.'), go);
+			if (analysis) {
+				const cats = [...new Set(analysis.items.map((x) => x.cat))];
+				const items = aiTool === 'ideas' ? analysis.items.slice(0, 5) : analysis.items.filter((x) => !ideaCat || x.cat === ideaCat);
+				put(sec, h('p', null, analysis.summary),
+					aiTool === 'analyze' ? h('div', { class: 'ds-chips ds-chips-sm' }, h('button', { class: 'ds-chip' + (!ideaCat ? ' on' : ''), onclick: () => { ideaCat = ''; drawPanel(); } }, 'All'), ...cats.map((cid) => h('button', { class: 'ds-chip' + (ideaCat === cid ? ' on' : ''), onclick: () => { ideaCat = cid; drawPanel(); } }, analysis.items.find((x) => x.cat === cid).label))) : null,
+					...items.map((it) => h('div', { class: 'ds-idea' },
+						h('div', { class: 'ds-row ds-between' }, h('b', null, it.title), h('small', { class: 'ds-qs' }, it.label + ' · ' + ['', 'Do first', 'Worth it', 'Nice to have'][it.priority])),
+						it.seen ? h('small', { class: 'ds-muted' }, '👀 ' + it.seen) : null,
+						h('p', null, it.why),
+						h('button', { class: 'ds-btn ds-ghost ds-sm', disabled: busy, onclick: () => makeFrom(it.idea, it.title, !!cur) }, icon('sparkle', 14), cur ? ' Try it on this design (1 credit)' : ' Try it (1 credit)'))));
+			}
+		} else if (aiTool === 'style') {
+			put(sec, h('p', { class: 'ds-hint' }, 'See your yard in a completely different style. Starts from your original photo; your house stays the same.'),
+				h('div', { class: 'ds-chips' }, ...STYLES.map(([id, label]) => h('button', { class: 'ds-chip' + (styleId === id ? ' on' : ''), onclick: () => { styleId = id; drawPanel(); } }, label))),
+				h('button', { class: 'ds-btn ds-wide', disabled: busy, onclick: () => makeFrom(stylePrompt(styleId, run.aerial), STYLES.find((x) => x[0] === styleId)[1] + ' style', false) }, icon('sparkle', 16), ` Show it in this style (1 credit${left})`));
+		} else if (aiTool === 'variations') {
+			const prompt = (run.versions[run.cur] && run.versions[run.cur].prompt) || S.custom || buildPrompt({ ...S, aerial: run.aerial });
+			put(sec, h('p', { class: 'ds-hint' }, 'Same instructions, different results — pick the one you love. Each variation is its own version you can compare and keep.'),
+				h('div', { class: 'ds-seg ds-seg-full' }, ...[2, 3, 4].map((n) => h('button', { class: varN === n ? 'on' : '', onclick: () => { varN = n; drawPanel(); } }, n + ' variations'))),
+				h('button', { class: 'ds-btn ds-wide', disabled: busy, onclick: async () => {
+					if (!session.ai.unlimited && session.ai.left < varN) { toast(`That needs ${varN} credits — you have ${session.ai.left} left today.`); return; }
+					if (!(await guard(`${varN} variations`))) return;
+					setBusy(true, `Creating ${varN} variations…`);
+					for (let k = 1; k <= varN; k++) {
+						try {
+							progress.querySelector('b').textContent = `Variation ${k} of ${varN}…`;
+							const r = await runEdit({ image: photo, refs: refImgs, prompt, mode: 'dream', summary: 'Variation', lead: k === 1, seed: Math.floor(Math.random() * 2 ** 31) });
+							await addVersion(r.img, r.blob, prompt, `Variation ${k}`, -1);
+						} catch (e) { toast(e.message, 5000); break; }
+					}
+					mode = 'perfect';
+					setBusy(false);
+					drawViewer();
+				} }, icon('sparkle', 16), ` Create ${varN} variations (${varN} credits)`));
+		} else if (aiTool === 'similar') {
+			put(sec, h('p', { class: 'ds-hint' }, cur ? 'Love this one? Get another design with the same style, plants and colors — but a fresh layout.' : 'Make or pick a design first, then generate more like it.'),
+				h('button', { class: 'ds-btn ds-wide', disabled: busy || !cur, onclick: async () => {
+					if (!(await guard('A similar design'))) return;
+					setBusy(true, 'Creating a similar design…');
+					try {
+						const prompt = `Redesign the landscaping in image 1 in the same landscape style, plant palette, materials and colors as the design in image 2, but with a fresh, different layout that suits image 1. ${KEEP_TEXT}. Realistic professional landscape photograph.`;
+						const r = await runEdit({ image: photo, refs: [cur], prompt, mode: 'dream', summary: 'Similar design', lead: false });
+						await addVersion(r.img, r.blob, prompt, 'Similar design', -1);
+						toast('Here’s a similar design. Compare them with the thumbnails.');
+					} catch (e) { toast(e.message, 5000); }
+					setBusy(false);
+					drawViewer();
+				} }, icon('sparkle', 16), ` Generate similar (1 credit${left})`));
+		} else if (aiTool === 'keep') {
+			const grp = (gid) => { const g = GOAL_GROUPS.find((x) => x.id === gid); return h('div', { class: 'ds-chips' }, ...g.items.map(([id, label]) => { const set = S.goals[gid] instanceof Set ? S.goals[gid] : null; const on = !!(set && set.has(id)); return h('button', { class: 'ds-chip' + (on ? ' on' : ''), 'aria-pressed': String(on), onclick: () => { const st = S.goals[gid] instanceof Set ? S.goals[gid] : (S.goals[gid] = new Set()); on ? st.delete(id) : st.add(id); save(); drawPanel(); } }, label); })); };
+			put(sec, h('p', { class: 'ds-hint' }, 'Tell the AI what it must leave alone and what it may redesign. The house, roof, driveway and camera angle are always kept. Used by every design you make from now on.'),
+				h('h5', null, '🔒 Must keep'), grp('keep'), h('h5', null, '✏️ Free to change'), grp('change'));
+		} else if (aiTool === 'explain') {
+			const go = h('button', { class: 'ds-btn', disabled: !cur }, icon('sparkle', 16), explained ? ' Explain again' : ' Explain this design (free)');
+			go.onclick = () => thinking(go, 'Studying the design…', async () => { explained = await api('ai/explain', { body: { before: toJpeg(photo, 1024, 0.85), after: toJpeg(cur, 1024, 0.85), instructions: (run.versions[run.cur] || {}).prompt || '' } }); drawPanel(); });
+			put(sec, h('p', { class: 'ds-hint' }, cur ? 'A landscape designer’s explanation of what changed and why it works — handy before you talk to a contractor.' : 'Create or pick a design first.'), go);
+			if (explained) put(sec, h('div', { class: 'ds-ai-answer' }, h('p', null, explained.summary),
+				...explained.points.map((x) => h('div', { class: 'ds-idea' }, h('b', null, x.title), h('p', null, x.why))),
+				explained.notes.length ? h('div', null, h('h5', null, 'Good to know'), h('ul', null, ...explained.notes.map((n) => h('li', null, n)))) : null));
+		}
+		return sec;
+	}
+
 	function setBusy(b, text) {
 		busy = b;
 		progress.hidden = !b;
@@ -642,6 +784,16 @@ export function openStudio(ctx, opts = {}) {
 			for (const r of S.refs) { const rb = r.blob && await store.getBlob(r.blob); refImgs.push(rb ? toCanvas(await blobToBitmap(rb)) : canvas(8, 8)); }
 			if (run.cur >= 0) await ensureVer(run.cur);
 		} else if (opts.image) await setPhoto(opts.image, opts.aerial);
+		if (opts.prefill) {
+			if (opts.prefill.words) S.words = opts.prefill.words;
+			for (const c of (opts.prefill.refs || []).slice(0, 3 - S.refs.length)) {
+				const rc = toCanvas(c, 1024);
+				refImgs.push(rc);
+				S.refs.push({ role: 'style', note: '', blob: await store.putBlob(await canvasToBlob(rc, 'image/jpeg', 0.88)) });
+			}
+			save();
+			if (opts.prefill.words || (opts.prefill.refs || []).length) toast('Your inspiration is loaded — choose your yard photo, then press Create.', 5000);
+		}
 		drawViewer();
 		drawPanel();
 		maybeTour('ai');

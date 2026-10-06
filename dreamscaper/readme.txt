@@ -4,7 +4,7 @@ Tags: landscape design, garden planner, yard design, visualizer
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.5.0
+Stable tag: 2.6.0
 License: GPLv2 or later
 
 A fun, full-screen yard design studio for your website visitors.
@@ -65,6 +65,24 @@ The live camera needs the page to load over https. If the camera isn't available
 to the phone's photo picker.
 
 == Changelog ==
+
+= 2.6.0 =
+* New: Object controls in the editor — move with the on-screen pad, arrow keys or by dragging (up/down moves farther away or closer on the ground), resize, rotate (buttons, slider, exact angle, [ and ] keys), flip either way, bring forward/send back, hide, lock, rename, opacity, brightness/contrast/saturation/warmth and shadow length, softness and direction.
+* Duplicate and plant groups: a row or a natural cluster of any plant, spaced on the ground at its mature spread (or any spacing you choose).
+* Auto blend matches a placed plant or feature to the photo around it — brightness, contrast, color, warmth and a ground shadow.
+* Landscape shapes: planting beds, patios, lawn, walkways (with width), retaining walls (with height, block courses and cap) and edging (metal, plastic, stone, brick). Curved or straight edges, or drag a rectangle that follows the photo's perspective. Tap any shape to select it, drag it or its corners, resize it, change its material, edging, width or height, duplicate or delete it — with its size shown (≈ sq ft and length).
+* Measure tool: distances, areas and heights on the photo, using the scale you set.
+* Paint: soft or hard brush with opacity, eraser, and Restore photo to paint the original back. Mask tools: invert, expand, contract, feather, auto select and Smart fill with any material.
+* Adjust photo: exposure, brightness, contrast, highlights, shadows, warmth, tint, saturation, vibrance, hue, greens (lawn & leaves), sharpen, reduce noise and blur, plus presets (Bright & fresh, Golden hour, Lush green, Overcast fix, Soft & airy) — non-destructive. Crop, rotate, straighten and perspective-correct a photo into a new view; everything you placed moves with it.
+* Hold the eye button to peek at the original photo at any time.
+* Layers: show/hide, lock, rename, duplicate, delete, reorder and opacity for every plant, feature and shape.
+* Design versions: save, rename, duplicate, restore and delete versions of a design; compare any two side-by-side or with a before/after slider.
+* Presentation mode: fullscreen before & after slideshow of your views, with Favorite, your project notes, download and share.
+* Dreamscape AI tools: Ask DreamScaper (answers about your own yard), Give me ideas, Landscape analysis (what works, what to fix, sun and soil notes), Change style (Traditional, Modern, Contemporary, Natural, Cottage, Formal, Rustic, Low-maintenance, Native, Pollinator, Luxury), Variations, Generate similar, Keep / change (keep your trees, walkway, patio, fence or beds), and Explain this design.
+* Inspiration Board: save pictures, plants, materials, styles and designs you love. AI Style Analysis finds what they have in common and Apply this style to my yard sends it to Dreamscape AI with your pictures as references.
+* Request a consultation or ask a question from any design; it reaches the contractor's CRM as a lead with the design attached.
+* Start a new Dreamscape from an original photo, a saved view, an existing design, your Inspiration Board or a new photo.
+* Fix: the 2D Landscape Plan's styles covered the Dreamscape AI side panel (2.5.0). The plan now uses its own class.
 
 = 2.5.0 =
 * New: Contractor Hub — a CRM for landscapers built around the DESIGN → QUOTE engine. Any contractor can apply (My Account / home screen → For Contractors); you approve them under Settings → DreamScaper Contractors. You are always approved as your own business.

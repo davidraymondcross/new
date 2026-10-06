@@ -1,16 +1,27 @@
 /* DreamScaper – canvas editor engine: scene rendering, perspective, tools, history. */
-import { canvas, clamp, uid, smoothPath } from './util.js?v=2.5.0';
-import { byId, sizeAt } from './library.js?v=2.5.0';
-import { sprite } from './sprites.js?v=2.5.0';
-import { fillGround } from './textures.js?v=2.5.0';
-import { magicSelect, inpaint, dilate, maskBBox, maskCount } from './eraser.js?v=2.5.0';
+import { canvas, clamp, uid, smoothPath } from './util.js?v=2.6.0';
+import { byId, sizeAt } from './library.js?v=2.6.0';
+import { sprite } from './sprites.js?v=2.6.0';
+import { fillGround } from './textures.js?v=2.6.0';
+import { magicSelect, inpaint, dilate, maskBBox, maskCount } from './eraser.js?v=2.6.0';
+import { groundPoint, polyArea, fmtFtIn, sampleSmooth } from './takeoff.js?v=2.6.0';
+import { applyAdjust, hasAdjust } from './photoedit.js?v=2.6.0';
 
 const EDGING = {
 	none: null,
 	steel: { col: '#2b2622', ft: 0.12 },
 	stone: { col: '#a8a39a', ft: 0.6, joints: '#6f6a62' },
-	brick: { col: '#8e4a35', ft: 0.45, joints: '#d9c9ad' }
+	brick: { col: '#8e4a35', ft: 0.45, joints: '#d9c9ad' },
+	plastic: { col: '#1c1c1c', ft: 0.08 }
 };
+export const ZONES = { plant: ['Planting zone', '#7be0a0'], hard: ['Hardscape zone', '#cfd8dc'], keep: ['Existing – keep', '#f4c95d'], remove: ['Existing – remove', '#ff8a7a'], area: ['Area', '#8ec5ff'] };
+/** Per-object look: brightness, contrast, saturation, warmth (−1…1) → canvas filter. */
+export function objFilter(fx) {
+	if (!fx) return 'none';
+	const b = fx.b || 0, c = fx.c || 0, s = fx.s || 0, w = fx.w || 0;
+	if (!b && !c && !s && !w) return 'none';
+	return `brightness(${(1 + b).toFixed(3)}) contrast(${(1 + c).toFixed(3)}) saturate(${(1 + s + Math.max(0, w) * 0.15).toFixed(3)})` + (w > 0 ? ` sepia(${(w * 0.28).toFixed(3)})` : w < 0 ? ` hue-rotate(${(w * 14).toFixed(1)}deg)` : '');
+}
 
 export class Editor {
 	constructor(stage, hooks) {
@@ -27,8 +38,9 @@ export class Editor {
 		this.z = 1; this.ox = 0; this.oy = 0;
 		this.tool = 'select';
 		this.opts = {
-			paint: { mat: 'mulch', size: 40, erase: false },
-			bed: { mat: 'mulch', edging: 'steel' },
+			paint: { mat: 'mulch', size: 40, erase: false, soft: 0, alpha: 1, restore: false },
+			bed: { mat: 'mulch', edging: 'steel', shape: 'bed', curved: true, width: 4, height: 2, cap: true, rect: false },
+			measure: { mode: 'dist', zone: 'plant' },
 			eraser: { mode: 'region', tol: 30, grow: 3, brush: null, size: 30 },
 			scale: { person: true }
 		};
@@ -40,6 +52,11 @@ export class Editor {
 		this.hover = null;
 		this.bedPts = [];
 		this.selMask = null;
+		this.selOp = null;
+		this.measPts = [];
+		this.peek = null;
+		this.orig = null;
+		this.adjusted = null;
 		this.personPos = null;
 		this._raf = 0;
 		this._bindEvents();
@@ -64,10 +81,13 @@ export class Editor {
 		this.groundShaded = canvas(W, H);
 		this._buildShade();
 		this.undoStack = []; this.redoStack = [];
-		this.sel = null; this.selMask = null; this.bedPts = [];
+		this.sel = null; this.selMask = null; this.bedPts = []; this.selOp = null; this.measPts = []; this.peek = null; this.orig = null;
+		if (!view.meas) view.meas = [];
+		this.adjusted = null;
 		if (view.kind !== 'aerial' && !view.cam) view.cam = { horizon: Math.round(H * 0.42), camH: 5, focal: Math.round(0.785 * Math.max(W, H)) };
 		this.personPos = view.kind === 'aerial' ? { x: W * 0.5, y: H * 0.5 } : { x: W * 0.7, y: Math.round(view.cam.horizon + (H - view.cam.horizon) * 0.3) };
 		this.rebuildGround();
+		this._invalidateAdj();
 		this.fit();
 		this.render();
 		this.hooks.onSelect && this.hooks.onSelect(null);
@@ -124,15 +144,73 @@ export class Editor {
 	rebuildGround() {
 		const g = this.ground.getContext('2d');
 		g.clearRect(0, 0, this.W, this.H);
-		for (const op of this.view.ops) this._applyOp(op);
+		for (const op of this.view.ops) if (!op.hidden) this._applyOp(op);
 		this._composeGround();
+	}
+
+	/* ---------------------------------------------- ground geometry helpers */
+
+	/** Image point → ground position in feet (null above the horizon). */
+	toGround(p) {
+		const x = Array.isArray(p) ? p[0] : p.x, y = Array.isArray(p) ? p[1] : p.y;
+		if (this.isTop) return [x / this.view.ppf, y / this.view.ppf];
+		return groundPoint(x, y, this.view.cam, this.W);
+	}
+	/** Ground position (feet) → image point. */
+	fromGround(g) {
+		if (this.isTop) return [g[0] * this.view.ppf, g[1] * this.view.ppf];
+		const c = this.view.cam, f = c.focal || 0.785 * this.W, Z = Math.max(0.5, g[1]);
+		return [this.W / 2 + (g[0] * f) / Z, c.horizon + ((c.camH || 5) * f) / Z];
+	}
+	/** Polygon (image px) for a walkway: centerline + width in feet, built on the ground so it narrows with distance. */
+	_pathPoly(pts, widthFt, curved) {
+		const line = curved && pts.length > 2 ? sampleSmooth(pts, false, 6) : pts;
+		const gl = line.map((p) => this.toGround([p[0], this.isTop ? p[1] : Math.max(p[1], this.view.cam.horizon + 2)]));
+		if (gl.some((g) => !g)) return line;
+		const L = [], R = [], hw = widthFt / 2;
+		for (let i = 0; i < gl.length; i++) {
+			const a = gl[Math.max(0, i - 1)], b = gl[Math.min(gl.length - 1, i + 1)];
+			let dx = b[0] - a[0], dz = b[1] - a[1];
+			const n = Math.hypot(dx, dz) || 1;
+			dx /= n; dz /= n;
+			L.push(this.fromGround([gl[i][0] - dz * hw, gl[i][1] + dx * hw]));
+			R.push(this.fromGround([gl[i][0] + dz * hw, gl[i][1] - dx * hw]));
+		}
+		return [...L, ...R.reverse()];
+	}
+	/** Retaining wall: bottom line + the same line raised by the wall height (a 1 ft band from above). */
+	_wallPoly(pts, heightFt, curved) {
+		if (this.isTop) return this._pathPoly(pts, 1, curved);
+		const line = curved && pts.length > 2 ? sampleSmooth(pts, false, 6) : pts;
+		const top = line.map((p) => [p[0], p[1] - heightFt * this.ppfAt(p[1])]);
+		return { poly: [...line, ...top.slice().reverse()], top, line };
+	}
+	/** The outline that is actually filled for an op (polygon in image px). */
+	opPoly(op) {
+		if (op.t === 'path') return this._pathPoly(op.pts, op.width || 4, op.curved);
+		if (op.t === 'wall') { const w = this._wallPoly(op.pts, op.height || 2, op.curved); return Array.isArray(w) ? w : w.poly; }
+		if (op.t === 'poly') return op.straight ? op.pts : sampleSmooth(op.pts, true, 8);
+		return null;
+	}
+	/** Real-world size of an op (≈ for photos). */
+	opMeasure(op) {
+		const g = (pts) => pts.map((p) => this.toGround(p)).filter(Boolean);
+		if (op.t === 'poly') { const gp = g(this.opPoly(op)); return { area: gp.length > 2 ? polyArea(gp) : 0 }; }
+		if (op.t === 'path' || op.t === 'edge' || op.t === 'wall') {
+			const gp = g(op.curved && op.pts.length > 2 ? sampleSmooth(op.pts, false, 6) : op.pts);
+			let L = 0;
+			for (let i = 1; i < gp.length; i++) L += Math.hypot(gp[i][0] - gp[i - 1][0], gp[i][1] - gp[i - 1][1]);
+			return { length: L, area: op.t === 'path' ? L * (op.width || 4) : 0, face: op.t === 'wall' ? L * (op.height || 2) : 0 };
+		}
+		return {};
 	}
 
 	_opBox(op) {
 		if (op.t === 'mask') { const b = op.box; return b ? { x0: b[0], y0: b[1], x1: b[2], y1: b[3] } : null; }
 		let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-		for (const p of op.pts) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
-		const m = (op.t === 'brush' ? op.size / 2 : 4) + 4 + (op.edging ? 30 : 0);
+		const pts = op.t === 'path' || op.t === 'wall' ? this.opPoly(op) : op.pts;
+		for (const p of pts) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+		const m = (op.t === 'brush' ? op.size / 2 : 4) + 4 + (op.edging || op.t === 'edge' || op.t === 'wall' ? 30 : 0) + (op.soft || 0) * 2;
 		x0 = Math.max(0, Math.floor(x0 - m)); y0 = Math.max(0, Math.floor(y0 - m));
 		x1 = Math.min(this.W, Math.ceil(x1 + m)); y1 = Math.min(this.H, Math.ceil(y1 + m));
 		return x1 > x0 && y1 > y0 ? { x0, y0, x1, y1 } : null;
@@ -140,7 +218,12 @@ export class Editor {
 
 	_shapePath(ctx, op) {
 		ctx.beginPath();
-		if (op.t === 'poly') smoothPath(ctx, op.pts, true);
+		if (op.t === 'path' || op.t === 'wall' || (op.t === 'poly' && op.straight)) {
+			const pp = this.opPoly(op);
+			pp.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+			ctx.closePath();
+		} else if (op.t === 'edge') smoothOrStraight(ctx, op.pts, false, op.curved);
+		else if (op.t === 'poly') smoothPath(ctx, op.pts, true);
 		else if (op.pts.length === 1) ctx.arc(op.pts[0][0], op.pts[0][1], op.size / 2, 0, 7);
 		else smoothPath(ctx, op.pts, false);
 	}
@@ -158,15 +241,19 @@ export class Editor {
 			m.translate(-bb.x0, -bb.y0);
 			m.fillStyle = m.strokeStyle = '#000';
 			m.lineCap = m.lineJoin = 'round';
-			if ('filter' in m) m.filter = 'blur(0.8px)';
+			if ('filter' in m) m.filter = `blur(${0.8 + (o.soft || 0)}px)`;
 			this._shapePath(m, o);
-			if (o.t === 'poly' || o.pts.length === 1) m.fill();
+			if (o.t === 'edge') { m.lineWidth = 2; m.stroke(); }
+			else if (o.t === 'poly' || o.t === 'path' || o.t === 'wall' || o.pts.length === 1) m.fill();
 			else { m.lineWidth = o.size; m.stroke(); }
 		}
 		const g = this.ground.getContext('2d');
+		if (o.t === 'edge') { this._edging(g, { ...o, edging: EDGING[o.edging] ? o.edging : 'steel' }); return; }
 		if (o.erase) {
 			g.globalCompositeOperation = 'destination-out';
+			g.globalAlpha = o.alpha == null ? 1 : o.alpha;
 			g.drawImage(mask, bb.x0, bb.y0);
+			g.globalAlpha = 1;
 			g.globalCompositeOperation = 'source-over';
 			return;
 		}
@@ -177,8 +264,39 @@ export class Editor {
 		t.setTransform(1, 0, 0, 1, 0, 0);
 		t.globalCompositeOperation = 'destination-in';
 		t.drawImage(mask, 0, 0);
+		if (o.t === 'wall') this._wallFace(t, o, bb);
+		g.globalAlpha = o.alpha == null ? 1 : o.alpha;
 		g.drawImage(tex, bb.x0, bb.y0);
-		if (o.t === 'poly' && o.edging && EDGING[o.edging]) this._edging(g, o);
+		g.globalAlpha = 1;
+		if ((o.t === 'poly' || o.t === 'path') && o.edging && EDGING[o.edging]) this._edging(g, o);
+	}
+
+	/** Block courses, shading and a cap so a wall reads as a vertical face. */
+	_wallFace(t, o, bb) {
+		if (this.isTop) return;
+		const w = this._wallPoly(o.pts, o.height || 2, o.curved);
+		t.save();
+		t.translate(-bb.x0, -bb.y0);
+		t.globalCompositeOperation = 'source-atop';
+		t.fillStyle = 'rgba(0,0,0,.18)';
+		t.fill(new Path2D(polyD(w.poly)));
+		const courses = Math.max(1, Math.round((o.height || 2) * 2));
+		t.strokeStyle = 'rgba(0,0,0,.28)';
+		for (let k = 1; k < courses; k++) {
+			const f = k / courses;
+			t.lineWidth = Math.max(0.6, this.ppfAt(w.line[0][1]) * 0.03);
+			t.beginPath();
+			w.line.forEach((p, i) => { const q = w.top[i]; const x = p[0] + (q[0] - p[0]) * f, y = p[1] + (q[1] - p[1]) * f; if (i) t.lineTo(x, y); else t.moveTo(x, y); });
+			t.stroke();
+		}
+		if (o.cap !== false) {
+			t.globalCompositeOperation = 'source-over';
+			t.lineJoin = 'round';
+			t.strokeStyle = 'rgba(230,226,215,.95)';
+			t.lineWidth = Math.max(2, this.ppfAt(w.line[0][1]) * 0.35);
+			t.beginPath(); w.top.forEach((p, i) => (i ? t.lineTo(p[0], p[1]) : t.moveTo(p[0], p[1]))); t.stroke();
+		}
+		t.restore();
 	}
 
 	_edging(g, op) {
@@ -189,7 +307,13 @@ export class Editor {
 		const wpx = Math.max(1.2, e.ft * ppf);
 		g.save();
 		g.lineJoin = 'round';
-		this._shapePath(g, op);
+		if (op.t === 'path') {
+			const pp = this._pathPoly(op.pts, op.width || 4, op.curved), n = pp.length / 2;
+			g.beginPath();
+			pp.slice(0, n).forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
+			pp.slice(n).forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
+		} else if (op.t === 'edge') { g.beginPath(); smoothOrStraight(g, op.pts, false, op.curved); }
+		else this._shapePath(g, op);
 		g.strokeStyle = 'rgba(0,0,0,.35)';
 		g.lineWidth = wpx + 2;
 		g.stroke();
@@ -243,23 +367,30 @@ export class Editor {
 		const W = this.W, H = this.H, P = this.project;
 		ctx.save();
 		ctx.globalCompositeOperation = 'source-over';
-		ctx.drawImage(this.base, 0, 0);
+		if (this.peek && live) { ctx.drawImage(this.peek, 0, 0, W, H); ctx.restore(); return; }
+		ctx.drawImage(this.adjusted || this.base, 0, 0);
 		ctx.drawImage(this.groundShaded, 0, 0);
 		const sun = P.sun || -1;
-		const objs = this.view.objects.slice().sort((a, b) => (this.isTop ? (byId[a.item].h - byId[b.item].h) : a.y - b.y) || (a.z || 0) - (b.z || 0));
+		const objs = this.sortedObjects();
 		const lights = [];
 		// ground shadows first so they sit under every object
 		for (const o of objs) {
-			const { w, h, item } = this._objSize(o);
 			if (this.isTop) continue;
+			const { w, item } = this._objSize(o);
+			const sh = o.sh || {};
+			if (sh.off) continue;
+			const k = sh.k == null ? 1 : sh.k, len = sh.len == null ? 1 : sh.len, soft = sh.soft == null ? 0.5 : sh.soft;
+			const dir = sh.dir == null ? sun : sh.dir;
 			const d = Math.max(6, o.y - (this.view.cam ? this.view.cam.horizon : 0));
-			const rx = w * (item.cat === 'features' ? 0.55 : 0.5), ry = Math.max(2, rx * clamp(d / this.view.cam.focal, 0.08, 0.6));
-			const g = ctx.createRadialGradient(o.x - sun * rx * 0.25, o.y, 0, o.x - sun * rx * 0.25, o.y, rx);
-			g.addColorStop(0, 'rgba(0,0,0,.34)'); g.addColorStop(0.7, 'rgba(0,0,0,.18)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+			const rx = w * (item.cat === 'features' ? 0.55 : 0.5) * (0.6 + 0.4 * len), ry = Math.max(2, rx * clamp(d / this.view.cam.focal, 0.08, 0.6));
+			const cx = o.x - dir * rx * 0.25 * (0.4 + 0.6 * len);
+			const g = ctx.createRadialGradient(cx, o.y, 0, cx, o.y, rx);
+			g.addColorStop(0, `rgba(0,0,0,${(0.34 * k).toFixed(3)})`); g.addColorStop(clamp(0.95 - soft * 0.5, 0.3, 0.95), `rgba(0,0,0,${(0.18 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(0,0,0,0)');
 			ctx.fillStyle = g;
-			ctx.save(); ctx.translate(o.x - sun * rx * 0.25, o.y); ctx.scale(1, ry / rx); ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.restore();
+			ctx.save(); ctx.translate(cx, o.y); ctx.scale(1, ry / rx); ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.restore();
+			ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
 			ctx.fill();
-			void h;
+			ctx.globalAlpha = 1;
 		}
 		for (const o of objs) {
 			const { w, h, item } = this._objSize(o);
@@ -268,24 +399,139 @@ export class Editor {
 			const dw = sp.c.width * sc, dh = sp.c.height * sc;
 			const dx = o.x - sp.ax * sc, dy = o.y - sp.ay * sc;
 			ctx.save();
-			if (this.isTop) {
-				ctx.shadowColor = 'rgba(0,0,0,.4)';
-				ctx.shadowBlur = Math.max(2, w * 0.06);
-				ctx.shadowOffsetX = -sun * w * 0.18;
-				ctx.shadowOffsetY = w * 0.14;
+			const sh = o.sh || {};
+			if (this.isTop && !sh.off) {
+				const k = sh.k == null ? 1 : sh.k, len = sh.len == null ? 1 : sh.len;
+				ctx.shadowColor = `rgba(0,0,0,${(0.4 * k).toFixed(3)})`;
+				ctx.shadowBlur = Math.max(2, w * 0.06 * (0.5 + (sh.soft == null ? 0.5 : sh.soft) * 2));
+				ctx.shadowOffsetX = -(sh.dir == null ? sun : sh.dir) * w * 0.18 * len;
+				ctx.shadowOffsetY = w * 0.14 * len;
 			}
+			ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
+			if ('filter' in ctx) ctx.filter = objFilter(o.fx);
+			const rot = ((o.rot || 0) * Math.PI) / 180;
+			if (rot) { ctx.translate(o.x, o.y); ctx.rotate(rot); ctx.translate(-o.x, -o.y); }
 			if (o.flip) { ctx.translate(o.x, 0); ctx.scale(-1, 1); ctx.translate(-o.x, 0); }
+			if (o.flipV) { const cy = dy + dh / 2; ctx.translate(0, cy); ctx.scale(1, -1); ctx.translate(0, -cy); }
 			ctx.drawImage(sp.c, dx, dy, dw, dh);
 			ctx.restore();
-			o._bb = this.isTop
+			const bb = this.isTop
 				? { x0: o.x - w / 2, y0: o.y - w / 2, x1: o.x + w / 2, y1: o.y + w / 2 }
 				: { x0: o.x - w / 2 - 2, y0: o.y - h - 2, x1: o.x + w / 2 + 2, y1: o.y + 3 };
+			o._bb = rot ? rotBox(bb, o.x, o.y, rot) : bb;
 			for (const L of sp.lights) lights.push({ x: o.x + (L.x - sp.ax) * sc * (o.flip ? -1 : 1), y: o.y + (L.y - sp.ay) * sc, r: L.r * sc, col: L.col, k: L.k });
 		}
 		if (P.night) this._night(ctx, lights);
+		if (live || this.showMeasOnExport) this._drawMeas(ctx, live, 'saved');
 		ctx.restore();
 		void W; void H; void live;
 	}
+
+	/** Back-to-front drawing order: depth in the photo, then manual layer order (zd). */
+	sortedObjects(all) {
+		const key = (o) => (o.zd || 0) * 1e7 + (this.isTop ? (byId[o.item] ? byId[o.item].h : 0) * 1000 + (o.z || 0) : o.y + (o.z || 0) * 1e-3);
+		return this.view.objects.filter((o) => byId[o.item] && (all || !o.hidden)).sort((a, b) => key(a) - key(b));
+	}
+
+	/* ---------------------------------------------------------- measuring */
+	measText(m) {
+		const g = m.pts.map((p) => this.toGround(p));
+		const approx = this.isTop ? '' : '≈ ';
+		if (g.some((x) => !x)) return 'above the horizon — can’t measure';
+		if (m.t === 'dist') return approx + fmtFtIn(Math.hypot(g[1][0] - g[0][0], g[1][1] - g[0][1]));
+		const a = polyArea(g);
+		let per = 0;
+		for (let i = 0; i < g.length; i++) { const q = g[(i + 1) % g.length]; per += Math.hypot(q[0] - g[i][0], q[1] - g[i][1]); }
+		return `${approx}${Math.round(a).toLocaleString()} sq ft · ${fmtFtIn(per)} around`;
+	}
+	_drawMeas(ctx, live, part) {
+		const list = part === 'saved' ? (this.view.meas || []).filter((m) => !m.hidden) : [];
+		const temp = part === 'temp' && live && this.tool === 'measure' && this.measPts.length;
+		if (!temp && !(list.length && (this.showMeas || this.tool === 'measure' || !live))) return;
+		const z = live ? this.z : 1;
+		const draw = (m, dashed) => {
+			const col = m.t === 'zone' ? (ZONES[m.kind] || ZONES.area)[1] : '#5cc8ff';
+			ctx.save();
+			ctx.lineWidth = 2.2 / z; ctx.strokeStyle = col; ctx.fillStyle = col;
+			if (m.t !== 'dist' && m.pts.length > 2) { ctx.globalAlpha = 0.16; ctx.beginPath(); m.pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; }
+			ctx.setLineDash(dashed ? [7 / z, 5 / z] : []);
+			ctx.beginPath(); m.pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); if (m.t !== 'dist' && m.pts.length > 2) ctx.closePath(); ctx.stroke();
+			ctx.setLineDash([]);
+			for (const p of m.pts) { ctx.beginPath(); ctx.arc(p[0], p[1], 4 / z, 0, 7); ctx.fill(); }
+			if ((m.t === 'dist' && m.pts.length === 2) || (m.t !== 'dist' && m.pts.length > 2)) {
+				const cx = m.pts.reduce((a, p) => a + p[0], 0) / m.pts.length, cy = m.pts.reduce((a, p) => a + p[1], 0) / m.pts.length;
+				const txt = (m.t === 'zone' ? (m.label || (ZONES[m.kind] || ZONES.area)[0]) + ': ' : m.label ? m.label + ': ' : '') + this.measText(m);
+				ctx.font = `700 ${13 / z}px system-ui, sans-serif`;
+				const tw = ctx.measureText(txt).width;
+				ctx.fillStyle = 'rgba(10,20,15,.82)';
+				ctx.fillRect(cx - tw / 2 - 6 / z, cy - 11 / z, tw + 12 / z, 22 / z);
+				ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+				ctx.fillText(txt, cx, cy);
+			}
+			ctx.restore();
+		};
+		if (this.showMeas || this.tool === 'measure' || !live) for (const m of list) draw(m, false);
+		if (temp) {
+			const pts = this.hover ? [...this.measPts, [this.hover.x, this.hover.y]] : this.measPts;
+			draw({ t: this.opts.measure.mode, kind: this.opts.measure.zone, pts }, true);
+		}
+	}
+	addMeasurePoint(p) {
+		const mode = this.opts.measure.mode;
+		const f = this.measPts[0];
+		if (mode !== 'dist' && this.measPts.length > 2 && Math.hypot(p.x - f[0], p.y - f[1]) < 14 / this.z) return this.finishMeasure();
+		this.measPts.push([p.x, p.y]);
+		if (mode === 'dist' && this.measPts.length === 2) return this.finishMeasure();
+		this.render();
+		this.hooks.onMeasure && this.hooks.onMeasure(this.measPts.length);
+	}
+	finishMeasure() {
+		const mode = this.opts.measure.mode;
+		if ((mode === 'dist' && this.measPts.length < 2) || (mode !== 'dist' && this.measPts.length < 3)) return null;
+		const m = { id: uid(), t: mode, kind: mode === 'zone' ? this.opts.measure.zone : '', pts: this.measPts.slice(), label: '' };
+		this.measPts = [];
+		const v = this.view;
+		v.meas = v.meas || [];
+		v.meas.push(m);
+		this._push({ label: mode === 'dist' ? 'Measured a distance' : mode === 'zone' ? 'Marked a ' + (ZONES[m.kind] || ZONES.area)[0].toLowerCase() : 'Measured an area', icon: 'scale', undo: () => v.meas.splice(v.meas.indexOf(m), 1), redo: () => v.meas.push(m) }, false);
+		this.changed();
+		this.hooks.onMeasure && this.hooks.onMeasure(0, m);
+		return m;
+	}
+	cancelMeasure() { this.measPts = []; this.render(); this.hooks.onMeasure && this.hooks.onMeasure(0); }
+	removeMeasure(m) {
+		const v = this.view, i = v.meas.indexOf(m);
+		if (i < 0) return;
+		v.meas.splice(i, 1);
+		this._push({ label: 'Removed a measurement', icon: 'trash', undo: () => v.meas.splice(i, 0, m), redo: () => v.meas.splice(v.meas.indexOf(m), 1) }, false);
+		this.changed();
+	}
+
+	/* ------------------------------------------------- photo adjustments */
+	_invalidateAdj() { this.adjusted = null; if (this.view && hasAdjust(this.view.adj)) this._adjSoon(); }
+	_adjSoon() {
+		if (this._adjT) return;
+		this._adjT = requestAnimationFrame(() => {
+			this._adjT = 0;
+			if (!this.view) return;
+			this.adjusted = hasAdjust(this.view.adj) ? applyAdjust(this.base, this.view.adj, this.view.kind === 'aerial' ? null : this.view.cam) : null;
+			this.render();
+		});
+	}
+	/** Live preview while dragging a slider; commit=true records one history step. */
+	setAdjust(adj, commit, before) {
+		const v = this.view;
+		v.adj = { ...adj };
+		this._adjSoon();
+		if (commit) {
+			const a0 = { ...(before || {}) }, a1 = { ...v.adj };
+			this._push({ label: 'Adjusted the photo', icon: 'sun', undo: () => { v.adj = a0; this._invalidateAdj(); this._adjSoon(); }, redo: () => { v.adj = a1; this._invalidateAdj(); this._adjSoon(); } }, false);
+			this.changed();
+		}
+	}
+	/** Show the untouched photo (no design) while held. */
+	setPeek(img) { this.peek = img || null; this.render(); }
+	setOriginal(img) { this.orig = img || null; }
 
 	_night(ctx, lights) {
 		const W = this.W, H = this.H;
@@ -345,6 +591,21 @@ export class Editor {
 			ctx.beginPath(); ctx.arc(this.sel.x, this.sel.y, 3.5 / z, 0, 7); ctx.fill();
 			ctx.restore();
 		}
+		// selected ground shape: outline + corner handles
+		if (this.selOp && this.view.ops.includes(this.selOp)) {
+			const op = this.selOp;
+			ctx.save();
+			ctx.strokeStyle = accent; ctx.lineWidth = lw * 1.6; ctx.setLineDash([7 / z, 5 / z]);
+			const pp = this.opPoly(op);
+			ctx.beginPath();
+			if (pp) { pp.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); }
+			else op.pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+			ctx.stroke();
+			ctx.setLineDash([]);
+			ctx.fillStyle = '#fff';
+			for (const p of op.pts) { ctx.beginPath(); ctx.arc(p[0], p[1], 7 / z, 0, 7); ctx.fill(); ctx.stroke(); }
+			ctx.restore();
+		}
 		// place ghost
 		if (this.tool === 'place' && this.placeItem && this.hover) {
 			const fake = { item: this.placeItem.id, x: this.hover.x, y: this.hover.y, age: this.placeItem.plant || 0, scale: 1, seed: 1 };
@@ -364,10 +625,27 @@ export class Editor {
 			ctx.beginPath(); ctx.arc(this.hover.x, this.hover.y, r + lw * 1.4, 0, 7); ctx.stroke();
 		}
 		// bed outline in progress
+		if (this.tool === 'bed' && this.rectDrag) {
+			ctx.save(); ctx.strokeStyle = accent; ctx.lineWidth = lw * 2; ctx.fillStyle = 'rgba(123,224,160,.18)';
+			ctx.beginPath(); this.rectDrag.pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.fill(); ctx.stroke();
+			const m = this.opMeasure({ t: 'poly', straight: true, pts: this.rectDrag.pts });
+			ctx.font = `700 ${14 / z}px system-ui`; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+			const c0 = this.rectDrag.pts[2];
+			ctx.fillText((this.isTop ? '' : '≈ ') + Math.round(m.area || 0) + ' sq ft', c0[0], c0[1] + 18 / z);
+			ctx.restore();
+		}
 		if (this.tool === 'bed' && this.bedPts.length) {
 			const pts = this.hover ? [...this.bedPts, [this.hover.x, this.hover.y]] : this.bedPts;
+			const B = this.opts.bed, closed = B.shape === 'bed' || B.shape === 'patio' || B.shape === 'lawn';
 			ctx.save();
-			ctx.beginPath(); smoothPath(ctx, pts, pts.length > 2);
+			if (!closed && pts.length > 1 && (B.shape === 'walkway' || B.shape === 'wall')) {
+				const pp = B.shape === 'walkway' ? this._pathPoly(pts, B.width, B.curved) : (() => { const w = this._wallPoly(pts, B.height, B.curved); return Array.isArray(w) ? w : w.poly; })();
+				ctx.beginPath(); pp.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath();
+				ctx.fillStyle = 'rgba(123,224,160,.25)'; ctx.fill();
+			}
+			ctx.beginPath();
+			if (B.curved) smoothPath(ctx, pts, closed && pts.length > 2);
+			else { pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); if (closed && pts.length > 2) ctx.closePath(); }
 			ctx.fillStyle = 'rgba(123,224,160,.18)'; if (pts.length > 2) ctx.fill();
 			ctx.strokeStyle = accent; ctx.lineWidth = lw * 2; ctx.setLineDash([8 / z, 5 / z]); ctx.stroke();
 			ctx.setLineDash([]);
@@ -378,8 +656,9 @@ export class Editor {
 			});
 			ctx.restore();
 		}
+		if (this.tool === 'measure') this._drawMeas(ctx, true, 'temp');
 		// magic eraser selection
-		if (this.tool === 'eraser' && this.selMaskCanvas) {
+		if ((this.tool === 'eraser' || this.tool === 'ai') && this.selMaskCanvas) {
 			ctx.drawImage(this.selMaskCanvas, 0, 0);
 		}
 		// scale tool: horizon + reference person
@@ -476,6 +755,8 @@ export class Editor {
 
 	setTool(t) {
 		if (this.tool === 'bed' && t !== 'bed') this.bedPts = [];
+		if (t !== 'measure') this.measPts = [];
+		if (t !== 'select' && this.selOp) this.selectOp(null);
 		if (t !== 'eraser') { this.selMask = null; this.selMaskCanvas = null; }
 		if (t !== 'place') this.placeItem = null;
 		this.tool = t;
@@ -491,8 +772,9 @@ export class Editor {
 	}
 
 	_hit(p) {
-		const list = this.view.objects.slice().sort((a, b) => b.y - a.y);
+		const list = this.sortedObjects().reverse();
 		for (const o of list) {
+			if (o.lock) continue;
 			const b = o._bb;
 			if (b && p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1) return o;
 		}
@@ -500,6 +782,7 @@ export class Editor {
 	}
 
 	select(o) {
+		if (o && this.selOp) this.selectOp(null);
 		this.sel = o;
 		this.hooks.onSelect && this.hooks.onSelect(o);
 		this._drawOverlay();
@@ -540,10 +823,17 @@ export class Editor {
 						return;
 					}
 				}
+				if (this.selOp) {
+					const vi = this.selOp.pts.findIndex((q) => Math.hypot(q[0] - p.x, q[1] - p.y) < 14 / this.z);
+					if (vi >= 0) { this.drag = { kind: 'opvert', op: this.selOp, i: vi, before: JSON.parse(JSON.stringify(this.selOp.pts)) }; return; }
+				}
 				const o = this._hit(p);
-				this.select(o);
-				if (o) this.drag = { kind: 'move', o, dx: p.x - o.x, dy: p.y - o.y, x0: o.x, y0: o.y };
-				else this.drag = { kind: 'pan', sx: e.clientX, sy: e.clientY, ox: this.ox, oy: this.oy };
+				if (o) { this.select(o); this.drag = { kind: 'move', o, dx: p.x - o.x, dy: p.y - o.y, x0: o.x, y0: o.y }; break; }
+				const op = this._hitOp(p);
+				if (op) { this.select(null); this.selectOp(op); this.drag = { kind: 'opmove', op, from: [p.x, p.y], before: JSON.parse(JSON.stringify(op.pts)) }; break; }
+				this.select(null);
+				this.selectOp(null);
+				this.drag = { kind: 'pan', sx: e.clientX, sy: e.clientY, ox: this.ox, oy: this.oy };
 				break;
 			}
 			case 'place': {
@@ -552,13 +842,26 @@ export class Editor {
 				if (!e.shiftKey) { this.setTool('select'); this.select(o); }
 				break;
 			}
-			case 'paint':
-				this.stroke = { id: uid(), t: 'brush', mat: this.opts.paint.mat, size: this.opts.paint.size, erase: this.opts.paint.erase, pts: [[p.x, p.y]] };
+			case 'paint': {
+				const P2 = this.opts.paint;
+				if (P2.restore) {
+					if (!this.orig) { if (this.hooks.toast) this.hooks.toast('This view has no photo changes to restore.'); return; }
+					this.restoreStroke = { size: P2.size, soft: P2.soft || 0, before: this.bctx.getImageData(0, 0, this.W, this.H), last: [p.x, p.y] };
+					this._restoreDab([p.x, p.y], [p.x, p.y]);
+					break;
+				}
+				this.stroke = { id: uid(), t: 'brush', mat: P2.mat, size: P2.size, erase: P2.erase, soft: P2.soft || 0, alpha: P2.alpha == null ? 1 : P2.alpha, pts: [[p.x, p.y]] };
 				this._applyOp(this.stroke);
 				this._composeGround();
 				this.render();
 				break;
+			}
+			case 'measure':
+				this.addMeasurePoint(p);
+				break;
 			case 'bed': {
+				const B = this.opts.bed;
+				if (B.rect && (B.shape === 'patio' || B.shape === 'bed' || B.shape === 'lawn') && !this.bedPts.length) { this.drag = { kind: 'rect', a: [p.x, p.y] }; return; }
 				const first = this.bedPts[0];
 				if (first && this.bedPts.length > 2 && Math.hypot(p.x - first[0], p.y - first[1]) < 14 / this.z) { this.finishBed(); return; }
 				this.bedPts.push([p.x, p.y]);
@@ -615,6 +918,13 @@ export class Editor {
 			if (d.kind === 'horizon') { this.view.cam.horizon = Math.round(clamp(p.y, -this.H, this.H - 20)); this.render(); this._drawOverlay(); this._horizonDirty = true; return; }
 			if (d.kind === 'person') { this.personPos = { x: p.x - d.dx, y: p.y - d.dy }; this._drawOverlay(); return; }
 			if (d.kind === 'selbrush') { this._selBrush(p, this.opts.eraser.brush === 'add'); return; }
+			if (d.kind === 'opvert') { d.op.pts[d.i] = [p.x, p.y]; d.moved = true; this._rebuildSoon(); return; }
+			if (d.kind === 'opmove') { const dx = p.x - d.from[0], dy = p.y - d.from[1]; d.op.pts = d.before.map((q) => [q[0] + dx, q[1] + dy]); d.moved = true; this._rebuildSoon(); return; }
+			if (d.kind === 'rect') { this.rectDrag = { pts: this._groundRect(d.a, [p.x, p.y]) }; this._drawOverlay(); return; }
+		}
+		if (this.restoreStroke) {
+			const r = this.restoreStroke, st = Math.max(2, r.size * 0.15);
+			if (Math.hypot(p.x - r.last[0], p.y - r.last[1]) >= st) { this._restoreDab(r.last, [p.x, p.y]); r.last = [p.x, p.y]; }
 		}
 		if (this.stroke) {
 			const last = this.stroke.pts[this.stroke.pts.length - 1];
@@ -628,6 +938,101 @@ export class Editor {
 		this._drawOverlay();
 	}
 
+	_rebuildSoon() {
+		if (this._rb) return;
+		this._rb = requestAnimationFrame(() => { this._rb = 0; this.rebuildGround(); this.render(); });
+	}
+	/** Rectangle drawn on the ground (so it follows perspective in photos). */
+	_groundRect(a, b) {
+		const ga = this.toGround(a), gb = this.toGround(b);
+		if (!ga || !gb) return [a, [b[0], a[1]], b, [a[0], b[1]]];
+		return [ga, [gb[0], ga[1]], gb, [ga[0], gb[1]]].map((g) => this.fromGround(g));
+	}
+	/** "Restore original" brush: paint the untouched photo back over erasures and AI edits. */
+	_restoreDab(a, b) {
+		const r = this.restoreStroke;
+		const m = canvas(this.W, this.H), mx = m.getContext('2d');
+		mx.lineCap = 'round'; mx.lineWidth = r.size; mx.strokeStyle = '#000';
+		if (r.soft && 'filter' in mx) mx.filter = `blur(${r.soft}px)`;
+		mx.beginPath(); mx.moveTo(a[0], a[1]); mx.lineTo(b[0] + 0.01, b[1]); mx.stroke();
+		if ('filter' in mx) mx.filter = 'none';
+		mx.globalCompositeOperation = 'source-in';
+		mx.drawImage(this.orig, 0, 0, this.W, this.H);
+		this.bctx.drawImage(m, 0, 0);
+		this.adjusted = null;
+		this._adjSoon();
+		this.render();
+	}
+	_endRestore() {
+		const r = this.restoreStroke;
+		this.restoreStroke = null;
+		const before = r.before, after = this.bctx.getImageData(0, 0, this.W, this.H);
+		const apply = (data) => { this.bctx.putImageData(data, 0, 0); this._buildShade(); this._composeGround(); this._invalidateAdj(); this.render(); this.changed('image'); };
+		this._push({ label: 'Restored part of the original photo', icon: 'undo', undo: () => apply(before), redo: () => apply(after) }, false);
+		this._buildShade(); this._composeGround(); this._invalidateAdj(); this.changed('image');
+	}
+	_hitOp(p) {
+		for (let i = this.view.ops.length - 1; i >= 0; i--) {
+			const op = this.view.ops[i];
+			if (op.hidden || op.lock || op.erase) continue;
+			if (op.t === 'edge') {
+				for (let k = 1; k < op.pts.length; k++) if (segDist([p.x, p.y], op.pts[k - 1], op.pts[k]) < 12 / this.z) return op;
+				continue;
+			}
+			const pp = this.opPoly(op);
+			if (pp && pointInPoly([p.x, p.y], pp)) return op;
+		}
+		return null;
+	}
+	selectOp(op) {
+		if (this.selOp === op) return;
+		this.selOp = op;
+		if (op && this.sel) this.sel = null;
+		if (this.hooks.onSelectOp) this.hooks.onSelectOp(op);
+		this._drawOverlay();
+	}
+	/** Change a ground shape (material, edging, width, height, curved, hidden, alpha, …), undoable. */
+	updateOp(op, patch, label) {
+		const before = {};
+		for (const k in patch) before[k] = op[k] === undefined ? undefined : JSON.parse(JSON.stringify(op[k]));
+		Object.assign(op, patch);
+		const after = JSON.parse(JSON.stringify(patch));
+		this.rebuildGround();
+		this._push({ label: label || 'Changed a ' + opName(op), icon: 'bed', key: 'op' + op.id + Object.keys(patch).join(), undo: () => { Object.assign(op, before); this.rebuildGround(); }, redo: () => { Object.assign(op, after); this.rebuildGround(); } }, true);
+		this.changed();
+	}
+	scaleOp(op, k) {
+		const cx = op.pts.reduce((a, q) => a + q[0], 0) / op.pts.length, cy = op.pts.reduce((a, q) => a + q[1], 0) / op.pts.length;
+		this.updateOp(op, { pts: op.pts.map((q) => [cx + (q[0] - cx) * k, cy + (q[1] - cy) * k]) }, k > 1 ? 'Made a ' + opName(op) + ' bigger' : 'Made a ' + opName(op) + ' smaller');
+	}
+	deleteOp(op) {
+		const v = this.view, i = v.ops.indexOf(op);
+		if (i < 0) return;
+		v.ops.splice(i, 1);
+		if (this.selOp === op) this.selectOp(null);
+		this.rebuildGround();
+		this._push({ label: 'Removed a ' + opName(op), icon: 'trash', undo: () => { v.ops.splice(i, 0, op); this.rebuildGround(); }, redo: () => { v.ops.splice(v.ops.indexOf(op), 1); this.rebuildGround(); } }, false);
+		this.changed();
+	}
+	duplicateOp(op) {
+		if (op.t === 'mask') return null;
+		const c = JSON.parse(JSON.stringify(op));
+		c.id = uid();
+		c.pts = c.pts.map((q) => [q[0] + 24, q[1] + 12]);
+		c.label = 'Copied a ' + opName(op);
+		this.addOp(c);
+		this.selectOp(c);
+		return c;
+	}
+	moveOp(op, d) {
+		const v = this.view, i = v.ops.indexOf(op), j = clamp(i + d, 0, v.ops.length - 1);
+		if (i < 0 || i === j) return;
+		v.ops.splice(i, 1); v.ops.splice(j, 0, op);
+		this.rebuildGround();
+		this._push({ label: d > 0 ? 'Moved a shape up' : 'Moved a shape down', icon: 'layers', undo: () => { v.ops.splice(j, 1); v.ops.splice(i, 0, op); this.rebuildGround(); }, redo: () => { v.ops.splice(i, 1); v.ops.splice(j, 0, op); this.rebuildGround(); } }, false);
+		this.changed();
+	}
+
 	_composeGroundSoon() {
 		if (this._cg) return;
 		this._cg = requestAnimationFrame(() => { this._cg = 0; this._composeGround(); this.render(); });
@@ -637,9 +1042,23 @@ export class Editor {
 		this.pointers.delete(e.pointerId);
 		if (this.pointers.size < 2) this.pinch = null;
 		if (this.stroke) this._endStroke();
+		if (this.restoreStroke) this._endRestore();
 		const d = this.drag;
 		this.drag = null;
 		if (!d) return;
+		if ((d.kind === 'opvert' || d.kind === 'opmove') && d.moved) {
+			const op = d.op, before = d.before, after = JSON.parse(JSON.stringify(op.pts));
+			this.rebuildGround();
+			this._push({ label: (d.kind === 'opvert' ? 'Reshaped a ' : 'Moved a ') + opName(op), icon: 'bed', undo: () => { op.pts = JSON.parse(JSON.stringify(before)); this.rebuildGround(); }, redo: () => { op.pts = JSON.parse(JSON.stringify(after)); this.rebuildGround(); } }, false);
+			this.changed();
+			if (this.hooks.onSelectOp) this.hooks.onSelectOp(op, true);
+		}
+		if (d.kind === 'rect') {
+			const r = this.rectDrag;
+			this.rectDrag = null;
+			if (r && Math.hypot(r.pts[2][0] - r.pts[0][0], r.pts[2][1] - r.pts[0][1]) > 10) { this.bedPts = r.pts; this.finishBed(true); }
+			else this._drawOverlay();
+		}
 		if ((d.kind === 'move' || d.kind === 'scale') && d.moved) {
 			const o = d.o;
 			const before = d.kind === 'move' ? { x: d.x0, y: d.y0 } : { scale: d.s0 };
@@ -670,9 +1089,16 @@ export class Editor {
 		this.changed();
 	}
 
-	finishBed() {
-		if (this.bedPts.length < 3) { this.hooks.toast && this.hooks.toast('Tap at least 3 points around the bed.'); return; }
-		const op = { id: uid(), t: 'poly', mat: this.opts.bed.mat, edging: this.opts.bed.edging, pts: this.bedPts.slice() };
+	finishBed(fromRect) {
+		const B = this.opts.bed, line = B.shape === 'walkway' || B.shape === 'wall' || B.shape === 'edge';
+		if (this.bedPts.length < (line ? 2 : 3)) { if (this.hooks.toast) this.hooks.toast(line ? 'Tap at least 2 points along it.' : 'Tap at least 3 points around the shape.'); return; }
+		const pts = this.bedPts.slice();
+		const label = { bed: 'Drew a bed', patio: 'Drew a patio', lawn: 'Drew a lawn area', walkway: 'Drew a walkway', wall: 'Built a retaining wall', edge: 'Added edging' }[B.shape] || 'Drew a bed';
+		const ed = B.edging === 'none' ? null : B.edging;
+		const op = B.shape === 'walkway' ? { id: uid(), t: 'path', mat: B.mat, edging: ed, width: B.width, curved: B.curved, pts, label }
+			: B.shape === 'wall' ? { id: uid(), t: 'wall', mat: B.mat, height: B.height, cap: B.cap, curved: B.curved, pts, label }
+				: B.shape === 'edge' ? { id: uid(), t: 'edge', edging: ed || 'steel', curved: B.curved, pts, label }
+					: { id: uid(), t: 'poly', mat: B.mat, edging: B.shape === 'lawn' ? null : ed, straight: !!fromRect || !B.curved, kind: B.shape, pts, label };
 		this.bedPts = [];
 		this.addOp(op);
 		this.hooks.onBed && this.hooks.onBed(0);
@@ -684,7 +1110,7 @@ export class Editor {
 		this._applyOp(op);
 		this._composeGround();
 		this._push({
-			label: op.label || (op.t === 'poly' ? 'Drew a bed' : op.t === 'mask' ? 'Filled the selection with ' + (op.mat || 'material') : 'Changed the ground'), icon: op.t === 'poly' ? 'bed' : 'paint',
+			label: op.label || (op.t === 'poly' ? 'Drew a bed' : op.t === 'mask' ? 'Filled the selection with ' + (op.mat || 'material') : 'Changed the ground'), icon: op.t === 'mask' || op.t === 'brush' ? 'paint' : 'bed',
 			undo: () => { this.view.ops.splice(this.view.ops.indexOf(op), 1); this.rebuildGround(); },
 			redo: () => { this.view.ops.push(op); this.rebuildGround(); }
 		}, false);
@@ -719,23 +1145,88 @@ export class Editor {
 		const n = this.addObject(byId[o.item], o.x + Math.max(20, byId[o.item].w * ppf * 0.8), o.y, { age: o.age, scale: o.scale, flip: !o.flip });
 		this.select(n);
 	}
-	updateSelected(patch) {
-		const o = this.sel;
+	updateSelected(patch, target) {
+		const o = target || this.sel;
 		if (!o) return;
 		const before = {};
 		for (const k in patch) before[k] = o[k];
 		Object.assign(o, patch);
 		const after = { ...patch };
-		const what = 'flip' in patch ? 'Flipped ' : 'z' in patch ? 'Reordered ' : 'age' in patch ? 'Changed the age of ' : 'rot' in patch ? 'Rotated ' : 'scale' in patch ? 'Resized ' : 'x' in patch || 'y' in patch ? 'Moved ' : 'Changed ';
+		const what = 'flip' in patch || 'flipV' in patch ? 'Flipped ' : 'z' in patch || 'zd' in patch ? 'Reordered ' : 'age' in patch ? 'Changed the age of ' : 'rot' in patch ? 'Rotated ' : 'scale' in patch ? 'Resized ' : 'x' in patch || 'y' in patch ? 'Moved ' : 'hidden' in patch ? (patch.hidden ? 'Hid ' : 'Showed ') : 'lock' in patch ? (patch.lock ? 'Locked ' : 'Unlocked ') : 'fx' in patch ? 'Blended ' : 'sh' in patch ? 'Changed the shadow of ' : 'alpha' in patch ? 'Changed the opacity of ' : 'name' in patch ? 'Renamed ' : 'Changed ';
 		this._push({ label: what + (byId[o.item] ? byId[o.item].name : 'item'), icon: 'edit', key: o.id + Object.keys(patch).join(), undo: () => Object.assign(o, before), redo: () => Object.assign(o, after) }, true);
 		this.changed();
 	}
-	frontSelected() {
+	frontSelected() { this.orderSelected('front'); }
+	/** Layer order: 'forward' | 'backward' | 'front' | 'back'. */
+	orderSelected(how, target) {
+		const o = target || this.sel;
+		if (!o) return;
+		const zs = this.view.objects.filter((x) => x !== o).map((x) => x.zd || 0);
+		const cur = o.zd || 0;
+		const zd = how === 'front' ? Math.max(0, ...zs) + 1 : how === 'back' ? Math.min(0, ...zs) - 1 : how === 'forward' ? cur + 1 : cur - 1;
+		this.updateSelected({ zd }, o);
+	}
+	/** Nudge on the ground in feet: dx = left/right, dz = farther (+) / closer (−). */
+	nudgeSelected(dxFt, dzFt) {
 		const o = this.sel;
 		if (!o) return;
-		const z0 = o.z || 0;
-		this.updateSelected({ z: Math.max(0, ...this.view.objects.map((x) => x.z || 0)) + 1 });
-		void z0;
+		const g = this.toGround([o.x, o.y]);
+		if (!g) { const ppf = this.ppfAt(o.y); this.updateSelected({ x: clamp(o.x + dxFt * ppf, 0, this.W), y: clamp(o.y - dzFt * ppf, 0, this.H) }); return; }
+		const q = this.fromGround([g[0] + dxFt, this.isTop ? g[1] - dzFt : Math.max(1, g[1] + dzFt)]);
+		this.updateSelected({ x: clamp(q[0], 0, this.W), y: clamp(q[1], 0, this.H) });
+	}
+	/** Plant a group: n in a row or a staggered cluster, spaced on the ground in feet. */
+	repeatSelected(n, spacingFt, layout = 'row') {
+		const o = this.sel;
+		if (!o || n < 2) return [];
+		const g0 = this.toGround([o.x, o.y]);
+		const made = [];
+		for (let i = 1; i < n; i++) {
+			let dx, dz;
+			if (layout === 'row') { dx = Math.ceil(i / 2) * spacingFt * (i % 2 ? 1 : -1); dz = 0; }
+			else { const per = Math.ceil(Math.sqrt(n)), r = Math.floor(i / per), c = i % per; dx = c * spacingFt + (r % 2 ? spacingFt / 2 : 0); dz = r * spacingFt * 0.87; }
+			let x, y;
+			if (g0) { const q = this.fromGround([g0[0] + dx, this.isTop ? g0[1] - dz : Math.max(1, g0[1] + dz)]); x = q[0]; y = q[1]; }
+			else { const ppf = this.ppfAt(o.y); x = o.x + dx * ppf; y = o.y - dz * ppf; }
+			if (!(x >= 0 && x <= this.W && y >= 0 && y <= this.H)) continue;
+			const c = { ...JSON.parse(JSON.stringify(o, (k, v) => (k[0] === '_' ? undefined : v))), id: uid(), x, y, seed: Math.floor(Math.random() * 1e6), flip: Math.random() < 0.5 };
+			this.view.objects.push(c);
+			made.push(c);
+		}
+		if (made.length) {
+			this._push({ label: `Planted a group of ${made.length + 1} ${byId[o.item] ? byId[o.item].name : 'items'}`, icon: 'copy', undo: () => { for (const c of made) this._remove(c); }, redo: () => { this.view.objects.push(...made); } }, false);
+			this.changed();
+		}
+		return made;
+	}
+	/** Match a placed asset to the photo around it: brightness, contrast, saturation, warmth and its shadow. */
+	autoBlend(target) {
+		const o = target || this.sel;
+		if (!o || !o._bb) return null;
+		const b = o._bb, W = this.W, H = this.H;
+		const pad = Math.max(8, (b.x1 - b.x0) * 0.6);
+		const x0 = clamp(Math.floor(b.x0 - pad), 0, W - 1), y0 = clamp(Math.floor(b.y0 - pad), 0, H - 1), x1 = clamp(Math.ceil(b.x1 + pad), x0 + 1, W), y1 = clamp(Math.ceil(b.y1 + pad * 0.5), y0 + 1, H);
+		const photo = this.bctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
+		const bg = statsOf(photo);
+		const c = canvas(W, H), cx = c.getContext('2d', { willReadFrequently: true });
+		const keep = this.view.objects, night = this.project.night;
+		this.view.objects = [{ ...o, fx: null, alpha: 1, sh: { off: true } }];
+		this.project.night = false;
+		this._draw(cx, false);
+		this.view.objects = keep;
+		this.project.night = night;
+		const obj = statsOf(cx.getImageData(x0, y0, x1 - x0, y1 - y0).data, photo);
+		if (!obj.n || !bg.n) return null;
+		const fx = {
+			b: clamp(((bg.L - obj.L) / 255) * 0.9, -0.45, 0.45),
+			c: clamp(bg.sd / Math.max(8, obj.sd) - 1, -0.35, 0.35) * 0.7,
+			s: clamp(bg.S / Math.max(0.05, obj.S) - 1, -0.5, 0.4) * 0.7,
+			w: clamp((bg.warm - obj.warm) / 60, -0.6, 0.6)
+		};
+		for (const k in fx) fx[k] = Math.round(fx[k] * 100) / 100;
+		const sh = { ...(o.sh || {}), off: false, k: Math.round(clamp(1 - (bg.L - 110) / 300, 0.6, 1.4) * 100) / 100, soft: 0.55 };
+		this.updateSelected({ fx, sh }, o);
+		return fx;
 	}
 
 	/* -------------------------------------------------------- magic eraser */
@@ -780,6 +1271,23 @@ export class Editor {
 		this.hooks.onMask && this.hooks.onMask(maskCount(m));
 	}
 
+	invertSelection() {
+		if (!this.selMask) this.selMask = new Uint8Array(this.W * this.H);
+		for (let k = 0; k < this.selMask.length; k++) this.selMask[k] = this.selMask[k] ? 0 : 1;
+		this._updateSelCanvas();
+	}
+	/** Expand (+px) or contract (−px) the selection. */
+	growSelection(px) {
+		if (!this.selMask) return;
+		if (px > 0) this.selMask = dilate(this.selMask, this.W, this.H, px);
+		else {
+			const inv = new Uint8Array(this.selMask.length);
+			for (let k = 0; k < inv.length; k++) inv[k] = this.selMask[k] ? 0 : 1;
+			const g = dilate(inv, this.W, this.H, -px);
+			for (let k = 0; k < g.length; k++) this.selMask[k] = g[k] ? 0 : 1;
+		}
+		this._updateSelCanvas();
+	}
 	clearSelection() { this.selMask = null; this.selMaskCanvas = null; this._drawOverlay(); this.hooks.onMask && this.hooks.onMask(0); }
 
 	eraseSelection() {
@@ -794,8 +1302,9 @@ export class Editor {
 		const before = this.bctx.getImageData(rect.x, rect.y, rect.w, rect.h);
 		this.bctx.putImageData(img, 0, 0, rect.x, rect.y, rect.w, rect.h);
 		const after = this.bctx.getImageData(rect.x, rect.y, rect.w, rect.h);
-		const apply = (data) => { this.bctx.putImageData(data, rect.x, rect.y); this._buildShade(); this._composeGround(); this.render(); this.changed('image'); };
+		const apply = (data) => { this.bctx.putImageData(data, rect.x, rect.y); this._buildShade(); this._composeGround(); this._invalidateAdj(); this.render(); this.changed('image'); };
 		this._push({ label: 'Magic Eraser', icon: 'eraser', undo: () => apply(before), redo: () => apply(after) }, false);
+		this._invalidateAdj();
 		this._buildShade();
 		this._composeGround();
 		this.clearSelection();
@@ -810,11 +1319,11 @@ export class Editor {
 	setSelectionMask(m) { this.selMask = m; this._updateSelCanvas(); }
 
 	/** Paint the current selection with a ground material (undoable). */
-	fillSelection(mat) {
+	fillSelection(mat, soft) {
 		if (!this.selMask) return false;
 		const bb = maskBBox(this.selMask, this.W, this.H);
 		if (!bb) return false;
-		const op = { id: uid(), t: 'mask', mat, rle: rleEncode(this.selMask), box: [bb.x0, bb.y0, bb.x1 + 1, bb.y1 + 1] };
+		const op = { id: uid(), t: 'mask', mat, soft: soft || 0, rle: rleEncode(this.selMask), box: [bb.x0, bb.y0, bb.x1 + 1, bb.y1 + 1] };
 		this.clearSelection();
 		this.addOp(op);
 		return true;
@@ -826,8 +1335,9 @@ export class Editor {
 		const before = this.bctx.getImageData(0, 0, W, H);
 		this.bctx.drawImage(src, 0, 0, W, H);
 		const after = this.bctx.getImageData(0, 0, W, H);
-		const apply = (data) => { this.bctx.putImageData(data, 0, 0); this._buildShade(); this._composeGround(); this.render(); this.changed('image'); };
+		const apply = (data) => { this.bctx.putImageData(data, 0, 0); this._buildShade(); this._composeGround(); this._invalidateAdj(); this.render(); this.changed('image'); };
 		this._push({ label, icon: 'sparkle', undo: () => apply(before), redo: () => apply(after) }, false);
+		this._invalidateAdj();
 		this._buildShade();
 		this._composeGround();
 		this.clearSelection();
@@ -879,6 +1389,8 @@ export class Editor {
 			...[...this.redoStack].reverse().map((e) => ({ label: e.label || 'Change', icon: e.icon || 'edit', t: e.t, done: false }))];
 	}
 	_after() {
+		if (this.selOp && !this.view.ops.includes(this.selOp)) this.selectOp(null);
+		else if (this.selOp && this.hooks.onSelectOp) this.hooks.onSelectOp(this.selOp, true);
 		if (this.sel && !this.view.objects.includes(this.sel)) this.select(null);
 		else this.hooks.onSelect && this.hooks.onSelect(this.sel, true);
 		this.render();
@@ -930,4 +1442,33 @@ function maskOpCanvas(op, bb, W, H) {
 	sx.drawImage(c, 0, 0);
 	maskCache.set(key, soft);
 	return soft;
+}
+
+/* ---------------------------------------------------------------- helpers */
+function smoothOrStraight(ctx, pts, closed, curved) {
+	if (curved !== false && pts.length > 2) { smoothPath(ctx, pts, closed); return; }
+	pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
+	if (closed) ctx.closePath();
+}
+function polyD(pts) { return pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + ' Z'; }
+function rotBox(b, cx, cy, a) {
+	const cs = Math.cos(a), sn = Math.sin(a);
+	const pts = [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]].map(([x, y]) => [cx + (x - cx) * cs - (y - cy) * sn, cy + (x - cx) * sn + (y - cy) * cs]);
+	return { x0: Math.min(...pts.map((p) => p[0])), y0: Math.min(...pts.map((p) => p[1])), x1: Math.max(...pts.map((p) => p[0])), y1: Math.max(...pts.map((p) => p[1])) };
+}
+export function pointInPoly(p, poly) { let ins = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < ((b[0] - a[0]) * (p[1] - a[1])) / (b[1] - a[1]) + a[0]) ins = !ins; } return ins; }
+function segDist(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy; const t = L ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L)) : 0; return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); }
+export function opName(op) { return { path: 'walkway', wall: 'wall', edge: 'edging', brush: 'painted area', mask: 'filled area' }[op.t] || op.kind || 'bed'; }
+/** Mean luminance, saturation, contrast (std dev) and warmth (R−B); with `diff`, only pixels that differ from it (the object). */
+function statsOf(d, diff) {
+	let n = 0, L = 0, L2 = 0, S = 0, warm = 0;
+	for (let i = 0; i < d.length; i += 16) {
+		if (diff && Math.abs(d[i] - diff[i]) + Math.abs(d[i + 1] - diff[i + 1]) + Math.abs(d[i + 2] - diff[i + 2]) < 24) continue;
+		const r = d[i], g = d[i + 1], b = d[i + 2];
+		const l = 0.299 * r + 0.587 * g + 0.114 * b, mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+		n++; L += l; L2 += l * l; S += mx ? (mx - mn) / mx : 0; warm += r - b;
+	}
+	if (!n) return { n: 0 };
+	L /= n;
+	return { n, L, sd: Math.sqrt(Math.max(0, L2 / n - L * L)), S: S / n, warm: warm / n };
 }

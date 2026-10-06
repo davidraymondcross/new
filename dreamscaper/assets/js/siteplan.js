@@ -6,8 +6,8 @@
  * AI Measure (SAM 3) can trace lawn, beds, patios… from the aerial; the traced outlines are
  * ordinary editable shapes measured with the same math.
  */
-import { h, put, icon } from './util.js?v=2.5.0';
-import { GEOM, KINDS, outline, measure, polyArea, pathLength, centroid, fmtFtIn, parseFtIn, fmtArea, sampleSmooth } from './takeoff.js?v=2.5.0';
+import { h, put, icon } from './util.js?v=2.6.0';
+import { GEOM, KINDS, outline, measure, polyArea, pathLength, centroid, fmtFtIn, parseFtIn, fmtArea, sampleSmooth } from './takeoff.js?v=2.6.0';
 
 const TOOLS = [
 	['select', '👆', 'Select & edit'],
@@ -88,7 +88,7 @@ class Plan {
 			h('label', null, h('input', { type: 'checkbox', checked: this.square, onchange: (e) => { this.square = e.target.checked; } }), ' Square corners'),
 			...[['bg', 'Backdrop'], ['existing', 'Existing'], ['proposed', 'Proposed'], ['notes', 'Notes']].map(([k, l]) => h('label', null, h('input', { type: 'checkbox', checked: this.layers[k], onchange: (e) => { this.layers[k] = e.target.checked; this.draw(); } }), ' ' + l)),
 			h('button', { class: 'ds-link', onclick: () => this.fit() }, 'Fit'));
-		this.el = h('div', { class: 'ds-sp', role: 'dialog', 'aria-label': '2D Landscape Plan' }, top, h('div', { class: 'ds-sp-main' }, this.toolbar, h('div', { class: 'ds-sp-stage' }, this.cv, this.hint, opts, this.sum), this.panel));
+		this.el = h('div', { class: 'ds-siteplan', role: 'dialog', 'aria-label': '2D Landscape Plan' }, top, h('div', { class: 'ds-sp-main' }, this.toolbar, h('div', { class: 'ds-sp-stage' }, this.cv, this.hint, opts, this.sum), this.panel));
 		o.root.append(this.el);
 		this.ctx = this.cv.getContext('2d');
 		this.ro = new ResizeObserver(() => this.resize());

@@ -1,5 +1,5 @@
 /* DreamScaper – address autocomplete (keyboard + touch friendly). */
-import { h, debounce } from './util.js?v=2.5.0';
+import { h, debounce } from './util.js?v=2.6.0';
 
 /**
  * Wraps an <input> with a suggestion list. Returns the wrapper element to insert

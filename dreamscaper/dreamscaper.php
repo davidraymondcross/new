@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DreamScaper
  * Description: A fun landscape design studio for your visitors. Customers photograph their yard (or use Connecticut aerial imagery), add real plants and garden features, paint mulch and stone, magic-erase what they don't want, watch plants grow year by year, and save named designs. Customer accounts (email, Google, Facebook) keep designs online across devices and unlock Dreamscape AI (FLUX.2 [klein]) plus AI Erase, Smart Select, Make it real, Season & light and plant/weed identification. Share to social media and print. Contractor CRM: Design → Quote estimating, e-signature, follow-ups, scheduling, job costing and invoices. Shortcodes: [dreamscaper], [dreamscaper_quote]
- * Version: 2.5.0
+ * Version: 2.6.0
  * Author: David's Landscaping
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DREAMSCAPER_VERSION', '2.5.0' );
+define( 'DREAMSCAPER_VERSION', '2.6.0' );
 define( 'DREAMSCAPER_URL', plugin_dir_url( __FILE__ ) );
 define( 'DREAMSCAPER_OPT', 'dreamscaper_settings' );
 
@@ -93,6 +93,7 @@ function dreamscaper_opt( $key ) {
 require_once __DIR__ . '/includes/accounts.php';
 require_once __DIR__ . '/includes/cloud.php';
 require_once __DIR__ . '/includes/ai.php';
+require_once __DIR__ . '/includes/ai-tools.php';
 require_once __DIR__ . '/includes/billing.php';
 require_once __DIR__ . '/includes/community.php';
 require_once __DIR__ . '/includes/community-admin.php';
@@ -876,7 +877,9 @@ function dreamscaper_rest_share( WP_REST_Request $r ) {
 	$view    = sanitize_text_field( isset( $p['view'] ) ? $p['view'] : '' );
 	$plants  = sanitize_textarea_field( isset( $p['plants'] ) ? $p['plants'] : '' );
 
-	$body = "A customer sent a DreamScaper design.\n\n"
+	$kind  = in_array( isset( $p['kind'] ) ? $p['kind'] : '', array( 'consult', 'question' ), true ) ? $p['kind'] : 'design';
+	$what  = array( 'design' => 'sent a DreamScaper design', 'consult' => 'requested a design consultation', 'question' => 'asked a question about their DreamScaper design' );
+	$body = "A customer {$what[ $kind ]}.\n\n"
 		. "Name: {$name}\nEmail: {$email}\nPhone: {$phone}\nTown: {$town}\n\n"
 		. "Design: {$project} ({$view})\n\n"
 		. ( $plants ? "What's in it:\n{$plants}\n\n" : '' )
@@ -887,13 +890,28 @@ function dreamscaper_rest_share( WP_REST_Request $r ) {
 	file_put_contents( $jpg, base64_decode( substr( $image, strpos( $image, ',' ) + 1 ) ) );
 	$ok = wp_mail(
 		dreamscaper_opt( 'notify_email' ),
-		'DreamScaper design from ' . $name . ( $town ? ' (' . $town . ')' : '' ),
+		( 'consult' === $kind ? 'Consultation request from ' : ( 'question' === $kind ? 'Question from ' : 'DreamScaper design from ' ) ) . $name . ( $town ? ' (' . $town . ')' : '' ),
 		$body,
 		array( 'Reply-To: ' . $name . ' <' . $email . '>' ),
 		array( $jpg )
 	);
 	@unlink( $jpg );
 	@unlink( $tmp );
+	// Also file it in the site owner's Contractor Hub as a lead, so nothing gets lost in email.
+	if ( $ok && function_exists( 'dreamscaper_crm_on' ) && dreamscaper_crm_on() ) {
+		global $wpdb;
+		$owner = 0;
+		foreach ( get_users( array( 'role' => 'administrator', 'fields' => 'ID', 'number' => 5 ) ) as $aid ) {
+			if ( dreamscaper_pro_row( $aid ) ) {
+				$owner = (int) $aid;
+				break;
+			}
+		}
+		if ( $owner ) {
+			$note = array( 'design' => 'Sent their design', 'consult' => 'Requested a consultation', 'question' => 'Asked a question' );
+			dreamscaper_crm_new_lead( $owner, array( 'name' => $name, 'email' => $email, 'phone' => $phone, 'town' => $town, 'message' => $note[ $kind ] . ' (' . $project . '): ' . $msg ), 'dreamscaper', get_current_user_id() );
+		}
+	}
 	if ( ! $ok ) {
 		return new WP_Error( 'dreamscaper', 'We couldn\'t send that right now. Please try again later.', array( 'status' => 500 ) );
 	}

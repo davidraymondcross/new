@@ -1,8 +1,8 @@
 /* DreamScaper – local storage (IndexedDB). Everything stays on the customer's device. */
-import { uid } from './util.js?v=2.5.0';
+import { uid } from './util.js?v=2.6.0';
 
 const DB = 'dreamscaper';
-const VER = 2;
+const VER = 3;
 let dbp = null;
 
 function open() {
@@ -15,6 +15,7 @@ function open() {
 			if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
 			if (!db.objectStoreNames.contains('blobs')) db.createObjectStore('blobs', { keyPath: 'id' });
 			if (!db.objectStoreNames.contains('assets')) db.createObjectStore('assets', { keyPath: 'id' });
+			if (!db.objectStoreNames.contains('board')) db.createObjectStore('board', { keyPath: 'id' });
 		};
 		req.onsuccess = () => { const db = req.result; db.onversionchange = () => db.close(); resolve(db); };
 		req.onerror = () => reject(req.error);
@@ -67,6 +68,16 @@ export const store = {
 		return (all || []).sort((a, b) => b.created - a.created);
 	},
 	putAsset: (a) => tx('assets', 'readwrite', (s) => { s.put(a); return a; }),
+	/* Inspiration Board */
+	async listBoard() {
+		const all = await tx('board', 'readonly', (s) => req2p(s.getAll()));
+		return (all || []).sort((a, b) => b.created - a.created);
+	},
+	putBoard: (it) => tx('board', 'readwrite', (s) => { s.put(it); return it; }),
+	async deleteBoard(it) {
+		if (it.blob) await tx('blobs', 'readwrite', (s) => { s.delete(it.blob); });
+		return tx('board', 'readwrite', (s) => { s.delete(it.id); });
+	},
 	async deleteAsset(a) {
 		await tx('blobs', 'readwrite', (s) => { [a.blob, a.thumb, a.original].filter(Boolean).forEach((id) => s.delete(id)); });
 		return tx('assets', 'readwrite', (s) => { s.delete(a.id); });

@@ -1,8 +1,8 @@
 /* DreamScaper – AI credits: see your balance and buy more (Stripe Checkout). */
-import { h, icon } from './util.js?v=2.5.0';
-import { session, api } from './api.js?v=2.5.0';
-import { openAuth } from './account.js?v=2.5.0';
-import { modal } from './capture.js?v=2.5.0';
+import { h, icon } from './util.js?v=2.6.0';
+import { session, api } from './api.js?v=2.6.0';
+import { openAuth } from './account.js?v=2.6.0';
+import { modal } from './capture.js?v=2.6.0';
 
 let ROOT = null, TOAST = () => {};
 export function initCredits(root, toast) { ROOT = root; TOAST = toast; }

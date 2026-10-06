@@ -1,8 +1,8 @@
 /* DreamScaper – a painted sample yard so anyone can start playing instantly. */
-import { canvas, rng, hsl } from './util.js?v=2.5.0';
-import { fillGround } from './textures.js?v=2.5.0';
-import { sprite } from './sprites.js?v=2.5.0';
-import { byId } from './library.js?v=2.5.0';
+import { canvas, rng, hsl } from './util.js?v=2.6.0';
+import { fillGround } from './textures.js?v=2.6.0';
+import { sprite } from './sprites.js?v=2.6.0';
+import { byId } from './library.js?v=2.6.0';
 
 export function sampleYard(W = 1440, H = 960) {
 	const c = canvas(W, H);

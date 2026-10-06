@@ -119,7 +119,11 @@ export const GOAL_GROUPS = [
 		['modern', '◻️ Modern & clean', 'modern, clean landscape style with simple shapes and repeated plants'],
 		['cottage', '🌼 Cottage & natural', 'relaxed cottage-garden style with soft, natural layers'],
 		['formal', '🏛️ Formal & tidy', 'formal, symmetrical landscape with clipped shapes'],
-		['woodland', '🌲 Woodland', 'natural woodland garden style']] },
+		['woodland', '🌲 Woodland', 'natural woodland garden style'],
+		['contemporary', '🔷 Contemporary', 'contemporary landscape style with clean lines, ornamental grasses and architectural plants'],
+		['natural', '🍃 Natural', 'naturalistic landscape with drifts of plants and soft edges'],
+		['rustic', '🪵 Rustic', 'rustic landscape with fieldstone, split rail and informal plantings'],
+		['luxury', '💎 Luxury', 'high-end luxury landscape with specimen trees, bluestone and layered plantings']] },
 	{ id: 'care', label: 'Practical', single: false, items: [
 		['nicer', '✨ Curb appeal', 'designed for maximum curb appeal'],
 		['lowmaint', '🌿 Low maintenance', 'low-maintenance plants with plenty of mulch and no fussy plants'],
@@ -139,7 +143,18 @@ export const GOAL_GROUPS = [
 	{ id: 'keep', label: 'Keep', single: false, items: [
 		['trees', '🌳 Keep my trees', 'keep all existing trees'],
 		['shrubs', '🌲 Keep my shrubs', 'keep the existing shrubs'],
-		['lawn', '🌱 Keep my lawn', 'keep the existing lawn area the same size']] },
+		['lawn', '🌱 Keep my lawn', 'keep the existing lawn area the same size'],
+		['walk', '🚶 Keep my walkway', 'keep the walkway exactly where and as it is'],
+		['patio', '🧱 Keep my patio', 'keep the patio exactly as it is'],
+		['fence', '🚧 Keep my fence', 'keep the fence exactly as it is'],
+		['beds', '🪴 Keep bed shapes', 'keep the existing bed outlines']] },
+	{ id: 'change', label: 'Free to change', single: false, items: [
+		['lawn', '🟩 Lawn', 'reshape or replace the lawn'],
+		['beds', '🪴 Beds', 'redesign the planting beds'],
+		['walk', '🚶 Walkway', 'change the walkway'],
+		['patio', '🧱 Patio', 'add or change a patio'],
+		['plants', '🌿 Plants', 'replace the existing shrubs and plants'],
+		['fence', '🚧 Fence', 'change the fence']] },
 	{ id: 'amount', label: 'How big a change', single: true, items: [
 		['subtle', '🙂 Subtle refresh', 'subtle'],
 		['moderate', '🌿 Noticeable', 'moderate'],
@@ -190,6 +205,7 @@ export function buildPrompt(s) {
 	const amount = pick('amount')[0];
 	const style = [...pick('look'), ...pick('care'), ...pick('sun'), ...pick('color')];
 	const keep = pick('keep');
+	const free = pick('change');
 	const when = pick('when')[0];
 
 	const subject = s.aerial ? 'this top-down aerial photo of a home and yard' : 'this photo of a home and its yard';
@@ -203,6 +219,7 @@ export function buildPrompt(s) {
 	if (style.length) parts.push(`Style: ${style.join(', ')}; plants that grow in Connecticut.`);
 	else parts.push('Use plants that grow in Connecticut.');
 	if (when) parts.push(`Show it ${when}.`);
+	if (free.length) parts.push(`You may ${free.join(', ')}.`);
 	parts.push(`${KEEP}${keep.length ? '; ' + keep.join('; ') : ''}${amount === 'subtle' ? '; change as little as possible' : ''}.`);
 	parts.push(s.aerial
 		? 'Realistic high-resolution aerial photograph, true-to-scale plants seen from directly above.'
@@ -258,3 +275,23 @@ export function aiSize(w, h, mp = 1.0) {
 	W = Math.round(W / 16) * 16; H = Math.round(H / 16) * 16;
 	return { width: Math.max(256, Math.min(2048, W)), height: Math.max(256, Math.min(2048, H)) };
 }
+
+/** Change Style: one restyle instruction (keeps the house, driveway and camera). */
+export const STYLES = [
+	['traditional', 'Traditional', 'classic New England traditional landscape: neat foundation shrubs like boxwood and hydrangea, curved mulched beds, a flowering ornamental tree'],
+	['modern', 'Modern', 'modern landscape: crisp straight-edged beds, massed grasses and boxwood in repeated rows, dark mulch or gray gravel, large-format pavers'],
+	['contemporary', 'Contemporary', 'contemporary landscape: clean curves, ornamental grasses, architectural plants like yucca and Japanese forest grass, mixed stone and steel edging'],
+	['natural', 'Natural', 'naturalistic landscape: soft drifts of native perennials and grasses, boulders, informal shapes'],
+	['cottage', 'Cottage', 'cottage garden: abundant layered flowers (roses, catmint, coneflowers, hollyhocks), soft edges, a charming path'],
+	['formal', 'Formal', 'formal landscape: symmetry, clipped boxwood hedges and spheres, straight paths, matching planters'],
+	['rustic', 'Rustic', 'rustic landscape: fieldstone walls and steps, split-rail fence, informal native shrubs and perennials'],
+	['lowmaint', 'Low-maintenance', 'low-maintenance landscape: few tough shrubs and grasses, generous mulch or stone, clean edges, no fussy annuals'],
+	['native', 'Native', 'native Connecticut plants: switchgrass, little bluestem, coneflower, black-eyed Susan, bayberry, winterberry, serviceberry'],
+	['pollinator', 'Pollinator', 'pollinator garden: bee balm, milkweed, coneflower, asters, mountain mint and catmint in colorful layered drifts'],
+	['luxury', 'Luxury', 'luxury estate landscape: specimen Japanese maples, layered evergreens, bluestone walkways, landscape lighting, lush perennial borders']
+];
+export function stylePrompt(id, aerial) {
+	const st = STYLES.find((x) => x[0] === id) || STYLES[0];
+	return `Redesign the landscaping in this ${aerial ? 'top-down aerial photo' : 'photo'} of a home in a ${st[1].toLowerCase()} style — ${st[2]} — using plants that grow in Connecticut. ${KEEP}. Realistic professional landscape photograph, natural daylight, true-to-scale plants.`;
+}
+export const KEEP_TEXT = KEEP;

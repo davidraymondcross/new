@@ -15,7 +15,7 @@ const nid = () => ++db.id;
 const pro = { id: 1, business: "David's Landscaping", contact: 'David', phone: '(860) 555-0100', email: 'david@example.com', town: 'Farmington', state: 'CT', logo: '', rating: 4.8, reviews: 12, reality: 4.7, reality_n: 9, jobs: 14, services: ['Planting', 'Patios & walkways'], insured: true, licensed: true, years: 12, radius: 25, pay: false };
 const session = () => ({
 	user: { id: 1, name: 'David Cross', email: 'david@example.com', phone: '8605550100', address: '12 Main St', town: 'Farmington', zip: '06032', complete: true, owner: true, avatar: '' },
-	nonce: 'n', ai: { enabled: true, left: 10, limit: 10, identify: true }, socials: [], storage: { used: 0, limit: 300 * 1048576 },
+	nonce: 'n', ai: { enabled: true, left: 10, limit: 10, identify: true, segment: true }, socials: [], storage: { used: 0, limit: 300 * 1048576 },
 	community: { on: true, unread: { notes: 0, msgs: 0 }, points: 10, total: 10, level: { n: 1, name: 'Seedling', emoji: '🌱' }, me: { id: 1, name: 'David C.' } },
 	crm: { on: true, sms: true, pay: true, pro: { status: 'approved', business: pro.business, requests: db.quotes.filter((q) => q.status === 'request').length }, portal: { quotes: 1, invoices: 0 } }
 });
@@ -73,6 +73,14 @@ function route(method, p, q, b) {
 	case 'GET crm/myproperty': return { items: db.myprops };
 	case 'POST crm/myproperty': { let pr = db.myprops.find((x) => x.id === b.id); if (!pr) { pr = { id: nid(), photos: [], plan: {}, data: {}, address: '' }; db.myprops.push(pr); } Object.assign(pr, b, { id: pr.id }); return pr; }
 	case 'POST crm/request': db.lastRequest = b; return { ok: true, quote: 77 };
+	case 'POST ai/ask': db.lastAsk = b; return { instruction: 'Add a curved bed of white hydrangeas along the front foundation, edged in steel, with dark brown mulch. Keep the house and camera angle the same.', scope: 'small', explain: 'A soft curve of hydrangeas will frame your entry and hide the foundation.', note: '' };
+	case 'POST ai/analyze': return { summary: 'A tidy front yard with a lot of open lawn and a bare foundation.', items: [{ cat: 'curb_appeal', label: 'Curb appeal', title: 'Frame the front entry', seen: 'bare foundation by the steps', why: 'Layered plants make the door the focal point.', idea: 'Add a curved foundation bed with boxwood and hydrangeas.', priority: 1 }, { cat: 'lighting', label: 'Lighting', title: 'Light the walkway', seen: 'unlit path', why: 'Safer and welcoming at night.', idea: 'Add warm path lights along the walkway.', priority: 2 }] };
+	case 'POST ai/explain': return { summary: 'The new beds soften the house.', points: [{ title: 'Softened foundation', why: 'Shrubs hide the concrete and add depth.' }], notes: ['Hydrangeas need morning sun.'] };
+	case 'POST ai/style': return { style: 'Relaxed cottage', summary: 'You love soft, layered flowers.', characteristics: ['Layered perennials'], plants: ['Catmint', 'Roses'], materials: ['Fieldstone'], colors: ['Purple', 'White'], prompt: 'Restyle in a relaxed cottage look. Keep the house the same.' };
+	case 'POST ai/edit': db.aiImage = b.image; db.edits = (db.edits || 0) + 1; return { job: 'j' + db.edits, ai: { enabled: true, left: 9, limit: 10 } };
+	case 'GET ai/job': return { status: 'ready', url: 'http://localhost:' + PORT + '/mock/ai.jpg' };
+	case 'POST ai/segment': return { masks: [] };
+	case 'POST share': db.lastShare = { ...b, image: (b.image || '').slice(0, 30) }; return { ok: true };
 	case 'GET __db': return db;
 	default: return method === 'GET' ? { items: [] } : { ok: true };
 	}
@@ -86,6 +94,7 @@ const page = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewp
 http.createServer((req, res) => {
 	const u = new URL(req.url, 'http://x');
 	if (u.pathname === '/' ) { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end(page); }
+	if (u.pathname === '/mock/ai.jpg') { const d = db.aiImage || ''; const bin = Buffer.from(d.slice(d.indexOf(',') + 1), 'base64'); res.writeHead(200, { 'Content-Type': 'image/jpeg' }); return res.end(bin); }
 	if (u.pathname === '/ajax') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(session())); }
 	if (u.pathname.startsWith('/plugin/')) {
 		const f = path.join(ROOT, u.pathname.slice(8));

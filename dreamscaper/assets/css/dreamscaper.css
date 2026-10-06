@@ -869,10 +869,10 @@
 
 /* AI one-click rail */
 .ds-studio-main.ds-has-rail { grid-template-columns: 230px minmax(0, 1fr) 400px; }
-.ds-ai-rail { min-width: 0; overflow: auto; border-right: 1px solid var(--line); background: var(--bg2); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.ds-ai-rail { min-width: 0; overflow-x: hidden; overflow-y: auto; border-right: 1px solid var(--line); background: var(--bg2); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 .ds-rail-head b { display: block; font-size: 15px; }
 .ds-rail-head small { color: var(--muted); font-size: 12px; }
-.ds-rail-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--panel); border-radius: 12px; padding: 4px; }
+.ds-rail-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; background: var(--panel); border-radius: 12px; padding: 4px; }
 .ds-rail-tabs button { border: 0; background: none; color: var(--muted); border-radius: 9px; padding: 8px 2px; font-weight: 700; font-size: 12.5px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-height: 40px; }
 .ds-rail-tabs button.on { background: var(--accent); color: var(--accent-ink); }
 .ds-rail-list { display: grid; gap: 4px; }
@@ -1366,7 +1366,7 @@
 .ds-track li.on::before { background: var(--gold); }
 
 /* 2D site plan editor */
-.ds-sp { position: absolute; inset: 0; z-index: 40; background: var(--bg); display: flex; flex-direction: column; }
+.ds-siteplan { position: absolute; inset: 0; z-index: 40; background: var(--bg); display: flex; flex-direction: column; }
 .ds-sp-top { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .ds-sp-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 auto; }
 .ds-sp-top .ds-spacer { flex: 0 0 auto; }
@@ -1431,3 +1431,76 @@
 }
 
 .ds-toast-page { position: fixed !important; left: 50% !important; right: auto !important; top: auto !important; bottom: max(18px, env(safe-area-inset-bottom)) !important; transform: translateX(-50%); z-index: 2147483600; max-width: min(560px, calc(100% - 24px)); }
+
+/* =====================================================================
+ * 2.6 — editor tools, layers, versions, presentation, board, AI assistant
+ * ===================================================================== */
+.ds-movepad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; align-items: center; justify-items: stretch; max-width: 260px; }
+.ds-movepad select { min-height: 40px; }
+.ds-mini { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.ds-mini input { width: 84px !important; padding: 6px 8px !important; }
+.ds-mini.ds-wide { display: flex; } .ds-mini.ds-wide input { width: auto !important; flex: 1; }
+.ds-meas-big { font-size: 17px; font-weight: 800; color: var(--accent); margin: 4px 0; }
+.ds-shape-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ds-shape { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border-radius: 12px; border: 1px solid var(--line2); background: var(--bg2); }
+.ds-shape span { font-size: 22px; } .ds-shape small { font-size: 12px; text-align: center; }
+.ds-shape.on { border-color: var(--accent); background: rgba(123,224,160,.16); }
+.ds-meas-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ds-meas-list li { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 10px; background: var(--bg2); }
+.ds-meas-list li > span { flex: 1; min-width: 0; font-size: 13px; }
+.ds-meas-list li > b { font-size: 13px; white-space: nowrap; }
+.ds-adj-group > summary { cursor: pointer; font-weight: 800; padding: 6px 0; }
+.ds-tf { display: flex; flex-direction: column; align-items: center; gap: 6px; background: #000; border-radius: 12px; padding: 8px; }
+.ds-tf-canvas { max-width: 100%; max-height: 46vh; display: block; }
+.ds-layers { overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.ds-layers-win { width: min(360px, calc(100% - 20px)); }
+.ds-lay-grp { display: flex; flex-direction: column; gap: 3px; }
+.ds-lay-h { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; }
+.ds-lay-h b { font-size: 13.5px; }
+.ds-lay-row { display: flex; align-items: center; gap: 4px; padding: 3px 4px; border-radius: 10px; background: var(--bg2); min-height: 42px; }
+.ds-lay-row.on { outline: 2px solid var(--accent); }
+.ds-lay-row.hid { opacity: .5; }
+.ds-lay-row .ds-icon-btn { width: 32px !important; height: 32px !important; flex: none; }
+.ds-lay-name { text-align: left; background: none; border: 0; padding: 4px; font-size: 13.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-lay-th { width: 30px; height: 30px; border-radius: 6px; object-fit: contain; background: var(--panel2); flex: none; }
+.ds-lay-eye.off { opacity: .45; }
+.ds-versions { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow: auto; }
+.ds-ver-card { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; border: 1px solid var(--line2); background: var(--bg2); flex-wrap: wrap; }
+.ds-ver-card img { width: 96px; height: 64px; object-fit: cover; border-radius: 8px; flex: none; }
+.ds-ver-card small { display: block; color: var(--muted); }
+.ds-modal-xl { width: min(1200px, 100%); }
+.ds-cmpdlg .ds-cmp { max-height: 70vh; }
+.ds-side { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ds-side figure { margin: 0; } .ds-side img { width: 100%; border-radius: 10px; display: block; }
+.ds-side figcaption { text-align: center; font-size: 13px; color: var(--muted); }
+.ds-pres { position: fixed; inset: 0; z-index: 2147483500; background: #050806; display: flex; flex-direction: column; }
+.ds-pres-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+.ds-pres-stage > img, .ds-pres-stage > .ds-cmp { max-width: 100%; max-height: 100%; }
+.ds-pres-stage .ds-cmp img { max-height: calc(100vh - 120px); width: auto; }
+.ds-pres-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(20,32,25,.92); flex-wrap: wrap; }
+.ds-pres-cap { display: flex; gap: 6px; align-items: baseline; color: #fff; }
+.ds-pres-cap small { color: var(--muted); }
+.ds-pres-notes { position: absolute; left: 16px; top: 16px; max-width: min(420px, 60%); padding: 10px 14px; border-radius: 12px; background: rgba(0,0,0,.6); color: #fff; white-space: pre-wrap; font-size: 14px; }
+.ds-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.ds-board-card { border-radius: 14px; overflow: hidden; border: 1px solid var(--line2); background: var(--panel); display: flex; flex-direction: column; }
+.ds-board-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; background: var(--bg2); }
+.ds-board-big { aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; font-size: 46px; background: linear-gradient(135deg, var(--panel2), var(--bg2)); }
+.ds-board-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.ds-board-body small { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.ds-board-add .ds-btn { flex: 1 1 auto; }
+.ds-style-result { padding: 12px; border-radius: 14px; background: var(--bg2); border: 1px solid var(--accent); display: flex; flex-direction: column; gap: 6px; }
+.ds-style-result ul { margin: 0; padding-left: 20px; }
+.ds-aitool { display: flex; flex-direction: column; gap: 10px; }
+.ds-ai-answer { padding: 12px; border-radius: 12px; background: var(--bg2); border-left: 3px solid var(--accent); display: flex; flex-direction: column; gap: 8px; }
+.ds-ai-answer p { margin: 0; }
+.ds-idea { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line2); background: var(--bg2); display: flex; flex-direction: column; gap: 4px; }
+.ds-idea p { margin: 0; font-size: 14px; }
+.ds-start-from { margin-top: 10px; }
+.ds-start-from summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+.ds-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+@media (max-width: 560px) {
+	.ds-side { grid-template-columns: 1fr; }
+	.ds-board { grid-template-columns: 1fr 1fr; }
+	.ds-pres-bar { justify-content: center; }
+	.ds-pres-notes { display: none; }
+}
