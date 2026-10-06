@@ -283,6 +283,16 @@ function dreamscaper_crm_settings( WP_REST_Request $r ) {
 	if ( array_key_exists( 'terms', $j ) ) {
 		$s['terms'] = dreamscaper_crm_area( $j, 'terms', 8000 );
 	}
+	if ( array_key_exists( 'crew', $j ) ) {
+		$old = dreamscaper_crew_counts( isset( dreamscaper_pro_settings( $p )['crew'] ) ? dreamscaper_pro_settings( $p )['crew'] : array() );
+		$new = dreamscaper_crew_counts( $s['crew'] );
+		foreach ( array( 'employees' => 'field employees', 'crews' => 'crews' ) as $k => $l ) {
+			$lim = (int) dreamscaper_pro_plan( $p->user_id )['def']['f'][ $k ];
+			if ( $lim >= 0 && $new[ $k ] > $lim && $new[ $k ] > $old[ $k ] ) {
+				return dreamscaper_plan_err( $p->user_id, $k, 'Your plan includes ' . $lim . ' ' . ( 1 === $lim ? rtrim( $l, 's' ) : $l ) . '. Everyone you already have stays — upgrade to add more.' );
+			}
+		}
+	}
 	if ( isset( $s['snippets'] ) && is_array( $s['snippets'] ) ) {
 		$lim = (int) dreamscaper_pro_plan( $p->user_id )['def']['f']['snippets'];
 		$s['snippets'] = array_values( array_filter( array_map( function ( $x ) { return mb_substr( is_string( $x ) ? $x : '', 0, 1000 ); }, $s['snippets'] ) ) );
@@ -507,6 +517,18 @@ function dreamscaper_crm_property_save( WP_REST_Request $r ) {
 		}
 		$f['photos'] = wp_json_encode( $ph );
 	}
+	// a new landscape plan (a property with no plan getting its first shapes) counts against the plan's monthly allowance
+	$new_plan = isset( $j['plan'] ) && is_array( $j['plan'] ) && ! empty( $j['plan']['shapes'] ) && ( ! $pr || empty( dreamscaper_json( $pr->plan )['shapes'] ) );
+	if ( $new_plan ) {
+		$gate = dreamscaper_pro_gate( $p->user_id, 'plans_month' );
+		if ( is_wp_error( $gate ) ) {
+			return $gate;
+		}
+		$paused = dreamscaper_pro_costly_err( $p->user_id, 'plans' );
+		if ( $paused ) {
+			return $paused;
+		}
+	}
 	if ( isset( $j['plan'] ) && is_array( $j['plan'] ) ) {
 		$plan = dreamscaper_crm_clean( $j['plan'] );
 		if ( ! empty( $j['plan']['bg']['url'] ) && 0 === strpos( (string) $j['plan']['bg']['url'], 'data:' ) ) {
@@ -517,11 +539,17 @@ function dreamscaper_crm_property_save( WP_REST_Request $r ) {
 	if ( isset( $j['data'] ) && is_array( $j['data'] ) ) {
 		$f['data'] = wp_json_encode( dreamscaper_crm_clean( $j['data'] ) );
 	}
+	if ( ! empty( $GLOBALS['dscp_upload_err'] ) ) {
+		return $GLOBALS['dscp_upload_err']; // a photo couldn't be stored (storage full / large upload paused): save nothing rather than drop it quietly
+	}
 	if ( $pr ) {
 		$wpdb->update( dreamscaper_t( 'props' ), $f, array( 'id' => $pr->id ) );
 	} else {
 		$wpdb->insert( dreamscaper_t( 'props' ), array_merge( array( 'pro_id' => $p->user_id, 'address' => '', 'photos' => '[]', 'plan' => '{}', 'data' => '{}', 'created' => dreamscaper_now() ), $f ) );
 		$id = $wpdb->insert_id;
+	}
+	if ( $new_plan && dreamscaper_is_billed_pro( $p->user_id ) ) {
+		dreamscaper_plan_used( $p->user_id );
 	}
 	return dreamscaper_prop_out( dreamscaper_crm_get( 'props', $id, $p->user_id ) );
 }
@@ -834,6 +862,10 @@ function dreamscaper_crm_ai_scope( WP_REST_Request $r ) {
 	$gate = dreamscaper_pro_gate( $p->user_id, 'ai' );
 	if ( is_wp_error( $gate ) ) {
 		return $gate;
+	}
+	$paused = dreamscaper_pro_costly_err( $p->user_id, 'ai' );
+	if ( $paused ) {
+		return $paused;
 	}
 	if ( ! dreamscaper_opt( 'fal_key' ) ) {
 		return dreamscaper_crm_err( 'AI wording needs the fal.ai key (Settings → DreamScaper → AI).', 503 );

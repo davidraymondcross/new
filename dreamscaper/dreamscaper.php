@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DreamScaper
  * Description: A fun landscape design studio for your visitors. Customers photograph their yard (or use Connecticut aerial imagery), add real plants and garden features, paint mulch and stone, magic-erase what they don't want, watch plants grow year by year, and save named designs. Customer accounts (email, Google, Facebook) keep designs online across devices and unlock Dreamscape AI (FLUX.2 [klein]) plus AI Erase, Smart Select, Make it real, Season & light and plant/weed identification. Share to social media and print. Contractor CRM: Design → Quote estimating, e-signature, follow-ups, scheduling, job costing and invoices. Shortcodes: [dreamscaper], [dreamscaper_quote]
- * Version: 2.7.0
+ * Version: 2.7.1
  * Author: David's Landscaping
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DREAMSCAPER_VERSION', '2.7.0' );
+define( 'DREAMSCAPER_VERSION', '2.7.1' );
 define( 'DREAMSCAPER_URL', plugin_dir_url( __FILE__ ) );
 define( 'DREAMSCAPER_OPT', 'dreamscaper_settings' );
 

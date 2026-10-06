@@ -571,6 +571,11 @@ function dreamscaper_rest_inbox_send( WP_REST_Request $r ) {
 			return $gate;
 		}
 	}
+	// a contractor whose account is read-only or suspended can't reply, so homeowners aren't left waiting
+	// (no billing details are ever shown to the homeowner)
+	if ( 'hire' === $t->kind && (int) $t->pro_id !== $uid && function_exists( 'dreamscaper_pro_writable' ) && ! dreamscaper_pro_writable( (int) $t->pro_id ) && ! dreamscaper_is_owner_pro( (int) $t->pro_id ) ) {
+		return dreamscaper_crm_err( 'This contractor isn’t replying through DreamScaper right now. You can request quotes from other contractors in Find a Contractor.', 403 );
+	}
 	$body = mb_substr( sanitize_textarea_field( isset( $j['body'] ) ? (string) $j['body'] : '' ), 0, 4000 );
 	if ( function_exists( 'dreamscaper_text_ok' ) && ! dreamscaper_text_ok( $body ) ) {
 		return dreamscaper_crm_err( 'Please keep messages friendly.' );
@@ -586,6 +591,9 @@ function dreamscaper_rest_inbox_send( WP_REST_Request $r ) {
 		if ( $url ) {
 			$attach[] = array( 'url' => $url, 'name' => mb_substr( sanitize_text_field( isset( $a['name'] ) ? $a['name'] : '' ), 0, 80 ) );
 		}
+	}
+	if ( ! empty( $j['attach'] ) && ! $attach && ! empty( $GLOBALS['dscp_upload_err'] ) ) {
+		return $GLOBALS['dscp_upload_err']; // storage full, or a large upload while a payment is outstanding
 	}
 	if ( '' === trim( $body ) && ! $attach ) {
 		return dreamscaper_crm_err( 'Write a message first.' );

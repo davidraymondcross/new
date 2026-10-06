@@ -374,7 +374,19 @@ function dreamscaper_crm_review( WP_REST_Request $r ) {
 			}
 		}
 	}
-	return array( 'ok' => true );
+	// happy customers (4–5 stars) are offered a one-tap public review on the contractor's Google Business
+	// Profile (or Facebook / Houzz if that's what they have switched on). Unhappy ratings never see it.
+	$also = null;
+	if ( $stars >= 4 && function_exists( 'dreamscaper_pro_socials' ) ) {
+		$pro = dreamscaper_pro_row( $q->pro_id );
+		foreach ( $pro ? dreamscaper_pro_socials( $pro ) : array() as $l ) {
+			if ( in_array( $l['key'], array( 'google', 'facebook', 'houzz' ), true ) ) {
+				$also = array( 'url' => $l['url'], 'label' => $l['label'], 'business' => $pro->business );
+				break;
+			}
+		}
+	}
+	return array( 'ok' => true, 'also' => $also );
 }
 
 /* --------------------------------------------- homeowner's own properties */

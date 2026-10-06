@@ -19,7 +19,7 @@ add_action( 'rest_api_init', function () {
 		return is_user_logged_in();
 	};
 	foreach ( array( 'ask', 'analyze', 'explain', 'style' ) as $r ) {
-		register_rest_route( 'dreamscaper/v1', '/ai/' . $r, array( 'methods' => 'POST', 'callback' => 'dreamscaper_ai_' . $r, 'permission_callback' => $auth ) );
+		register_rest_route( 'dreamscaper/v1', '/ai/' . $r, array( 'methods' => 'POST', 'callback' => 'dreamscaper_ai_' . $r, 'permission_callback' => 'dreamscaper_ai_permission' ) );
 	}
 } );
 

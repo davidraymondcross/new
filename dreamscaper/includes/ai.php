@@ -39,7 +39,10 @@ function dreamscaper_ai_status( $uid ) {
 	$used   = dreamscaper_ai_used( $uid );
 	$free   = max( 0, $limit - $used );
 	$bought = dreamscaper_ai_bought( $uid );
+	$plan = function_exists( 'dreamscaper_pro_ai_allowance' ) ? dreamscaper_pro_ai_allowance( $uid ) : null;
+	$pl   = $plan ? ( $plan['limit'] < 0 ? 999 : $plan['left'] ) : 0;
 	return array(
+		'plan'      => $plan,
 		'enabled'   => (bool) dreamscaper_opt( 'bfl_key' ),
 		'segment'   => (bool) dreamscaper_opt( 'fal_key' ),
 		'identify'  => (bool) ( dreamscaper_opt( 'plantnet_key' ) || dreamscaper_opt( 'fal_key' ) ),
@@ -47,13 +50,16 @@ function dreamscaper_ai_status( $uid ) {
 		'used'      => $used,
 		'free'      => $free,
 		'bought'    => $bought,
-		'left'      => dreamscaper_ai_unlimited( $uid ) ? 999 : $free + $bought,
+		'left'      => dreamscaper_ai_unlimited( $uid ) ? 999 : $free + $pl + $bought,
 		'unlimited' => dreamscaper_ai_unlimited( $uid ),
 		'shop'      => dreamscaper_shop_public(),
 	);
 }
 
-/** Use one credit: today's free ones first, then purchased. Returns 'free' | 'paid' | 'admin' | false. */
+/**
+ * Use one credit: today's free ones first, then a contractor's monthly plan credits, then purchased.
+ * Returns 'free' | 'plan' | 'paid' | 'admin' | false.
+ */
 function dreamscaper_ai_take( $uid ) {
 	if ( dreamscaper_ai_unlimited( $uid ) ) {
 		return 'admin';
@@ -64,6 +70,11 @@ function dreamscaper_ai_take( $uid ) {
 		update_user_meta( $uid, 'dscp_ai_used', $used + 1 );
 		return 'free';
 	}
+	$plan = function_exists( 'dreamscaper_pro_ai_allowance' ) ? dreamscaper_pro_ai_allowance( $uid ) : null;
+	if ( $plan && 0 !== $plan['left'] ) {
+		dreamscaper_pro_month_add( $uid, 'ai_credits', 1 );
+		return 'plan';
+	}
 	$b = dreamscaper_ai_bought( $uid );
 	if ( $b > 0 ) {
 		update_user_meta( $uid, 'dscp_ai_bought', $b - 1 );
@@ -73,6 +84,10 @@ function dreamscaper_ai_take( $uid ) {
 }
 
 function dreamscaper_ai_refund( $uid, $kind = 'free' ) {
+	if ( 'plan' === $kind ) {
+		dreamscaper_pro_month_add( $uid, 'ai_credits', -1 );
+		return;
+	}
 	if ( 'paid' === $kind ) {
 		update_user_meta( $uid, 'dscp_ai_bought', dreamscaper_ai_bought( $uid ) + 1 );
 		return;
@@ -98,6 +113,18 @@ function dreamscaper_data_image( $uri, $max = 10485760 ) {
 	return array( 'bin' => $bin, 'mime' => 'image/' . $m[1], 'uri' => $uri );
 }
 
+/**
+ * Who may start new AI work: any signed-in member — except a contractor whose subscription payment is
+ * outstanding (restricted stage or later), who gets a 402 that explains how to switch AI back on.
+ */
+function dreamscaper_ai_permission() {
+	if ( ! is_user_logged_in() ) {
+		return false;
+	}
+	$paused = function_exists( 'dreamscaper_pro_costly_err' ) ? dreamscaper_pro_costly_err( get_current_user_id(), 'ai' ) : null;
+	return $paused ? $paused : true;
+}
+
 add_action( 'rest_api_init', function () {
 	$auth = function () {
 		return is_user_logged_in();
@@ -109,7 +136,8 @@ add_action( 'rest_api_init', function () {
 		array( '/ai/identify', 'POST', 'dreamscaper_rest_ai_identify' ),
 		array( '/ai/growth', 'POST', 'dreamscaper_rest_ai_growth' ),
 	) as $r ) {
-		register_rest_route( 'dreamscaper/v1', $r[0], array( 'methods' => $r[1], 'callback' => $r[2], 'permission_callback' => $auth ) );
+		// checking on a job already running is always allowed; starting new AI work isn't while a payment is outstanding
+		register_rest_route( 'dreamscaper/v1', $r[0], array( 'methods' => $r[1], 'callback' => $r[2], 'permission_callback' => 'POST' === $r[1] ? 'dreamscaper_ai_permission' : $auth ) );
 	}
 } );
 
@@ -135,7 +163,8 @@ function dreamscaper_rest_ai_edit( WP_REST_Request $r ) {
 	}
 	$took = dreamscaper_ai_take( $uid );
 	if ( ! $took ) {
-		return new WP_Error( 'dreamscaper', 'You’ve used today’s ' . dreamscaper_ai_limit() . ' free AI credits. They refill tomorrow — or add more credits anytime.', array( 'status' => 429, 'ai' => dreamscaper_ai_status( $uid ), 'needCredits' => true ) );
+		$plan = function_exists( 'dreamscaper_pro_ai_allowance' ) ? dreamscaper_pro_ai_allowance( $uid ) : null;
+		return new WP_Error( 'dreamscaper', $plan ? 'You’ve used this month’s ' . $plan['limit'] . ' plan AI credits and today’s free ones. Add a credit pack, upgrade your plan, or wait for the 1st.' : 'You’ve used today’s ' . dreamscaper_ai_limit() . ' free AI credits. They refill tomorrow — or add more credits anytime.', array( 'status' => 429, 'ai' => dreamscaper_ai_status( $uid ), 'needCredits' => true ) );
 	}
 	$w       = isset( $j['width'] ) ? (int) $j['width'] : 0;
 	$h       = isset( $j['height'] ) ? (int) $j['height'] : 0;

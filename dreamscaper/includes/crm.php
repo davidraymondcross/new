@@ -292,6 +292,13 @@ function dreamscaper_crm_store_image( $uri, $max = 8388608 ) {
 	if ( ! $img ) {
 		return '';
 	}
+	// contractors: plan storage, and no large uploads while a payment is outstanding
+	$uid = get_current_user_id();
+	$err = function_exists( 'dreamscaper_pro_upload_err' ) ? dreamscaper_pro_upload_err( $uid, strlen( $img['bin'] ) ) : null;
+	if ( $err ) {
+		$GLOBALS['dscp_upload_err'] = $err;
+		return '';
+	}
 	$u   = wp_upload_dir();
 	$sub = 'dreamscaper-crm/' . gmdate( 'Y/m' ) . '/';
 	$dir = trailingslashit( $u['basedir'] ) . $sub;
@@ -304,6 +311,9 @@ function dreamscaper_crm_store_image( $uri, $max = 8388608 ) {
 	$name = strtolower( wp_generate_password( 24, false ) ) . '.' . $ext;
 	if ( false === file_put_contents( $dir . $name, $img['bin'] ) ) {
 		return '';
+	}
+	if ( function_exists( 'dreamscaper_is_billed_pro' ) && dreamscaper_is_billed_pro( $uid ) ) {
+		update_user_meta( $uid, 'dscp_crm_bytes', (int) get_user_meta( $uid, 'dscp_crm_bytes', true ) + strlen( $img['bin'] ) );
 	}
 	return trailingslashit( $u['baseurl'] ) . $sub . $name;
 }
@@ -672,6 +682,10 @@ function dreamscaper_crm_tick() {
 		if ( function_exists( 'dreamscaper_sub_can_send' ) && ! dreamscaper_sub_can_send( (int) $f->pro_id ) ) {
 			continue;
 		}
+		// payment outstanding (restricted stage): automatic texts wait; emails still go
+		if ( 'email' !== $f->channel && function_exists( 'dreamscaper_pro_costly_err' ) && dreamscaper_pro_costly_err( (int) $f->pro_id, 'auto_sms' ) ) {
+			continue;
+		}
 		$sends++;
 		$q = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $Q WHERE id=%d", $f->quote_id ) );
 		if ( ! $q || in_array( $q->status, array( 'signed', 'declined', 'draft' ), true ) ) {
@@ -824,6 +838,7 @@ function dreamscaper_crm_status( $uid ) {
 		$pl  = dreamscaper_pro_plan( $uid );
 		$out['pro']['sub'] = array(
 			'status' => $sub->status, 'plan' => $pl['def']['name'], 'billing_on' => dreamscaper_subs_on(), 'writable' => dreamscaper_pro_writable( $uid ),
+			'stage' => dreamscaper_sub_stage( $uid ), 'suspend_on' => ! empty( $sub->past_due_at ) ? dreamscaper_ms( dreamscaper_sub_suspend_at( $sub ) ) : null,
 			'trial_days_left' => $sub->trial_ends ? max( 0, (int) ceil( ( strtotime( $sub->trial_ends . ' UTC' ) - time() ) / DAY_IN_SECONDS ) ) : null,
 		);
 	}

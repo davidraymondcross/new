@@ -1649,6 +1649,10 @@
 .ds-subbar.calm { background: rgba(123,224,160,.08); border-color: rgba(123,224,160,.35); }
 .ds-subbar-paused, .ds-subbar-past_due { background: rgba(255,138,122,.1); border-color: rgba(255,138,122,.5); }
 .ds-subbar-slot:empty { display: none; }
+/* failed payment: day 0–3 quiet, then stronger; read-only and suspended are unmissable */
+.ds-subbar-calm { background: var(--bg2); border-color: var(--line2); }
+.ds-subbar-paused { border-width: 2px; }
+.ds-subbar .ds-icon-btn { margin-left: -4px; }
 .ds-plan-hero .ds-row { align-items: flex-start; }
 .ds-plan-hero h2 { margin: 0; } .ds-plan-hero p { margin: 4px 0 0; }
 .ds-plan-ic { font-size: 30px; }
@@ -1662,6 +1666,14 @@
 .ds-plan-price b { font-size: 28px; }
 .ds-plan-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
 .ds-plan-list li.no { color: var(--muted); opacity: .7; }
+.ds-plan-list li.ds-plan-lim { font-weight: 700; }
+.ds-plan-list li.ds-plan-head { font-weight: 800; margin-top: 6px; }
+/* social links editor: link, show switch and test button on one row; wraps on phones */
+.ds-soc-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; border-top: 1px solid var(--line2); padding-top: 8px; margin-top: 8px; }
+.ds-soc-row .ds-field { flex: 1 1 220px; margin: 0; }
+.ds-soc-row .ds-check, .ds-soc-row .ds-btn { min-height: 44px; }
+.ds-soc-more { opacity: .6; }
+.ds-block { display: block; width: 100%; margin-top: 4px; }
 .ds-code-in { font-size: 24px; letter-spacing: .3em; text-align: center; max-width: 220px; }
 
 /* message & alert editor */

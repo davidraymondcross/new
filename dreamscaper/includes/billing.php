@@ -103,6 +103,11 @@ function dreamscaper_stripe( $method, $path, $body = array() ) {
 /** Start a Stripe Checkout for a pack or a custom number of credits. */
 function dreamscaper_rest_checkout( WP_REST_Request $r ) {
 	$j = $r->get_json_params();
+	// contractors with an outstanding subscription payment settle that first
+	$paused = function_exists( 'dreamscaper_pro_costly_err' ) ? dreamscaper_pro_costly_err( get_current_user_id(), 'buy' ) : null;
+	if ( $paused ) {
+		return $paused;
+	}
 	if ( isset( $j['storage'] ) ) {
 		return dreamscaper_rest_storage_checkout( $j );
 	}

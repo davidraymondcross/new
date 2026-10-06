@@ -4,11 +4,11 @@
  *  Measure & zones, Adjust (light · color · detail) + Crop / rotate / straighten / perspective,
  *  Layers window, Design versions, Compare and Presentation mode.
  */
-import { h, put, icon, canvas, canvasToBlob, blobToBitmap, uid } from './util.js?v=2.7.0';
-import { modal } from './capture.js?v=2.7.0';
-import { ZONES, opName } from './editor.js?v=2.7.0';
-import { ADJUST, PRESETS, planTransform, renderTransform, mapView } from './photoedit.js?v=2.7.0';
-import { fmtFtIn } from './takeoff.js?v=2.7.0';
+import { h, put, icon, canvas, canvasToBlob, blobToBitmap, uid } from './util.js?v=2.7.1';
+import { modal } from './capture.js?v=2.7.1';
+import { ZONES, opName } from './editor.js?v=2.7.1';
+import { ADJUST, PRESETS, planTransform, renderTransform, mapView } from './photoedit.js?v=2.7.1';
+import { fmtFtIn } from './takeoff.js?v=2.7.1';
 
 const deg = (v) => `${Math.round(v)}°`;
 const pct = (v) => `${Math.round(v)}%`;

@@ -1,7 +1,7 @@
 /* DreamScaper – History window: every change in order. Tap a step to go back to it
  * (later steps stay listed, greyed, so you can tap them to go forward again).
  */
-import { h, put, icon } from './util.js?v=2.7.0';
+import { h, put, icon } from './util.js?v=2.7.1';
 
 const ago = (t) => {
 	if (!t) return '';

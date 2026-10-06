@@ -5,13 +5,13 @@
  * inside the homeowner's own DreamScaper account: quotes to sign, who they hired, schedule,
  * invoices to pay, history of past hires and reviews.
  */
-import { h, put, icon } from './util.js?v=2.7.0';
-import { session, api } from './api.js?v=2.7.0';
-import { modal, camera, pickFile, aerial } from './capture.js?v=2.7.0';
-import { money } from './takeoff.js?v=2.7.0';
-import { initRequest, openRequest, basketButton, basketBar, basketAddAll, basketHas } from './request.js?v=2.7.0';
-import { initCalendar, myCalendar, apptCard } from './calendar.js?v=2.7.0';
-import { sectionHead, tip } from './explain.js?v=2.7.0';
+import { h, put, icon } from './util.js?v=2.7.1';
+import { session, api } from './api.js?v=2.7.1';
+import { modal, camera, pickFile, aerial } from './capture.js?v=2.7.1';
+import { money } from './takeoff.js?v=2.7.1';
+import { initRequest, openRequest, basketButton, basketBar, basketAddAll, basketHas } from './request.js?v=2.7.1';
+import { initCalendar, myCalendar, apptCard } from './calendar.js?v=2.7.1';
+import { sectionHead, tip } from './explain.js?v=2.7.1';
 
 let H = null; // { ctx, body, stack, cur }
 const toast = (m, ms) => H && H.ctx.toast(m, ms);
@@ -315,6 +315,14 @@ function reviewSheet(x) {
 		err, send], close);
 	send.onclick = async () => {
 		send.disabled = true;
-		try { await api('crm/review', { body: { quote_id: x.id, stars: s1, reality: s2, text: txt.value, photo } }); m.remove(); toast('Thanks! Your review is posted.'); render(H.cur); } catch (e) { err.textContent = e.message; send.disabled = false; }
+		try {
+			const r = await api('crm/review', { body: { quote_id: x.id, stars: s1, reality: s2, text: txt.value, photo } });
+			m.remove(); toast('Thanks! Your review is posted.'); render(H.cur);
+			if (r && r.also) {
+				const c2 = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => m2.remove() }, icon('close'));
+				const m2 = modal(H.ctx.root, 'Thank you!', [h('p', null, `Would you share it on ${r.also.label} too? It helps ${r.also.business} more than almost anything — it takes a minute.`),
+					h('div', { class: 'ds-row ds-wrap' }, h('a', { class: 'ds-btn', href: r.also.url, target: '_blank', rel: 'noopener noreferrer nofollow ugc', onclick: () => m2.remove() }, `Review on ${r.also.label}`), h('button', { class: 'ds-btn ds-ghost', onclick: () => m2.remove() }, 'No thanks'))], c2);
+			}
+		} catch (e) { err.textContent = e.message; send.disabled = false; }
 	};
 }

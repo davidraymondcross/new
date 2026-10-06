@@ -367,6 +367,7 @@ function dreamscaper_quote_page( $tok ) {
 	})();
 	</script>
 	<?php endif; ?>
+	<?php echo function_exists( 'dreamscaper_pro_socials_footer' ) ? dreamscaper_pro_socials_footer( $p ) : ''; // phpcs:ignore -- escaped inside ?>
 	</body></html>
 	<?php
 }
@@ -417,7 +418,7 @@ function dreamscaper_invoice_page( $tok ) {
 		<?php elseif ( 'sent' === $inv->status ) : ?>
 			<p class="muted">Please pay <?php echo esc_html( $p->business ); ?> directly<?php echo $p->phone ? ' (' . esc_html( $p->phone ) . ')' : ''; ?>.</p>
 		<?php endif; ?>
-	</div></div></body></html>
+	</div><?php echo function_exists( 'dreamscaper_pro_socials_footer' ) ? dreamscaper_pro_socials_footer( $p ) : ''; // phpcs:ignore -- escaped inside ?></div></body></html>
 	<?php
 }
 

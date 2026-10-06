@@ -5,22 +5,22 @@
  * text, shortcodes) · Jobs & job costing · Schedule / dispatch · Invoices (Stripe Connect) ·
  * Settings (business, costs & markups, price book, terms, follow-up plan, crew, payments).
  */
-import { h, put, icon } from './util.js?v=2.7.0';
-import { session, api, refreshSession } from './api.js?v=2.7.0';
-import { modal, aerial, pickFile } from './capture.js?v=2.7.0';
-import { openPlan } from './siteplan.js?v=2.7.0';
-import { segment } from './aiclient.js?v=2.7.0';
-import { ALL, matchesWords, searchScore } from './library.js?v=2.7.0';
+import { h, put, icon } from './util.js?v=2.7.1';
+import { session, api, refreshSession } from './api.js?v=2.7.1';
+import { modal, aerial, pickFile } from './capture.js?v=2.7.1';
+import { openPlan } from './siteplan.js?v=2.7.1';
+import { segment } from './aiclient.js?v=2.7.1';
+import { ALL, matchesWords, searchScore } from './library.js?v=2.7.1';
 import {
 	PRICEBOOK, DEFAULT_COSTS, DEFAULT_FOLLOWUPS, DEFAULT_TERMS, SHORTCODES, KINDS,
 	mergeBook, mergeCosts, planToSections, priceEstimate, buildDocuments, scheduleFollowups, merge, missingCodes,
 	money, fmtArea, fmtFtIn, measure, round2
-} from './takeoff.js?v=2.7.0';
-import { inboxPane, inboxDot } from './inbox.js?v=2.7.0';
-import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.0';
-import { billingView, subBanner } from './billing.js?v=2.7.0';
-import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.0';
-import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.0';
+} from './takeoff.js?v=2.7.1';
+import { inboxPane, inboxDot } from './inbox.js?v=2.7.1';
+import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.1';
+import { billingView, subBanner } from './billing.js?v=2.7.1';
+import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.1';
+import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.1';
 
 let X = null; // { ctx, body, stack, cur, me }
 const STAGES = [['lead', 'Lead'], ['prospect', 'Prospect'], ['customer', 'Customer'], ['past', 'Past customer'], ['lost', 'Lost']];
@@ -132,7 +132,7 @@ async function viewDash(b) {
 	steps.splice(3, 0, [!!(s.templates || s.reminders), 'Review your customer messages & reminders', () => go({ v: 'settings', tab: 'messages' })]);
 	const todo = steps.filter((x) => !x[0]);
 	put(b, sectionHead('dash'),
-		me.held ? card(`⏸️ ${me.held} follow-up${me.held > 1 ? 's were' : ' was'} held while your account was paused`, h('p', { class: 'ds-hint' }, 'They didn’t go out late. Choose what to do with them.'), h('button', { class: 'ds-btn ds-sm', onclick: () => heldSheet() }, 'Review held follow-ups')) : null,
+		me.held ? card(`⏸️ ${me.held} follow-up${me.held > 1 ? 's were' : ' was'} held while your payment was outstanding`, h('p', { class: 'ds-hint' }, 'They didn’t go out late. Choose what to do with them.'), h('button', { class: 'ds-btn ds-sm', onclick: () => heldSheet() }, 'Review held follow-ups')) : null,
 		todo.length ? card('Get set up', h('p', { class: 'ds-hint' }, `${steps.length - todo.length} of ${steps.length} done`), h('div', { class: 'ds-hub-steps' }, ...steps.map(([ok, t, fn]) => h('button', { class: 'ds-hub-step' + (ok ? ' done' : ''), onclick: fn }, ok ? '✅ ' : '⬜ ', t)))) : null,
 		h('div', { class: 'ds-kpis' },
 			kpi('📥', 'New requests', String(pn('request')), pn('request') ? 'Turn them into quotes' : '', () => go({ v: 'quotes', status: 'request' })),
@@ -1163,11 +1163,13 @@ async function viewSettings(b, view) {
 		if (tab === 'crew') {
 			const crew = (s.crew || []).map((x) => ({ ...x }));
 			const box = h('div');
-			const drawC = () => { box.innerHTML = ''; crew.forEach((c, i) => box.append(h('div', { class: 'ds-row' }, input(c.name, { placeholder: 'Name', oninput: (e) => (c.name = e.target.value) }), input(c.contact, { placeholder: 'Email or mobile (for crew sheets)', oninput: (e) => (c.contact = e.target.value) }), h('button', { class: 'ds-icon-btn', 'aria-label': 'Remove', onclick: () => { crew.splice(i, 1); drawC(); } }, icon('close', 14))))); box.append(h('button', { class: 'ds-link', onclick: () => { crew.push({ name: '', contact: '' }); drawC(); } }, '+ Add crew member')); };
+			const drawC = () => { box.innerHTML = ''; crew.forEach((c, i) => box.append(h('div', { class: 'ds-row' }, input(c.name, { placeholder: 'Name', oninput: (e) => (c.name = e.target.value) }), input(c.contact, { placeholder: 'Email or mobile (for crew sheets)', oninput: (e) => (c.contact = e.target.value) }), input(c.team || '', { placeholder: 'Crew (e.g. Crew A)', 'aria-label': 'Which crew', list: 'ds-team-dl', oninput: (e) => (c.team = e.target.value) }), h('button', { class: 'ds-icon-btn', 'aria-label': 'Remove', onclick: () => { crew.splice(i, 1); drawC(); } }, icon('close', 14))))); box.append(h('button', { class: 'ds-link', onclick: () => { crew.push({ name: '', contact: '' }); drawC(); } }, '+ Add crew member')); };
 			drawC();
 			const btn = h('button', { class: 'ds-btn' }, 'Save crew');
 			btn.onclick = () => saveSettings(btn, { crew: crew.filter((c) => c.name) });
-			put(pane, h('p', { class: 'ds-hint' }, 'Crew members show up when you schedule visits, and crew sheets (address, map link, scope, notes) can be emailed or texted to them.'), box, btn);
+			const teams = [...new Set(crew.map((c) => (c.team || '').trim()).filter(Boolean))];
+			put(pane, h('p', { class: 'ds-hint' }, 'Your field employees. They show up when you schedule visits, and crew sheets (address, map link, scope, notes) can be emailed or texted to them. Put people who work together in the same crew. You, the owner, don’t count toward your plan.'), usageBar('employees'), usageBar('crews'),
+				h('datalist', { id: 'ds-team-dl' }, ...teams.map((t) => h('option', { value: t }))), box, btn);
 			return;
 		}
 		if (tab === 'pay') {
@@ -1216,8 +1218,8 @@ async function heldSheet() {
 	const pick = new Set(r.items.map((x) => x.id));
 	const close = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => m.remove() }, icon('close'));
 	const act = (a) => run(null, async () => { await api('crm/held', { body: { action: a, ids: [...pick] } }); m.remove(); toast(a === 'send' ? 'Sending now.' : 'Discarded.'); render(X.cur); });
-	const m = modal(X.ctx.root, 'Follow-ups held while you were paused', [
-		h('p', { class: 'ds-hint' }, 'These were due while your account was paused, so nothing went out late. Tick the ones that still make sense to send.'),
+	const m = modal(X.ctx.root, 'Follow-ups held while your payment was outstanding', [
+		h('p', { class: 'ds-hint' }, 'These came due while your payment was outstanding, so nothing went out late. Tick the ones that still make sense to send.'),
 		h('div', { class: 'ds-checks' }, ...r.items.map((x) => h('label', { class: 'ds-check' }, h('input', { type: 'checkbox', checked: true, onchange: (e) => (e.target.checked ? pick.add(x.id) : pick.delete(x.id)) }), ` ${x.number || ''} ${x.title || ''} — “${x.subject || x.channel}” (was due ${new Date(x.was_due).toLocaleDateString()})`))),
 		h('div', { class: 'ds-row ds-wrap' }, h('button', { class: 'ds-btn', onclick: () => act('send') }, 'Send the ticked ones now'), h('button', { class: 'ds-btn ds-ghost', onclick: () => act('discard') }, 'Discard the ticked ones'))], close);
 }

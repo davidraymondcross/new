@@ -48,6 +48,11 @@ function dreamscaper_cloud_usage( $uid ) {
 
 /** Bytes this customer may store online: the free allowance plus any storage they bought. 0 = unlimited. */
 function dreamscaper_storage_quota( $uid ) {
+	// contractors on a plan: the plan's storage (shared with their Contractor Hub uploads)
+	$pq = function_exists( 'dreamscaper_pro_storage_quota' ) ? dreamscaper_pro_storage_quota( $uid ) : null;
+	if ( null !== $pq ) {
+		return $pq ? max( 1, $pq - max( 0, (int) get_user_meta( $uid, 'dscp_crm_bytes', true ) ) ) : 0;
+	}
 	$base = (int) dreamscaper_opt( 'cloud_mb' );
 	if ( ! $base ) {
 		return 0;

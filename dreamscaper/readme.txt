@@ -4,7 +4,7 @@ Tags: landscape design, garden planner, yard design, visualizer
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.7.0
+Stable tag: 2.7.1
 License: GPLv2 or later
 
 A fun, full-screen yard design studio for your website visitors.
@@ -66,6 +66,15 @@ to the phone's photo picker.
 
 == Changelog ==
 
+= 2.7.1 =
+* Four contractor plans: Starter ($59/mo), Professional ($129/mo, Most Popular), Business ($249/mo) and Pro+ ($499/mo); yearly = 10× monthly. Each plan has field employees (1 / 5 / 15 / 50), crews (1 / 2 / 5 / unlimited), monthly AI credits (50 / 200 / 750 / 2,500), storage (5 / 25 / 100 / 500 GB) and landscape plans per month (none / 3 / 15 / unlimited, fair use). The AI Quoter and Landscape Plan Generator start at Professional; work gallery at Business; featured placement at Pro+. Every name, price, allowance, feature and "what's included" line is editable in Settings → DreamScaper Plans.
+* Monthly AI credits for contractors: free daily credits are used first, then the plan's monthly credits, then bought credit packs. Storage covers saved designs and Contractor Hub uploads; storage packs add on top.
+* A gentler non-payment policy, counted from the first failed payment (every day editable): days 0–3 full access with a quiet banner ("Payment issue — no action required yet"); days 4–7 full access with a stronger reminder and the suspension date; days 8–10 everything still works except new AI work, new landscape plans, buying credits or storage, large uploads and automatic texts; days 11–13 read-only with the suspension date front and centre, hidden from new homeowners; day 14 "Suspended — Payment Required", never deleted. One email per stage (and a text for contractors who opt in to billing texts, never overnight), reminders after 7, 30 and 60 days, and a flag (not a deletion) after 90 days. Paying at any stage restores everything automatically; follow-ups that came due meanwhile wait for review instead of firing late.
+* Homeowners can't start new requests or messages with a contractor whose account is read-only or suspended; proposals and invoices already sent keep working.
+* Social links: Google Business Profile, Facebook, Instagram, Houzz, YouTube, Nextdoor, TikTok and LinkedIn, in that order, on every plan. Each link has its own on/off switch that applies everywhere at once — contractor page, Find a Contractor card (first three), proposals and invoices (now with a social footer). Tracking parameters are stripped, a link pasted in the wrong row says which row it belongs in, and there's a live preview and a Test button.
+* Happy reviewers (4–5 stars) are offered a one-tap review on the contractor's Google Business Profile (or Facebook / Houzz). Unhappy ratings are never asked.
+* Crew members can be grouped into crews; the crew screen shows employees and crews against the plan.
+
 = 2.7.0 =
 * Messages: one inbox for every conversation — homeowner ↔ contractor (attached to the project, with address, next appointment, quote and money owed beside it) and member ↔ member. Photos, read receipts, mute/archive, unread badge everywhere, email alerts (at most one per conversation every 15 minutes). Existing direct messages move over automatically.
 * Request quotes: a guided, save-as-you-go brief (services, description with voice, property photos, design, budget, timing, site facts, priorities, contact) sent to as many contractors as the homeowner chooses, with a completeness score and a plain list of what's missing. Contractors add their own intake questions per service and can ask for missing details in one tap.
@@ -77,6 +86,9 @@ to the phone's photo picker.
 * Fixes: email "Open your Contractor Hub" links no longer land on Home; the welcome tour no longer appears twice.
 
 == Upgrade Notice ==
+
+= 2.7.1 =
+New four-tier pricing and a staged non-payment policy. If you saved plan settings in 2.7.0, open Settings → DreamScaper Plans, check the new prices and allowances, save, and click "Create these plans in Stripe" (or paste new price IDs) — the 2.7.0 plan settings are not carried over. In Stripe → Billing → Revenue recovery, set Smart Retries to 2 weeks, "mark the subscription as unpaid" when retries fail, and turn off Stripe's own failed-payment emails.
 
 = 2.7.0 =
 Back up first. New tables are created and existing direct messages are moved into the new inbox automatically. Contractor billing stays OFF until you turn it on in Settings → DreamScaper Plans — until then every approved contractor keeps full access.

@@ -5,10 +5,10 @@
  * owed). Contractors get quick actions (start the estimate, book a visit, ask for what's missing),
  * saved quick replies and a "needs reply" view. The unread badge lives in the header everywhere.
  */
-import { h, put, icon } from './util.js?v=2.7.0';
-import { session, api, applySession, onSession } from './api.js?v=2.7.0';
-import { modal, camera, pickFile } from './capture.js?v=2.7.0';
-import { sectionHead, tip, planPrompt, has, lockNote, loadCaps } from './explain.js?v=2.7.0';
+import { h, put, icon } from './util.js?v=2.7.1';
+import { session, api, applySession, onSession } from './api.js?v=2.7.1';
+import { modal, camera, pickFile } from './capture.js?v=2.7.1';
+import { sectionHead, tip, planPrompt, has, lockNote, loadCaps } from './explain.js?v=2.7.1';
 
 let I = null; // { ctx }
 let pollT = 0;

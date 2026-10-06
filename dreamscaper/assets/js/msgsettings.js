@@ -1,10 +1,10 @@
 /* DreamScaper – contractor settings: Messages & alerts, Intake questions, Social links & gallery,
  * Quick replies. Each is a tab under Contractor Hub → Settings.
  */
-import { h, put, icon } from './util.js?v=2.7.0';
-import { api } from './api.js?v=2.7.0';
-import { modal, pickFile } from './capture.js?v=2.7.0';
-import { sectionHead, lockNote, has, loadCaps, planPrompt, usageBar, tip } from './explain.js?v=2.7.0';
+import { h, put, icon } from './util.js?v=2.7.1';
+import { api } from './api.js?v=2.7.1';
+import { modal, pickFile } from './capture.js?v=2.7.1';
+import { sectionHead, lockNote, has, loadCaps, planPrompt, usageBar, tip } from './explain.js?v=2.7.1';
 
 let M = null;
 export function initMsgSettings(ctx) { M = { ctx }; }
@@ -198,25 +198,45 @@ export async function socialEditor(pane) {
 	let r;
 	try { r = await api('crm/socials'); await loadCaps(); } catch (e) { pane.innerHTML = ''; pane.append(h('p', { class: 'ds-err' }, e.message)); return; }
 	pane.innerHTML = '';
-	const vals = { ...(r.socials || {}) };
+	// one row per network, in the order homeowners value them; each has its own "show" switch
+	const st = Object.fromEntries(r.networks.map((n) => [n.key, { url: n.url || '', on: n.on !== false }]));
 	const errs = {};
+	const preview = h('div', { class: 'ds-socials', 'aria-live': 'polite' });
+	const drawPreview = () => {
+		preview.innerHTML = '';
+		const on = r.networks.filter((n) => st[n.key].on && st[n.key].url.trim());
+		if (!on.length) { preview.append(h('small', { class: 'ds-muted' }, 'Nothing switched on yet — homeowners won’t see any links.')); return; }
+		on.forEach((n, i) => preview.append(h('span', { class: 'ds-soc' + (i < 3 ? '' : ' ds-soc-more') }, h('span', { 'aria-hidden': 'true' }, n.label[0]), h('small', null, n.label))));
+		preview.append(h('small', { class: 'ds-muted ds-block' }, on.length > 3 ? `Your Find a Contractor card shows the first 3; your page, proposals and invoices show all ${on.length}.` : 'Shown on your page, your Find a Contractor card, proposals and invoices.'));
+	};
 	const rows = r.networks.map((n) => {
-		const inp = h('input', { type: 'text', value: vals[n.key] || '', placeholder: n.handle ? '@yourname or paste the link' : 'Paste the full link', oninput: (e) => (vals[n.key] = e.target.value) });
+		const inp = h('input', { type: 'text', value: st[n.key].url, 'aria-label': n.label + ' link', placeholder: n.handle ? '@yourname or paste the link' : 'Paste the full link', oninput: (e) => { st[n.key].url = e.target.value; drawPreview(); } });
+		const sw = h('input', { type: 'checkbox', checked: st[n.key].on, 'aria-label': `Show ${n.label} on my pages`, onchange: (e) => { st[n.key].on = e.target.checked; drawPreview(); } });
+		const test = h('button', { class: 'ds-btn ds-ghost ds-sm', type: 'button', onclick: () => { const v = st[n.key].url.trim(); if (!v) return toast('Add the link first.'); if (!/^https?:\/\//i.test(v)) return toast('Save first — then Test opens the exact link homeowners will get.'); window.open(v, '_blank', 'noopener'); } }, 'Test');
 		errs[n.key] = h('small', { class: 'ds-err' });
-		return h('label', { class: 'ds-field' }, h('span', null, n.label), inp, errs[n.key]);
+		return h('div', { class: 'ds-soc-row' }, h('label', { class: 'ds-field ds-grow' }, h('span', null, n.label), inp, errs[n.key]), h('label', { class: 'ds-check' }, sw, ' Show'), test);
 	});
-	const lim = r.limit.limit;
+	drawPreview();
 	const save = h('button', { class: 'ds-btn' }, 'Save social links');
 	save.onclick = async () => {
 		for (const k in errs) errs[k].textContent = '';
 		save.disabled = true;
-		try { const x = await api('crm/socials', { body: { socials: vals } }); toast(x.note || 'Saved. They’re on your contractor page now.', x.note ? 6000 : 3000); } catch (e) {
+		const socials = {}, off = [];
+		for (const k in st) { socials[k] = st[k].url; if (!st[k].on) off.push(k); }
+		try {
+			const x = await api('crm/socials', { body: { socials, off } });
+			for (const k in st) st[k].url = (x.socials && x.socials[k]) || '';
+			rows.forEach((row, i) => { const k = r.networks[i].key; row.querySelector('input[type=text]').value = st[k].url; });
+			drawPreview();
+			toast(x.shown ? `Saved — ${x.shown} link${x.shown > 1 ? 's are' : ' is'} on your pages now.` : 'Saved. No links are switched on, so none are shown.', 4000);
+		} catch (e) {
 			const f = e.data && e.data.data && e.data.data.fields;
 			if (f) for (const k in f) if (errs[k]) errs[k].textContent = f[k];
 			toast(e.message);
 		}
 		save.disabled = false;
 	};
+	const noGbp = !st.google || !st.google.url;
 	const gal = h('div', { class: 'ds-gallery-ed' });
 	const drawGal = (list) => {
 		gal.innerHTML = '';
@@ -229,8 +249,10 @@ export async function socialEditor(pane) {
 			try { const x = await api('crm/gallery', { body: { add: o.toDataURL('image/jpeg', 0.85) } }); drawGal(x.gallery); } catch (e) { if (!planPrompt(e, toast)) toast(e.message); }
 		} }, icon('upload', 16), ' Add a photo'));
 	};
-	put(pane, sectionHead('social'), usageBar('socials'),
-		h('section', { class: 'ds-hub-card' }, h('h2', null, 'Social links'), h('p', { class: 'ds-hint' }, `Shown as icons on your contractor page, your listing in Find a Contractor, and your proposals and invoices. Links open in a new tab and carry no trackers.${lim >= 0 ? ` Your plan shows ${lim} — the first ${lim} you fill in, in this order.` : ''}`), h('div', { class: 'ds-form-grid' }, ...rows), save),
+	put(pane, sectionHead('social'),
+		noGbp ? tip('social_gbp', 'Start with your Google Business Profile — it’s where most local homeowners check reviews before they call.') : null,
+		h('section', { class: 'ds-hub-card' }, h('h2', null, 'Social links'), h('p', { class: 'ds-hint' }, 'Paste a link or just your @name. Switch any link off to hide it everywhere at once — it stays saved. Links open in a new tab and carry no trackers. Every plan includes every network.'), ...rows,
+			h('h3', null, 'How homeowners will see them'), preview, save),
 		h('section', { class: 'ds-hub-card' }, h('h2', null, 'Work gallery'), r.gallery_on ? [h('p', { class: 'ds-hint' }, 'Your best finished work, shown on your contractor page. Up to 60 photos.'), gal] : lockNote('gallery')));
 	if (r.gallery_on) drawGal(r.gallery);
 }

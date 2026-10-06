@@ -2,14 +2,22 @@
 /**
  * DreamScaper – contractor subscriptions.
  *
- *  - Three paid tiers (names, prices, limits and features editable in Settings → DreamScaper Plans).
+ *  - Four paid tiers: Starter, Professional, Business, Pro+ (names, prices, limits, features and the
+ *    "what's included" lists are all editable in Settings → DreamScaper Plans).
+ *  - Monthly allowances per plan: AI credits, landscape plans, storage, field employees and crews.
  *  - One 30-day trial per business, ever: verified phone (text code) and email, a card on file
  *    (Stripe Checkout, not charged until day 31), and a hashed ledger of every identity that has
  *    used a trial (email, phone, card, Stripe customer, business, address, license, account).
- *  - Missed payment → past due (full access, reminders) → paused after the grace period.
- *    Paused = read-only + export. Nothing is ever deleted. Paying restores everything instantly.
+ *  - A missed payment steps down in stages, counted from the first failed payment (days editable):
+ *      notice (day 0–3) and reminder (4–7): full access, banner + email (+ text if opted in)
+ *      restricted (8–10): full access except new AI, landscape plans, credit/storage purchases and
+ *                         large uploads — the things that cost us money
+ *      readonly (11–13):  view, export and pay only; hidden from homeowners
+ *      suspended (14+):   status 'paused' in the database; same access as readonly
+ *    Nothing is ever deleted. Paying restores everything instantly and automatically.
  *  - The gate: every contractor write goes through dreamscaper_crm_pro(), which asks
- *    dreamscaper_pro_writable(); feature checks use dreamscaper_pro_can() / dreamscaper_pro_limit().
+ *    dreamscaper_pro_writable(); feature checks use dreamscaper_pro_can() / dreamscaper_pro_limit();
+ *    costly actions ask dreamscaper_pro_costly_err().
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -105,50 +113,92 @@ add_action( 'init', function () {
 
 /* ------------------------------------------------------------------ config */
 
-/** Every feature and limit a plan can have. type: limit (number, -1 = unlimited) or flag. */
+/**
+ * Every feature and limit a plan can have. type: limit (number, -1 = unlimited) or flag.
+ * Monthly limits reset on the 1st of each month (UTC).
+ */
 function dreamscaper_feature_catalog() {
 	return array(
+		'employees'      => array( 'limit', 'Field employees', 'Crew members you can schedule and send jobs to. You, the owner, aren’t counted.' ),
+		'crews'          => array( 'limit', 'Crews', 'Named crews your employees belong to, for scheduling and dispatch.' ),
+		'ai_credits'     => array( 'limit', 'AI credits per month', 'Dreamscape AI pictures (AI Erase, Make it real, Season & light…) — 1 credit each. Your free daily credits are used first, bought credits last.' ),
+		'plans_month'    => array( 'limit', 'Landscape plans per month', 'New measured 2D landscape plans (with automatic quantities) you create on a property. Editing an existing plan is always free.' ),
+		'storage_gb'     => array( 'limit', 'Storage (GB)', 'Designs, property photos, job photos and documents you keep online.' ),
 		'clients'        => array( 'limit', 'Active customers', 'Customers in your CRM (past and lost customers don’t count).' ),
 		'quotes_month'   => array( 'limit', 'Quotes & proposals per month', 'New quotes you create each calendar month.' ),
 		'leads_month'    => array( 'limit', 'New DreamScaper requests per month', 'Homeowners who request a quote from you through Find a Contractor. When you reach it, you’re hidden from new homeowners until next month.' ),
-		'socials'        => array( 'limit', 'Social links on your profile', 'Facebook, Instagram, Houzz, Google Business Profile and more on your contractor page.' ),
 		'reminder_rules' => array( 'limit', 'Automatic reminder rules', 'How many reminders you can schedule before each appointment.' ),
 		'snippets'       => array( 'limit', 'Saved quick replies', 'One-tap answers you reuse in the Inbox.' ),
+		'ai'             => array( 'flag', 'AI Quoter', 'AI writes your scope of work and builds elevation views from a design.' ),
 		'sms'            => array( 'flag', 'Text messages', 'Follow-ups, appointment reminders and alerts by text.' ),
-		'ai'             => array( 'flag', 'AI scope writer & elevation tools', 'AI writes your scope of work and builds elevation views.' ),
 		'intake'         => array( 'flag', 'Custom intake questions', 'Your own questions in the homeowner’s request form, per service.' ),
 		'inbox_pro'      => array( 'flag', 'Inbox tools', 'Needs-reply tracking, reply timer and quick replies.' ),
 		'calendar_feed'  => array( 'flag', 'Calendar sync', 'Your schedule in Google, Apple or Outlook calendar.' ),
 		'gallery'        => array( 'flag', 'Work gallery on your profile', 'A curated gallery of your best finished jobs.' ),
-		'featured'       => array( 'flag', 'Featured placement', 'Shown first to homeowners in your service area.' ),
+		'featured'       => array( 'flag', 'Featured placement', 'Shown first (labelled “Featured”) to homeowners in your service area.' ),
 	);
 }
 
+/**
+ * The plans. 'includes' is the plain-English list on the pricing cards ("Everything in Starter plus…");
+ * 'not' lists what a plan leaves out. Both are editable, so new modules can be announced without code.
+ */
 function dreamscaper_plan_defaults() {
+	$base = array( 'clients' => -1, 'quotes_month' => -1, 'leads_month' => -1, 'intake' => 1, 'calendar_feed' => 1 );
 	return array(
-		'starter'  => array( 'name' => 'Starter', 'tag' => 'For a one-person operation', 'month' => 49, 'year' => 490, 'price_month' => '', 'price_year' => '',
-			'f' => array( 'clients' => 150, 'quotes_month' => 25, 'leads_month' => 5, 'socials' => 2, 'reminder_rules' => 2, 'snippets' => 5, 'sms' => 0, 'ai' => 0, 'intake' => 1, 'inbox_pro' => 0, 'calendar_feed' => 1, 'gallery' => 0, 'featured' => 0 ) ),
-		'pro'      => array( 'name' => 'Pro', 'tag' => 'For a growing crew', 'month' => 129, 'year' => 1290, 'price_month' => '', 'price_year' => '',
-			'f' => array( 'clients' => 1500, 'quotes_month' => 250, 'leads_month' => 30, 'socials' => -1, 'reminder_rules' => 6, 'snippets' => 50, 'sms' => 1, 'ai' => 1, 'intake' => 1, 'inbox_pro' => 1, 'calendar_feed' => 1, 'gallery' => 0, 'featured' => 0 ) ),
-		'business' => array( 'name' => 'Business', 'tag' => 'For a multi-crew company', 'month' => 299, 'year' => 2990, 'price_month' => '', 'price_year' => '',
-			'f' => array( 'clients' => -1, 'quotes_month' => -1, 'leads_month' => -1, 'socials' => -1, 'reminder_rules' => -1, 'snippets' => -1, 'sms' => 1, 'ai' => 1, 'intake' => 1, 'inbox_pro' => 1, 'calendar_feed' => 1, 'gallery' => 1, 'featured' => 1 ) ),
+		'starter'  => array( 'name' => 'Starter', 'tag' => 'Owner + one crew leader', 'month' => 59, 'year' => 590, 'price_month' => '', 'price_year' => '', 'popular' => 0,
+			'includes' => "CRM, customers & leads\nCalendar & scheduling\nEmployee manager & day-to-day task manager\nEstimates, proposals & invoicing\nCustomer portal\nBasic AI assistant",
+			'not'      => "AI Quoter\nRoute Optimizer\nLandscape Plan Generator",
+			'f' => $base + array( 'employees' => 1, 'crews' => 1, 'ai_credits' => 50, 'plans_month' => 0, 'storage_gb' => 5, 'reminder_rules' => 2, 'snippets' => 5, 'ai' => 0, 'sms' => 0, 'inbox_pro' => 0, 'gallery' => 0, 'featured' => 0 ) ),
+		'pro'      => array( 'name' => 'Professional', 'tag' => 'A growing company', 'month' => 129, 'year' => 1290, 'price_month' => '', 'price_year' => '', 'popular' => 1,
+			'includes' => "Everything in Starter, plus:\nAI Quoter\nRoute Optimizer\nAdvanced calendar & multi-crew scheduling\nEmployee management\nAutomated customer follow-ups\nAI automations\nJob photos\n3 landscape plans a month",
+			'not'      => '',
+			'f' => $base + array( 'employees' => 5, 'crews' => 2, 'ai_credits' => 200, 'plans_month' => 3, 'storage_gb' => 25, 'reminder_rules' => 6, 'snippets' => 50, 'ai' => 1, 'sms' => 1, 'inbox_pro' => 1, 'gallery' => 0, 'featured' => 0 ) ),
+		'business' => array( 'name' => 'Business', 'tag' => 'A multi-crew operation', 'month' => 249, 'year' => 2490, 'price_month' => '', 'price_year' => '', 'popular' => 0,
+			'includes' => "Everything in Professional, plus:\nAdvanced AI Quoter & Route Optimizer\nAdvanced employee & task management\nJob costing & profitability tracking\nMaterial / labor calculations & material takeoffs\nAdvanced reporting & automations\n15 landscape plans a month\nAdvanced landscape design tools\nEnhanced customer portal\nWork gallery on your profile",
+			'not'      => '',
+			'f' => $base + array( 'employees' => 15, 'crews' => 5, 'ai_credits' => 750, 'plans_month' => 15, 'storage_gb' => 100, 'reminder_rules' => -1, 'snippets' => -1, 'ai' => 1, 'sms' => 1, 'inbox_pro' => 1, 'gallery' => 1, 'featured' => 0 ) ),
+		'proplus'  => array( 'name' => 'Pro+', 'tag' => 'Large or multi-location company', 'month' => 499, 'year' => 4990, 'price_month' => '', 'price_year' => '', 'popular' => 0,
+			'includes' => "Everything in Business, plus:\nUnlimited landscape plans (fair use)\nAdvanced AI automation & landscape planning\nAdvanced material takeoffs & profitability analytics\nMulti-location\nAPI access\nWhite-label customer portal\nAdvanced permissions & custom workflows\nFeatured placement in Find a Contractor\nPriority support",
+			'not'      => '',
+			'f' => $base + array( 'employees' => 50, 'crews' => -1, 'ai_credits' => 2500, 'plans_month' => -1, 'storage_gb' => 500, 'reminder_rules' => -1, 'snippets' => -1, 'ai' => 1, 'sms' => 1, 'inbox_pro' => 1, 'gallery' => 1, 'featured' => 1 ) ),
 	);
+}
+
+/** The non-payment stages, in order, with the default day each one starts (counted from the first failed payment). */
+function dreamscaper_dunning_defaults() {
+	return array( 'reminder' => 4, 'restricted' => 8, 'readonly' => 11 );
 }
 
 function dreamscaper_subs_cfg() {
 	$o = get_option( 'dreamscaper_subs', array() );
 	$o = is_array( $o ) ? $o : array();
-	$d = array( 'on' => 0, 'trial_days' => 30, 'trial_plan' => 'pro', 'grace_days' => 14, 'otp' => 1, 'card' => 1, 'retention_months' => 12, 'since' => 0 );
+	$d = array(
+		'on' => 0, 'trial_days' => 30, 'trial_plan' => 'pro', 'grace_days' => 14, 'otp' => 1, 'card' => 1, 'retention_months' => 12, 'since' => 0,
+		// trial allowances (lower than the paid plan, to protect AI costs; the trial still shows every feature)
+		'trial_ai_credits' => 100, 'trial_plans' => 2,
+		// non-payment: the day each stage starts (grace_days = the day the account is suspended)
+		'stages' => dreamscaper_dunning_defaults(),
+		// restricted stage: what pauses (each can be switched off)
+		'restrict_ai' => 1, 'restrict_plans' => 1, 'restrict_buy' => 1, 'restrict_uploads' => 1, 'restrict_auto_sms' => 1, 'big_upload_mb' => 10,
+		// fair-use alert to the site owner for "unlimited" landscape plans
+		'fair_plans' => 100,
+		'deletion_days' => 90,
+	);
 	$c = wp_parse_args( $o, $d );
+	$c['stages'] = wp_parse_args( is_array( $c['stages'] ) ? $c['stages'] : array(), dreamscaper_dunning_defaults() );
 	$plans = dreamscaper_plan_defaults();
+	// plans saved before the four-tier pricing (no plans_v) are ignored: the new prices and limits apply
+	$saved = ! empty( $o['plans_v'] ) && isset( $o['plans'] ) && is_array( $o['plans'] ) ? $o['plans'] : array();
 	foreach ( $plans as $k => $p ) {
-		if ( isset( $o['plans'][ $k ] ) && is_array( $o['plans'][ $k ] ) ) {
-			$x            = $o['plans'][ $k ];
+		if ( isset( $saved[ $k ] ) && is_array( $saved[ $k ] ) ) {
+			$x            = $saved[ $k ];
 			$plans[ $k ]  = array_merge( $p, array_intersect_key( $x, $p ) );
 			$plans[ $k ]['f'] = array_merge( $p['f'], isset( $x['f'] ) && is_array( $x['f'] ) ? array_intersect_key( $x['f'], $p['f'] ) : array() );
 		}
 	}
 	$c['plans'] = $plans;
+	unset( $c['plans_v'] );
 	return $c;
 }
 function dreamscaper_plans() {
@@ -215,7 +265,7 @@ function dreamscaper_sub( $pro_id ) {
 		return $cache[ $pro_id ];
 	}
 	if ( dreamscaper_is_owner_pro( $pro_id ) || ! dreamscaper_subs_on() ) {
-		$cache[ $pro_id ] = (object) array( 'pro_id' => (int) $pro_id, 'plan' => 'business', 'status' => 'comped', 'virtual' => true, 'trial_ends' => null, 'period_end' => null, 'cancel_at' => null, 'stripe_customer' => '', 'stripe_sub' => '', 'billing' => 'month', 'past_due_at' => null, 'paused_at' => null );
+		$cache[ $pro_id ] = (object) array( 'pro_id' => (int) $pro_id, 'plan' => 'proplus', 'status' => 'comped', 'virtual' => true, 'trial_ends' => null, 'period_end' => null, 'cancel_at' => null, 'stripe_customer' => '', 'stripe_sub' => '', 'billing' => 'month', 'past_due_at' => null, 'paused_at' => null );
 		return $cache[ $pro_id ];
 	}
 	$row = dreamscaper_sub_row( $pro_id );
@@ -242,12 +292,72 @@ function dreamscaper_sub_flush( $pro_id = 0 ) {
 	}
 }
 
-/** Statuses that may create, edit and send. */
+/** Statuses that may create, edit and send (past due only until the read-only stage). */
 function dreamscaper_sub_active_status( $s ) {
 	return in_array( $s, array( 'trialing', 'active', 'past_due', 'comped' ), true );
 }
 function dreamscaper_pro_writable( $pro_id ) {
-	return dreamscaper_sub_active_status( dreamscaper_sub( $pro_id )->status );
+	$s = dreamscaper_sub( $pro_id );
+	if ( ! dreamscaper_sub_active_status( $s->status ) ) {
+		return false;
+	}
+	return 'past_due' !== $s->status || ! in_array( dreamscaper_sub_stage( $pro_id ), array( 'readonly', 'suspended' ), true );
+}
+
+/** Whole days since the first failed payment of the unpaid invoice (0 on the day it failed). */
+function dreamscaper_sub_days_due( $s ) {
+	return ! empty( $s->past_due_at ) ? max( 0, (int) floor( ( time() - strtotime( $s->past_due_at . ' UTC' ) ) / DAY_IN_SECONDS ) ) : 0;
+}
+
+/**
+ * Where an account is in the non-payment policy:
+ * '' (paid up) | notice | reminder | restricted | readonly | suspended.
+ */
+function dreamscaper_sub_stage( $pro_id ) {
+	$s = dreamscaper_sub( $pro_id );
+	if ( 'paused' === $s->status ) {
+		return 'suspended';
+	}
+	if ( 'past_due' !== $s->status ) {
+		return '';
+	}
+	$cfg = dreamscaper_subs_cfg();
+	$d   = dreamscaper_sub_days_due( $s );
+	if ( $d >= (int) $cfg['grace_days'] || $d >= (int) $cfg['stages']['readonly'] ) {
+		return 'readonly'; // the hourly check moves it to suspended on the day
+	}
+	if ( $d >= (int) $cfg['stages']['restricted'] ) {
+		return 'restricted';
+	}
+	return $d >= (int) $cfg['stages']['reminder'] ? 'reminder' : 'notice';
+}
+
+/** The date (UTC) the account will be suspended if it isn't paid. */
+function dreamscaper_sub_suspend_at( $s ) {
+	return ! empty( $s->past_due_at ) ? gmdate( 'Y-m-d H:i:s', strtotime( $s->past_due_at . ' UTC' ) + (int) dreamscaper_subs_cfg()['grace_days'] * DAY_IN_SECONDS ) : null;
+}
+
+/**
+ * Is this costly action ($what: ai | plans | buy | uploads | auto_sms) paused for a contractor who
+ * hasn't paid? Returns a 402 WP_Error that names the fix, or null. Non-contractors always get null.
+ */
+function dreamscaper_pro_costly_err( $uid, $what ) {
+	if ( ! $uid || ! dreamscaper_subs_on() || dreamscaper_is_owner_pro( $uid ) ) {
+		return null;
+	}
+	$p = dreamscaper_pro_row( $uid );
+	if ( ! $p || 'approved' !== $p->status ) {
+		return null;
+	}
+	$stage = dreamscaper_sub_stage( $uid );
+	if ( ! in_array( $stage, array( 'restricted', 'readonly', 'suspended' ), true ) ) {
+		return null;
+	}
+	if ( 'restricted' === $stage && empty( dreamscaper_subs_cfg()[ 'restrict_' . $what ] ) ) {
+		return null;
+	}
+	$label = array( 'ai' => 'AI tools', 'plans' => 'New landscape plans', 'buy' => 'Buying extra credits or storage', 'uploads' => 'Large uploads', 'auto_sms' => 'Automatic texts' );
+	return new WP_Error( 'dreamscaper_paused', ( isset( $label[ $what ] ) ? $label[ $what ] : 'This' ) . ( 'restricted' === $stage ? ' is paused while your subscription payment is outstanding. Update your payment method and it’s back instantly.' : ' is unavailable until your subscription payment goes through. Everything is safe — update your payment method to restore your account.' ), array( 'status' => 402, 'paused' => $stage, 'stage' => $stage, 'what' => $what ) );
 }
 /** Automatic messages (reminders, follow-ups, auto-replies) only go out for active accounts. */
 function dreamscaper_sub_can_send( $pro_id ) {
@@ -259,10 +369,17 @@ function dreamscaper_pro_plan( $pro_id ) {
 	$s     = dreamscaper_sub( $pro_id );
 	$plans = dreamscaper_plans();
 	$key   = isset( $plans[ $s->plan ] ) ? $s->plan : 'pro';
+	$def   = $plans[ $key ];
 	if ( 'trialing' === $s->status ) {
-		$key = dreamscaper_subs_cfg()['trial_plan'];
+		$cfg = dreamscaper_subs_cfg();
+		$key = isset( $plans[ $cfg['trial_plan'] ] ) ? $cfg['trial_plan'] : 'pro';
+		$def = $plans[ $key ];
+		// the trial shows every feature of the plan, with smaller AI and landscape-plan allowances
+		foreach ( array( 'ai_credits' => 'trial_ai_credits', 'plans_month' => 'trial_plans' ) as $f => $t ) {
+			$def['f'][ $f ] = $def['f'][ $f ] < 0 ? (int) $cfg[ $t ] : min( (int) $def['f'][ $f ], (int) $cfg[ $t ] );
+		}
 	}
-	return array( 'key' => $key, 'def' => $plans[ $key ] );
+	return array( 'key' => $key, 'def' => $def );
 }
 
 function dreamscaper_pro_can( $pro_id, $feat ) {
@@ -292,16 +409,119 @@ function dreamscaper_pro_limit( $pro_id, $key ) {
 		case 'leads_month':
 			$used = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . dreamscaper_t( 'quotes' ) . " WHERE pro_id=%d AND created >= %s AND origin='market'", $pro_id, $month ) );
 			break;
+		case 'ai_credits':
+		case 'plans_month':
+			$used = dreamscaper_pro_month_count( $pro_id, $key );
+			break;
+		case 'storage_gb':
+			$used = round( dreamscaper_pro_storage_bytes( $pro_id ) / GB_IN_BYTES, 2 );
+			break;
+		case 'employees':
+		case 'crews':
+			$crew = dreamscaper_pro_settings( dreamscaper_pro_row( $pro_id ) );
+			$used = dreamscaper_crew_counts( isset( $crew['crew'] ) ? $crew['crew'] : array() )[ $key ];
+			break;
 		default:
 			$s   = dreamscaper_pro_settings( dreamscaper_pro_row( $pro_id ) );
-			$map = array( 'socials' => 'socials', 'snippets' => 'snippets' );
+			$map = array( 'snippets' => 'snippets' );
 			if ( isset( $map[ $key ] ) && ! empty( $s[ $map[ $key ] ] ) && is_array( $s[ $map[ $key ] ] ) ) {
 				$used = count( array_filter( $s[ $map[ $key ] ] ) );
 			} elseif ( 'reminder_rules' === $key && function_exists( 'dreamscaper_reminder_rules' ) ) {
 				$used = count( dreamscaper_reminder_rules( dreamscaper_pro_row( $pro_id ) )['customer'] );
 			}
 	}
-	return array( 'used' => $used, 'limit' => $limit, 'left' => $limit < 0 ? -1 : max( 0, $limit - $used ) );
+	$left = $limit < 0 ? -1 : max( 0, $limit - $used );
+	return array( 'used' => $used, 'limit' => $limit, 'left' => is_float( $left ) ? round( $left, 2 ) : $left, 'resets' => in_array( $key, array( 'ai_credits', 'plans_month', 'quotes_month', 'leads_month' ), true ) ? dreamscaper_ms( gmdate( 'Y-m-01 00:00:00', strtotime( 'first day of next month' ) ) ) : null );
+}
+
+/* ------------------------------------------------- monthly allowances */
+
+/** A per-contractor counter that starts again on the 1st of each month (UTC). */
+function dreamscaper_pro_month_count( $pro_id, $key ) {
+	$m = get_user_meta( $pro_id, 'dscp_m_' . $key, true );
+	return is_array( $m ) && isset( $m['m'] ) && gmdate( 'Y-m' ) === $m['m'] ? (int) $m['n'] : 0;
+}
+function dreamscaper_pro_month_add( $pro_id, $key, $n = 1 ) {
+	$v = max( 0, dreamscaper_pro_month_count( $pro_id, $key ) + (int) $n );
+	update_user_meta( $pro_id, 'dscp_m_' . $key, array( 'm' => gmdate( 'Y-m' ), 'n' => $v ) );
+	return $v;
+}
+
+/** Count a new landscape plan; tell the site owner once a month when an "unlimited" plan passes the fair-use mark. */
+function dreamscaper_plan_used( $pro_id ) {
+	$n   = dreamscaper_pro_month_add( $pro_id, 'plans_month', 1 );
+	$cfg = dreamscaper_subs_cfg();
+	$lim = (int) dreamscaper_pro_plan( $pro_id )['def']['f']['plans_month'];
+	if ( $lim < 0 && (int) $cfg['fair_plans'] > 0 && $n === (int) $cfg['fair_plans'] ) {
+		$p = dreamscaper_pro_row( $pro_id );
+		dreamscaper_sub_event( $pro_id, 'fair_use', '', '', $n . ' landscape plans this month — over the fair-use mark. Nothing was blocked.', array( 'actor' => 0 ) );
+		wp_mail( get_option( 'admin_email' ), 'DreamScaper: fair-use check for ' . ( $p ? $p->business : '#' . $pro_id ), ( $p ? $p->business : 'A contractor' ) . ' has created ' . $n . " landscape plans this month on an unlimited plan. Nothing has been blocked — this is just so you can take a look.\n\n" . admin_url( 'options-general.php?page=dreamscaper-plans#pro-' . (int) $pro_id ) );
+	}
+}
+
+/** Field employees = crew members; crews = the distinct crew names they're in (1 when none are named). */
+function dreamscaper_crew_counts( $crew ) {
+	$crew  = is_array( $crew ) ? array_filter( $crew, function ( $c ) { return is_array( $c ) && ! empty( $c['name'] ); } ) : array();
+	$teams = array();
+	foreach ( $crew as $c ) {
+		if ( ! empty( $c['team'] ) ) {
+			$teams[ strtolower( trim( (string) $c['team'] ) ) ] = 1;
+		}
+	}
+	return array( 'employees' => count( $crew ), 'crews' => $teams ? count( $teams ) : ( $crew ? 1 : 0 ) );
+}
+
+/**
+ * A contractor billed through DreamScaper (approved, billing on, not the site owner, account running)?
+ * Members, the site owner and contractors without an active plan use the ordinary member allowances.
+ */
+function dreamscaper_is_billed_pro( $uid ) {
+	if ( ! $uid || ! dreamscaper_subs_on() || dreamscaper_is_owner_pro( $uid ) ) {
+		return false;
+	}
+	$p = dreamscaper_pro_row( $uid );
+	return $p && 'approved' === $p->status && in_array( dreamscaper_sub( $uid )->status, array( 'trialing', 'active', 'past_due', 'comped', 'paused' ), true );
+}
+
+/** The plan's monthly AI credits for this user: array( used, limit, left ) or null if not a billed contractor. */
+function dreamscaper_pro_ai_allowance( $uid ) {
+	return dreamscaper_is_billed_pro( $uid ) ? dreamscaper_pro_limit( $uid, 'ai_credits' ) : null;
+}
+
+/** Bytes a contractor keeps online: saved designs plus Contractor Hub uploads (photos, plans, gallery, attachments). */
+function dreamscaper_pro_storage_bytes( $pro_id ) {
+	return ( function_exists( 'dreamscaper_cloud_usage' ) ? dreamscaper_cloud_usage( $pro_id ) : 0 ) + max( 0, (int) get_user_meta( $pro_id, 'dscp_crm_bytes', true ) );
+}
+
+/** The plan's storage in bytes (0 = unlimited) or null if not a billed contractor. Bought storage packs are added on top. */
+function dreamscaper_pro_storage_quota( $uid ) {
+	if ( ! dreamscaper_is_billed_pro( $uid ) ) {
+		return null;
+	}
+	$gb = (int) dreamscaper_pro_plan( $uid )['def']['f']['storage_gb'];
+	return $gb < 0 ? 0 : (int) ( $gb * GB_IN_BYTES + (int) get_user_meta( $uid, 'dscp_storage_mb', true ) * MB_IN_BYTES );
+}
+
+/**
+ * Before a Contractor Hub upload of $bytes: is there room, and is it allowed at this billing stage?
+ * Returns a WP_Error or null. Members and the site owner are never limited here.
+ */
+function dreamscaper_pro_upload_err( $uid, $bytes ) {
+	if ( ! dreamscaper_is_billed_pro( $uid ) ) {
+		return null;
+	}
+	$cfg = dreamscaper_subs_cfg();
+	if ( $bytes > (int) $cfg['big_upload_mb'] * MB_IN_BYTES ) {
+		$e = dreamscaper_pro_costly_err( $uid, 'uploads' );
+		if ( $e ) {
+			return $e;
+		}
+	}
+	$q = dreamscaper_pro_storage_quota( $uid );
+	if ( $q && dreamscaper_pro_storage_bytes( $uid ) + $bytes > $q ) {
+		return dreamscaper_plan_err( $uid, 'storage_gb', 'Your online storage is full. Nothing is lost — upgrade your plan or add a storage pack to keep uploading.' );
+	}
+	return null;
 }
 
 /** A 402 error that tells the app which feature and plan are needed. */
@@ -327,10 +547,11 @@ function dreamscaper_paused_err( $pro_id ) {
 	$s = dreamscaper_sub( $pro_id );
 	$msg = array(
 		'none'      => 'Start your free 30-day trial to use the Contractor Hub.',
-		'paused'    => 'Your account is paused because a payment didn’t go through. Everything is safe — update your card to pick up right where you left off.',
+		'paused'    => 'Your account is suspended because your subscription payment is past due. Everything is safe — update your payment method and it’s restored instantly.',
+		'past_due'  => 'Your account is read-only until your subscription payment goes through (suspension on ' . dreamscaper_sub_suspend_label( $s ) . '). You can still view, export and pay — update your payment method to switch everything back on.',
 		'cancelled' => 'Your subscription has ended. Your records are safe and you can still view and export them — choose a plan to start working again.',
 	);
-	return new WP_Error( 'dreamscaper_paused', isset( $msg[ $s->status ] ) ? $msg[ $s->status ] : 'Your contractor account isn’t active.', array( 'status' => 402, 'paused' => $s->status ) );
+	return new WP_Error( 'dreamscaper_paused', isset( $msg[ $s->status ] ) ? $msg[ $s->status ] : 'Your contractor account isn’t active.', array( 'status' => 402, 'paused' => $s->status, 'stage' => dreamscaper_sub_stage( $pro_id ) ) );
 }
 
 /**
@@ -384,6 +605,82 @@ function dreamscaper_sub_mail( $pro_id, $subject, $text, $button = 'Open Plan & 
 	dreamscaper_crm_tell_user( $pro_id, $subject );
 }
 
+/** A billing text, only for contractors who opted in to billing texts, and never overnight. */
+function dreamscaper_sub_text( $pro_id, $text ) {
+	if ( ! get_user_meta( $pro_id, 'dscp_billing_sms', true ) || ! dreamscaper_sms_ready() ) {
+		return;
+	}
+	$h = (int) wp_date( 'G' );
+	if ( $h < 8 || $h >= 20 ) {
+		return;
+	}
+	$p     = dreamscaper_pro_row( $pro_id );
+	$phone = (string) get_user_meta( $pro_id, 'dscp_phone_verified', true );
+	$phone = $phone ? $phone : ( $p ? dreamscaper_e164( $p->phone ) : '' );
+	if ( $phone ) {
+		dreamscaper_sms( $phone, $text . ' ' . dreamscaper_app_url( array( 'ds_hub' => 'plan' ) ) );
+	}
+}
+
+/** The suspension date as the contractor sees it. */
+function dreamscaper_sub_suspend_label( $s ) {
+	$at = dreamscaper_sub_suspend_at( $s );
+	return $at ? wp_date( 'F j', strtotime( $at . ' UTC' ) ) : 'soon';
+}
+
+/** The non-payment messages: [ subject, email text, text message ]. Day 0 is 'notice'. */
+function dreamscaper_dunning_copy( $stage, $name, $date, $keep = 12 ) {
+	$c = array(
+		'notice'     => array( 'Payment issue — no action required yet',
+			"Hi {$name},\n\nWe couldn’t process your latest DreamScaper payment. Your account remains fully active while we retry the payment — nothing changes for you or your customers.\n\nThis is usually an expired or replaced card, a temporary bank decline or a bank security check. Updating your payment method takes a minute.",
+			'DreamScaper: we couldn’t process your latest payment. Your account is still fully active — please update your payment method:' ),
+		'reminder'   => array( 'Your DreamScaper subscription payment is still outstanding',
+			"Hi {$name},\n\nWe haven’t been able to process your subscription payment. Please update your payment method by {$date} to avoid interruption to your account.\n\nEverything still works today.",
+			"DreamScaper: your subscription payment is still outstanding. Please update your payment method by {$date} to avoid interruption:" ),
+		'restricted' => array( 'Some DreamScaper features are paused until your payment goes through',
+			"Hi {$name},\n\nYour subscription payment is still outstanding, so we’ve paused the features that cost us money to run: new AI pictures and AI Quoter jobs, new landscape plans, buying extra credits or storage, large uploads and automatic texts.\n\nEverything else still works — customers, jobs, your calendar, estimates, proposals and invoices — so you can keep earning. Nothing has been deleted or hidden.\n\nUpdate your payment method before {$date} to avoid your account being suspended. Paused features come back the moment the payment goes through.",
+			"DreamScaper: AI and some extras are paused until your payment goes through. Update your payment method before {$date} to avoid suspension:" ),
+		'readonly'   => array( "Your DreamScaper account will be suspended on {$date}",
+			"Hi {$name},\n\nWe haven’t received payment for your subscription. Your account is now read-only, and you’re not shown to new homeowners.\n\nUpdate your payment method before {$date} to maintain access to your account and all of your saved business data. You can still sign in, view and export everything, and pay.\n\nProposals and invoices you already sent keep working for your customers.",
+			"DreamScaper: your account will be suspended on {$date}. Update your payment method to keep access:" ),
+		'final'      => array( 'Your DreamScaper account will be suspended tomorrow',
+			"Hi {$name},\n\nThis is a final reminder: your account will be suspended tomorrow ({$date}) because your subscription payment is past due.\n\nUpdate your payment method today and nothing changes. Your data is safe either way.",
+			'DreamScaper: your account will be suspended tomorrow. Update your payment method today:' ),
+		'suspended'  => array( 'Your DreamScaper account is suspended — payment required',
+			"Hi {$name},\n\nYour account is currently suspended because your subscription payment is past due.\n\nAll of your customers, employees, jobs, estimates, proposals, invoices, calendar, routes, landscape plans, photos, documents, settings and AI history are safe and intact. You can still sign in, view and export everything.\n\nUpdate your payment method and your account is restored instantly — no need to contact us.",
+			'DreamScaper: your account is suspended until your subscription payment goes through. Everything is safe — restore it here:' ),
+		'susp_7'     => array( 'Everything is waiting for you on DreamScaper',
+			"Hi {$name},\n\nYour DreamScaper account is still suspended. Everything is exactly as you left it — restoring it takes one click: update your payment method and it’s back instantly.", '' ),
+		'susp_30'    => array( 'Your DreamScaper records are safe',
+			"Hi {$name},\n\nYour account has been suspended for a month. Your records are kept for at least {$keep} months, and you can sign in to view or export them any time. Update your payment method whenever you’re ready and everything comes back exactly as it was.", '' ),
+		'susp_60'    => array( 'Still here when you’re ready — DreamScaper',
+			"Hi {$name},\n\nA quick reminder that your DreamScaper account is suspended. Your records are safe. You can export everything, or update your payment method to restore your account instantly.", '' ),
+	);
+	return isset( $c[ $stage ] ) ? $c[ $stage ] : null;
+}
+
+/** Send a non-payment message once (recorded as a billing event so it never goes twice). */
+function dreamscaper_dun( $s, $stage, $since ) {
+	global $wpdb;
+	$pro_id = (int) $s->pro_id;
+	$sent   = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . dreamscaper_t( 'sub_events' ) . ' WHERE pro_id=%d AND kind=%s AND created >= %s LIMIT 1', $pro_id, 'dun_' . $stage, $since ) );
+	if ( $sent ) {
+		return false;
+	}
+	$p    = dreamscaper_pro_row( $pro_id );
+	$name = $p && $p->contact ? preg_split( '/\s+/', trim( $p->contact ) )[0] : 'there';
+	$copy = dreamscaper_dunning_copy( $stage, $name, dreamscaper_sub_suspend_label( $s ), (int) dreamscaper_subs_cfg()['retention_months'] );
+	if ( ! $copy ) {
+		return false;
+	}
+	dreamscaper_sub_event( $pro_id, 'dun_' . $stage, $s->status, $s->status, $copy[0], array( 'actor' => 0 ) );
+	dreamscaper_sub_mail( $pro_id, $copy[0], $copy[1], 'suspended' === $stage || 0 === strpos( $stage, 'susp_' ) ? 'Update Payment Method & Restore Account' : 'Update payment method' );
+	if ( $copy[2] ) {
+		dreamscaper_sub_text( $pro_id, $copy[2] );
+	}
+	return true;
+}
+
 /** Side effects of moving between statuses. */
 function dreamscaper_sub_status_changed( $pro_id, $from, $to ) {
 	global $wpdb;
@@ -391,7 +688,13 @@ function dreamscaper_sub_status_changed( $pro_id, $from, $to ) {
 	$name = $p && $p->contact ? $p->contact : 'there';
 	if ( 'paused' === $to ) {
 		$wpdb->update( dreamscaper_t( 'subs' ), array( 'paused_at' => dreamscaper_now() ), array( 'pro_id' => $pro_id ) );
-		dreamscaper_sub_mail( $pro_id, 'Your DreamScaper account is paused', "Hi {$name},\n\nWe couldn’t collect your subscription payment, so your Contractor Hub is paused.\n\nNothing has been deleted. Your customers, properties, designs, quotes, invoices and messages are all safe, and you can still view and export them.\n\nWhile paused: you can’t create or send anything, automatic follow-ups and reminders are on hold, and you’re hidden from new homeowners. Proposals and invoices you already sent still work for your customers.\n\nUpdate your card and everything switches back on instantly.", 'Update my card' );
+		dreamscaper_sub_flush( $pro_id );
+		$s = dreamscaper_sub_row( $pro_id );
+		if ( $s && 'past_due' === $from ) {
+			dreamscaper_dun( $s, 'suspended', $s->paused_at );
+		} else {
+			dreamscaper_sub_mail( $pro_id, 'Your DreamScaper account is suspended', "Hi {$name},\n\nYour Contractor Hub is suspended.\n\nNothing has been deleted. Your customers, properties, designs, quotes, invoices and messages are all safe, and you can still view and export them.\n\nWhile suspended you can’t create or send anything, automatic follow-ups and reminders are on hold, and you’re hidden from new homeowners. Proposals and invoices you already sent still work for your customers.", 'Open Plan & billing' );
+		}
 	}
 	if ( 'cancelled' === $to ) {
 		$keep = (int) dreamscaper_subs_cfg()['retention_months'];
@@ -399,18 +702,25 @@ function dreamscaper_sub_status_changed( $pro_id, $from, $to ) {
 	}
 	if ( 'past_due' === $to ) {
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . dreamscaper_t( 'subs' ) . ' SET past_due_at=%s WHERE pro_id=%d AND past_due_at IS NULL', dreamscaper_now(), $pro_id ) );
-		$g = (int) dreamscaper_subs_cfg()['grace_days'];
-		dreamscaper_sub_mail( $pro_id, 'Action needed: your DreamScaper payment didn’t go through', "Hi {$name},\n\nYour card was declined for your DreamScaper subscription. Everything keeps working for now — please update your card within {$g} days so your account isn’t paused.", 'Update my card' );
+		dreamscaper_sub_flush( $pro_id );
+		$s = dreamscaper_sub_row( $pro_id );
+		if ( $s ) {
+			dreamscaper_dun( $s, 'notice', $s->past_due_at );
+		}
 	}
 	if ( in_array( $to, array( 'active', 'trialing' ), true ) && in_array( $from, array( 'paused', 'cancelled', 'past_due', 'none' ), true ) ) {
+		$old  = dreamscaper_sub_row( $pro_id );
+		$late = $old && $old->past_due_at && dreamscaper_sub_days_due( $old ) >= (int) dreamscaper_subs_cfg()['stages']['restricted'];
 		$wpdb->update( dreamscaper_t( 'subs' ), array( 'past_due_at' => null, 'paused_at' => null, 'failures' => 0 ), array( 'pro_id' => $pro_id ) );
-		if ( in_array( $from, array( 'paused', 'cancelled' ), true ) ) {
-			// follow-ups whose time passed while paused wait for review instead of firing late
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . dreamscaper_t( 'followups' ) . " SET status='held' WHERE pro_id=%d AND status='scheduled' AND send_at < %s", $pro_id, dreamscaper_now() ) );
+		dreamscaper_sub_flush( $pro_id );
+		if ( in_array( $from, array( 'paused', 'cancelled' ), true ) || ( 'past_due' === $from && $late ) ) {
+			// follow-ups whose time passed while restricted or suspended wait for review instead of firing late
+			$held = $wpdb->query( $wpdb->prepare( 'UPDATE ' . dreamscaper_t( 'followups' ) . " SET status='held' WHERE pro_id=%d AND status='scheduled' AND send_at < %s", $pro_id, dreamscaper_now() ) );
 			if ( (int) get_option( 'dreamscaper_cal_db' ) ) {
 				$wpdb->query( $wpdb->prepare( 'UPDATE ' . dreamscaper_t( 'reminders' ) . " SET status='skipped', error='paused' WHERE pro_id=%d AND status='scheduled' AND send_at < %s", $pro_id, dreamscaper_now() ) );
 			}
-			dreamscaper_sub_mail( $pro_id, 'Welcome back — your DreamScaper account is active', "Hi {$name},\n\nThanks! Your Contractor Hub is fully active again — everything is exactly where you left it. Any follow-ups that were due while you were paused are waiting for you to review on your dashboard, so nothing goes out late without your OK.", 'Open my Contractor Hub' );
+			$hidden = 'past_due' !== $from || dreamscaper_sub_days_due( $old ) >= (int) dreamscaper_subs_cfg()['stages']['readonly'];
+			dreamscaper_sub_mail( $pro_id, 'You’re all set — your DreamScaper account is fully active', "Hi {$name},\n\nThanks! Your payment went through and your Contractor Hub is fully active again — everything is exactly where you left it" . ( $hidden ? ', and you’re visible to homeowners again.' : '.' ) . ( $held ? "\n\nA few follow-ups came due while your payment was outstanding. They’re waiting for you to review on your dashboard, so nothing goes out late without your OK." : '' ), 'Open my Contractor Hub' );
 		}
 	}
 }
@@ -784,10 +1094,31 @@ function dreamscaper_subs_daily() {
 	}
 	$S   = dreamscaper_t( 'subs' );
 	$cfg = dreamscaper_subs_cfg();
-	// past due beyond the grace period → paused
-	$cut = gmdate( 'Y-m-d H:i:s', time() - (int) $cfg['grace_days'] * DAY_IN_SECONDS );
-	foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT pro_id FROM $S WHERE status='past_due' AND past_due_at IS NOT NULL AND past_due_at < %s", $cut ) ) as $pro ) {
-		dreamscaper_sub_update( (int) $pro, array( 'status' => 'paused' ), 'grace_over', 'Grace period ended', array( 'actor' => 0 ) );
+	// non-payment stages: one message per stage, then suspend on the day (never more than one message a run)
+	foreach ( $wpdb->get_results( "SELECT * FROM $S WHERE status='past_due' AND past_due_at IS NOT NULL LIMIT 500" ) as $s ) { // phpcs:ignore
+		$d = dreamscaper_sub_days_due( $s );
+		if ( $d >= (int) $cfg['grace_days'] ) {
+			dreamscaper_sub_update( (int) $s->pro_id, array( 'status' => 'paused' ), 'grace_over', 'Suspended: payment ' . $d . ' days past due', array( 'actor' => 0 ) );
+			continue;
+		}
+		$stage = $d >= (int) $cfg['grace_days'] - 1 ? 'final' : ( $d >= (int) $cfg['stages']['readonly'] ? 'readonly' : ( $d >= (int) $cfg['stages']['restricted'] ? 'restricted' : ( $d >= (int) $cfg['stages']['reminder'] ? 'reminder' : '' ) ) );
+		if ( $stage ) {
+			dreamscaper_dun( $s, $stage, $s->past_due_at );
+		}
+	}
+	// suspended: gentle reminders, and flag accounts that reach the retention review (nothing is deleted automatically)
+	foreach ( $wpdb->get_results( "SELECT * FROM $S WHERE status='paused' AND paused_at IS NOT NULL LIMIT 500" ) as $s ) { // phpcs:ignore
+		$d = (int) floor( ( time() - strtotime( $s->paused_at . ' UTC' ) ) / DAY_IN_SECONDS );
+		foreach ( array( 60 => 'susp_60', 30 => 'susp_30', 7 => 'susp_7' ) as $at => $k ) {
+			if ( $d >= $at ) {
+				dreamscaper_dun( $s, $k, $s->paused_at );
+				break;
+			}
+		}
+		$due_days = $s->past_due_at ? (int) floor( ( time() - strtotime( $s->past_due_at . ' UTC' ) ) / DAY_IN_SECONDS ) : $d;
+		if ( $due_days >= (int) $cfg['deletion_days'] && ! $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM ' . dreamscaper_t( 'sub_events' ) . " WHERE pro_id=%d AND kind='deletion_eligible' AND created >= %s LIMIT 1", $s->pro_id, $s->paused_at ) ) ) {
+			dreamscaper_sub_event( (int) $s->pro_id, 'deletion_eligible', 'paused', 'paused', 'Unpaid for ' . $due_days . ' days — eligible for deletion under the retention policy. Nothing has been deleted.', array( 'actor' => 0 ) );
+		}
 	}
 	// trials without a Stripe subscription (grandfathered) that ended → paused
 	foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT pro_id FROM $S WHERE status='trialing' AND stripe_sub='' AND trial_ends IS NOT NULL AND trial_ends < %s", dreamscaper_now() ) ) as $pro ) {
@@ -835,6 +1166,7 @@ add_action( 'rest_api_init', function () {
 		array( '/sub/portal', 'POST', 'dreamscaper_rest_sub_portal' ),
 		array( '/sub/change', 'POST', 'dreamscaper_rest_sub_change' ),
 		array( '/sub/cancel', 'POST', 'dreamscaper_rest_sub_cancel' ),
+		array( '/sub/prefs', 'POST', 'dreamscaper_rest_sub_prefs' ),
 		array( '/crm/export', 'GET', 'dreamscaper_rest_export' ),
 		array( '/crm/held', 'GET', 'dreamscaper_rest_held' ),
 		array( '/crm/held', 'POST', 'dreamscaper_rest_held_act' ),
@@ -869,7 +1201,8 @@ function dreamscaper_sub_status_payload( $pro_id ) {
 	}
 	$plans = array();
 	foreach ( dreamscaper_plans() as $k => $p ) {
-		$plans[] = array( 'key' => $k, 'name' => $p['name'], 'tag' => $p['tag'], 'month' => (float) $p['month'], 'year' => (float) $p['year'], 'f' => $p['f'], 'buyable' => array( 'month' => '' !== trim( $p['price_month'] ), 'year' => '' !== trim( $p['price_year'] ) ) );
+		$lines   = function ( $t ) { return array_values( array_filter( array_map( 'trim', explode( "\n", (string) $t ) ) ) ); };
+		$plans[] = array( 'key' => $k, 'name' => $p['name'], 'tag' => $p['tag'], 'month' => (float) $p['month'], 'year' => (float) $p['year'], 'f' => $p['f'], 'popular' => ! empty( $p['popular'] ), 'includes' => $lines( $p['includes'] ), 'not' => $lines( $p['not'] ), 'buyable' => array( 'month' => '' !== trim( $p['price_month'] ), 'year' => '' !== trim( $p['price_year'] ) ) );
 	}
 	$cfg   = dreamscaper_subs_cfg();
 	$elig  = 'none' === $s->status && dreamscaper_subs_on() ? dreamscaper_trial_eligibility( $pro_id ) : null;
@@ -888,10 +1221,19 @@ function dreamscaper_sub_status_payload( $pro_id ) {
 		'cancel_at'  => dreamscaper_ms( $s->cancel_at ),
 		'past_due_at' => dreamscaper_ms( $s->past_due_at ),
 		'grace_days' => (int) $cfg['grace_days'],
-		'pause_on'   => $s->past_due_at ? dreamscaper_ms( gmdate( 'Y-m-d H:i:s', strtotime( $s->past_due_at . ' UTC' ) + (int) $cfg['grace_days'] * DAY_IN_SECONDS ) ) : null,
+		'pause_on'   => $s->past_due_at ? dreamscaper_ms( dreamscaper_sub_suspend_at( $s ) ) : null,
+		'stage'      => dreamscaper_sub_stage( $pro_id ),
+		'days_due'   => 'past_due' === $s->status ? dreamscaper_sub_days_due( $s ) : null,
+		'stages'     => $cfg['stages'],
+		'restricted' => array_keys( array_filter( array( 'ai' => $cfg['restrict_ai'], 'plans' => $cfg['restrict_plans'], 'buy' => $cfg['restrict_buy'], 'uploads' => $cfg['restrict_uploads'], 'auto_sms' => $cfg['restrict_auto_sms'] ) ) ),
+		'big_upload_mb' => (int) $cfg['big_upload_mb'],
+		'billing_sms' => (bool) get_user_meta( $pro_id, 'dscp_billing_sms', true ),
+		'ai'         => dreamscaper_pro_ai_allowance( $pro_id ),
 		'has_card'   => ! empty( $s->stripe_sub ),
 		'trial'      => $elig,
 		'trial_length' => (int) $cfg['trial_days'],
+		'trial_ai_credits' => (int) $cfg['trial_ai_credits'],
+		'trial_plans' => (int) $cfg['trial_plans'],
 		'trial_plan' => $cfg['trial_plan'],
 		'phone_verified' => (string) get_user_meta( $pro_id, 'dscp_phone_verified', true ),
 		'email_verified' => (string) get_user_meta( $pro_id, 'dscp_email_verified', true ),
@@ -1094,6 +1436,20 @@ function dreamscaper_rest_sub_change( WP_REST_Request $r ) {
 		return $up;
 	}
 	dreamscaper_sub_apply_stripe( (int) $p->user_id, $up, 'change' );
+	return dreamscaper_sub_status_payload( (int) $p->user_id );
+}
+
+/** Billing preferences: texts about billing problems (opt-in, separate from customer texts). */
+function dreamscaper_rest_sub_prefs( WP_REST_Request $r ) {
+	$p = dreamscaper_billing_pro();
+	if ( is_wp_error( $p ) ) {
+		return $p;
+	}
+	$j = $r->get_json_params();
+	if ( array_key_exists( 'billing_sms', $j ) ) {
+		update_user_meta( (int) $p->user_id, 'dscp_billing_sms', empty( $j['billing_sms'] ) ? 0 : 1 );
+		dreamscaper_sub_event( (int) $p->user_id, 'prefs', '', '', empty( $j['billing_sms'] ) ? 'Billing texts off' : 'Billing texts on' );
+	}
 	return dreamscaper_sub_status_payload( (int) $p->user_id );
 }
 

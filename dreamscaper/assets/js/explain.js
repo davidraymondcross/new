@@ -7,9 +7,9 @@
  * tip(key, text)     a one-time tip the first time someone opens an area (remembered per device)
  * capabilityMap()    the whole product on one page: every area, one line each, and whether you have it
  */
-import { h, put, icon } from './util.js?v=2.7.0';
-import { api, session } from './api.js?v=2.7.0';
-import { modal } from './capture.js?v=2.7.0';
+import { h, put, icon } from './util.js?v=2.7.1';
+import { api, session } from './api.js?v=2.7.1';
+import { modal } from './capture.js?v=2.7.1';
 
 let ROOT = null, GO_PLANS = null;
 export function initExplain(root, goPlans) { ROOT = root; GO_PLANS = goPlans || null; }
@@ -60,7 +60,7 @@ export const HELP = {
 		links: 'Everything here feeds your estimates, proposals and messages.' },
 	plan: { t: 'Plan & billing', p: 'Your plan, what it includes, how much you’ve used, and your billing.',
 		can: ['Start your free trial or choose a plan', 'Compare what each plan includes', 'See how much of each limit you’ve used', 'Update your card, see invoices, change or cancel your plan', 'Export all your records at any time'],
-		links: 'If a payment fails your account pauses — nothing is ever deleted.' },
+		links: 'If a payment fails you keep full access while it’s retried; after a week AI and other extras pause, then the account becomes read-only and finally suspended — nothing is ever deleted, and paying restores everything instantly.' },
 	messages: { t: 'Messages & alerts', p: 'Every automatic message your customers get, and every alert you get — in your own words.',
 		can: ['Turn each message on or off', 'Choose email, text and in-app for each one', 'Rewrite the subject, email and text', 'Insert details like the customer’s name or the appointment time with one tap', 'Preview it with real-looking details and send yourself a test'],
 		links: 'Appointment reminder timing is under Reminders; invoice-overdue and review timing are right beside those messages.' },
@@ -71,8 +71,8 @@ export const HELP = {
 		can: ['Add questions for each service you offer', 'Use short answers, choices, yes/no, numbers or dates', 'Say why you ask (homeowners answer more when they know why)', 'Start from DreamScaper’s questions'],
 		links: 'Answers appear in the request brief in your Inbox.', f: 'intake' },
 	social: { t: 'Social links & gallery', p: 'Show homeowners you’re real: your social pages and your best work on your contractor page.',
-		can: ['Add Facebook, Instagram, Google Business Profile, Houzz and more', 'Paste a link or just your @name', 'Curate a gallery of finished work'],
-		links: 'Social links appear on your profile, your listing and your proposals and invoices.', f: 'socials' },
+		can: ['Add your Google Business Profile, Facebook, Instagram, Houzz, YouTube, Nextdoor, TikTok and LinkedIn', 'Paste a link or just your @name', 'Switch each link on or off — it changes everywhere at once', 'Test each link before homeowners see it', 'Curate a gallery of finished work'],
+		links: 'Switched-on links appear on your contractor page, your Find a Contractor card (top 3), and your proposals and invoices. Every plan includes every network.', f: 'gallery' },
 	snippets: { t: 'Quick replies', p: 'Answers you send often, ready to drop into any conversation in one tap.',
 		can: ['Save replies like “I can come Thursday between 9 and 11 — does that work?”', 'Use merge details like the customer’s first name'], f: 'snippets' }
 };
@@ -137,13 +137,17 @@ export function lockNote(f, label) {
 }
 
 /** Usage bar for a limit, e.g. "18 of 25 quotes this month". */
-export function usageBar(f) {
+export function usageBar(f, showUnlimited) {
 	const x = CAPS && CAPS.features ? CAPS.features[f] : null;
 	if (!x || x.type !== 'limit') return null;
-	if (x.limit < 0) return h('div', { class: 'ds-usage' }, h('small', null, `${x.label}: ${x.used} · unlimited`));
-	const pct = x.limit ? Math.min(100, Math.round((x.used / x.limit) * 100)) : 100;
+	const n = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+	const resets = x.resets ? ` · resets ${new Date(x.resets).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : '';
+	if (x.limit < 0 && !showUnlimited) return null; // unlimited: nothing to watch
+	if (x.limit < 0) return h('div', { class: 'ds-usage' }, h('small', null, `${x.label}: ${n(x.used)} · unlimited`));
+	if (x.limit === 0) return h('div', { class: 'ds-usage full' }, h('small', null, `${x.label}: not in your plan`));
+	const pct = Math.min(100, Math.round((x.used / x.limit) * 100));
 	return h('div', { class: 'ds-usage' + (pct >= 100 ? ' full' : pct >= 80 ? ' near' : '') },
-		h('small', null, `${x.label}: ${x.used} of ${x.limit}${pct >= 100 ? ' — limit reached' : pct >= 80 ? ' — almost at your limit' : ''}`),
+		h('small', null, `${x.label}: ${n(x.used)} of ${n(x.limit)}${pct >= 100 ? ' — limit reached' : pct >= 80 ? ' — almost at your limit' : ''}${resets}`),
 		h('i', null, h('em', { style: { width: pct + '%' } })));
 }
 
@@ -167,10 +171,13 @@ export function planPrompt(e, toast) {
 	const d = (e.data && e.data.data) || {};
 	if (!ROOT) { toast && toast(e.message, 6000); return true; }
 	const close = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => m.remove() }, icon('close'));
-	const m = modal(ROOT, d.paused ? (d.paused === 'none' ? 'Start your free trial' : 'Your account is paused') : 'Not in your plan', [
+	const stage = d.stage || d.paused;
+	const title = !d.paused ? 'Not in your plan' : d.paused === 'none' ? 'Start your free trial' : d.paused === 'cancelled' ? 'Your subscription has ended'
+		: stage === 'restricted' ? 'Paused while your payment is outstanding' : stage === 'readonly' ? 'Your account is read-only' : 'Suspended — Payment Required';
+	const m = modal(ROOT, title, [
 		h('p', null, e.message),
 		d.paused && d.paused !== 'none' ? h('p', { class: 'ds-hint' }, 'You can still open and export everything. Nothing has been deleted.') : null,
-		h('div', { class: 'ds-row ds-wrap' }, GO_PLANS ? h('button', { class: 'ds-btn', onclick: () => { m.remove(); GO_PLANS(); } }, d.paused === 'none' ? 'Start my free trial' : d.paused ? 'Fix my billing' : 'See plans') : null, h('button', { class: 'ds-btn ds-ghost', onclick: () => m.remove() }, 'Not now'))
+		h('div', { class: 'ds-row ds-wrap' }, GO_PLANS ? h('button', { class: 'ds-btn', onclick: () => { m.remove(); GO_PLANS(); } }, d.paused === 'none' ? 'Start my free trial' : d.paused === 'cancelled' ? 'Choose a plan' : d.paused ? 'Update payment method' : 'See plans') : null, h('button', { class: 'ds-btn ds-ghost', onclick: () => m.remove() }, 'Not now'))
 	], close);
 	return true;
 }
@@ -187,7 +194,7 @@ export function capabilityMap(isPro) {
 		const locked = isPro && CAPS && (!CAPS.writable || (feat && !feat.on));
 		return h('button', { class: 'ds-capmap-row' + (locked ? ' locked' : ''), onclick: () => openHelp(k) },
 			h('b', null, x.t), h('small', null, x.p),
-			isPro ? h('span', { class: 'ds-capmap-st' }, locked ? (CAPS && !CAPS.writable ? '⏸ Read-only' : '🔒 ' + (needPlan(x.f) || 'Upgrade')) : '✅') : null);
+			isPro ? h('span', { class: 'ds-capmap-st' }, locked ? (CAPS && !CAPS.writable ? '🔒 Read-only' : '🔒 ' + (needPlan(x.f) || 'Upgrade')) : '✅') : null);
 	};
 	return h('div', { class: 'ds-capmap' },
 		h('h3', null, 'For homeowners'), ...homeowner.map(row),

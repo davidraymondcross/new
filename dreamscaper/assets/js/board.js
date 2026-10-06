@@ -3,9 +3,9 @@
  * Dreamscape AI with that style and up to 3 of the pictures as references.
  * Saved on this device (IndexedDB) like My Dreamscapes.
  */
-import { h, put, icon, uid, canvas, canvasToBlob, blobToBitmap } from './util.js?v=2.7.0';
-import { modal } from './capture.js?v=2.7.0';
-import { session, api } from './api.js?v=2.7.0';
+import { h, put, icon, uid, canvas, canvasToBlob, blobToBitmap } from './util.js?v=2.7.1';
+import { modal } from './capture.js?v=2.7.1';
+import { session, api } from './api.js?v=2.7.1';
 
 let B = null; // ctx
 export const STYLES = ['Traditional', 'Modern', 'Contemporary', 'Natural', 'Cottage', 'Formal', 'Rustic', 'Low-maintenance', 'Native', 'Pollinator', 'Luxury', 'Woodland', 'Coastal', 'Japanese'];

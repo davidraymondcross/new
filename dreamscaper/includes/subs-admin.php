@@ -1,7 +1,8 @@
 <?php
 /**
- * DreamScaper – Settings → DreamScaper Plans: switch billing on, edit the three plans (names,
- * prices, Stripe prices, every limit and feature), and manage each contractor's subscription.
+ * DreamScaper – Settings → DreamScaper Plans: switch billing on, edit the four plans (names,
+ * prices, Stripe prices, "what's included" lists, every limit and feature), set the non-payment
+ * timeline, and manage each contractor's subscription.
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -21,15 +22,40 @@ add_action( 'admin_post_dreamscaper_plans', function () {
 	$old = get_option( 'dreamscaper_subs', array() );
 	$old = is_array( $old ) ? $old : array();
 	$on  = empty( $in['on'] ) ? 0 : 1;
+	$num = function ( $k, $def, $min, $max ) use ( $in ) {
+		return max( $min, min( $max, (int) ( isset( $in[ $k ] ) ? $in[ $k ] : $def ) ) );
+	};
+	$st  = isset( $in['stages'] ) && is_array( $in['stages'] ) ? $in['stages'] : array();
+	$sd  = dreamscaper_dunning_defaults();
+	$stages = array(
+		'reminder'   => max( 1, min( 60, (int) ( isset( $st['reminder'] ) ? $st['reminder'] : $sd['reminder'] ) ) ),
+		'restricted' => max( 1, min( 60, (int) ( isset( $st['restricted'] ) ? $st['restricted'] : $sd['restricted'] ) ) ),
+		'readonly'   => max( 1, min( 60, (int) ( isset( $st['readonly'] ) ? $st['readonly'] : $sd['readonly'] ) ) ),
+	);
+	// keep the stages in order: reminder ≤ restricted ≤ read-only ≤ suspension
+	$stages['restricted'] = max( $stages['restricted'], $stages['reminder'] );
+	$stages['readonly']   = max( $stages['readonly'], $stages['restricted'] );
 	$out = array(
 		'on'               => $on,
 		'trial_days'       => max( 0, min( 90, (int) ( isset( $in['trial_days'] ) ? $in['trial_days'] : 30 ) ) ),
-		'trial_plan'       => in_array( isset( $in['trial_plan'] ) ? $in['trial_plan'] : '', array( 'starter', 'pro', 'business' ), true ) ? $in['trial_plan'] : 'pro',
-		'grace_days'       => max( 1, min( 60, (int) ( isset( $in['grace_days'] ) ? $in['grace_days'] : 14 ) ) ),
+		'trial_plan'       => isset( $in['trial_plan'] ) && isset( dreamscaper_plan_defaults()[ $in['trial_plan'] ] ) ? $in['trial_plan'] : 'pro',
+		'trial_ai_credits' => $num( 'trial_ai_credits', 100, 0, 100000 ),
+		'trial_plans'      => $num( 'trial_plans', 2, 0, 1000 ),
+		'stages'           => $stages,
+		'grace_days'       => max( $stages['readonly'] + 1, $num( 'grace_days', 14, 2, 90 ) ),
+		'restrict_ai'      => empty( $in['restrict_ai'] ) ? 0 : 1,
+		'restrict_plans'   => empty( $in['restrict_plans'] ) ? 0 : 1,
+		'restrict_buy'     => empty( $in['restrict_buy'] ) ? 0 : 1,
+		'restrict_uploads' => empty( $in['restrict_uploads'] ) ? 0 : 1,
+		'restrict_auto_sms' => empty( $in['restrict_auto_sms'] ) ? 0 : 1,
+		'big_upload_mb'    => $num( 'big_upload_mb', 10, 1, 500 ),
+		'fair_plans'       => $num( 'fair_plans', 100, 0, 100000 ),
+		'deletion_days'    => $num( 'deletion_days', 90, 30, 3650 ),
 		'otp'              => empty( $in['otp'] ) ? 0 : 1,
 		'card'             => 1,
 		'retention_months' => max( 1, min( 120, (int) ( isset( $in['retention_months'] ) ? $in['retention_months'] : 12 ) ) ),
 		'since'            => ! empty( $old['since'] ) ? (int) $old['since'] : ( $on ? time() : 0 ),
+		'plans_v'          => 2,
 		'plans'            => array(),
 	);
 	$cat = dreamscaper_feature_catalog();
@@ -51,6 +77,9 @@ add_action( 'admin_post_dreamscaper_plans', function () {
 			'year'        => max( 0, round( (float) ( isset( $x['year'] ) ? $x['year'] : $d['year'] ), 2 ) ),
 			'price_month' => preg_replace( '/[^A-Za-z0-9_]/', '', isset( $x['price_month'] ) ? $x['price_month'] : '' ),
 			'price_year'  => preg_replace( '/[^A-Za-z0-9_]/', '', isset( $x['price_year'] ) ? $x['price_year'] : '' ),
+			'popular'     => isset( $in['popular'] ) && $k === $in['popular'] ? 1 : 0,
+			'includes'    => sanitize_textarea_field( isset( $x['includes'] ) ? $x['includes'] : $d['includes'] ),
+			'not'         => sanitize_textarea_field( isset( $x['not'] ) ? $x['not'] : $d['not'] ),
 			'f'           => $f,
 		);
 	}
@@ -110,19 +139,27 @@ add_action( 'admin_post_dreamscaper_sub_admin', function () {
 	if ( ! dreamscaper_pro_row( $pro ) ) {
 		wp_die( 'Contractor not found.' );
 	}
-	if ( in_array( $do, array( 'extend', 'second_trial', 'comp' ), true ) && '' === trim( $why ) ) {
+	if ( in_array( $do, array( 'extend', 'second_trial', 'comp', 'grace', 'pause' ), true ) && '' === trim( $why ) ) {
 		wp_safe_redirect( admin_url( 'options-general.php?page=dreamscaper-plans&done=need_reason' ) );
 		exit;
 	}
 	switch ( $do ) {
 		case 'comp':
-			dreamscaper_sub_update( $pro, array( 'status' => 'comped', 'plan' => isset( dreamscaper_plans()[ $plan ] ) ? $plan : 'business' ), 'admin_comp', $why );
+			dreamscaper_sub_update( $pro, array( 'status' => 'comped', 'plan' => isset( dreamscaper_plans()[ $plan ] ) ? $plan : 'proplus' ), 'admin_comp', $why );
 			break;
 		case 'uncomp':
 			dreamscaper_sub_update( $pro, array( 'status' => $s && $s->stripe_sub ? 'active' : 'none' ), 'admin_uncomp', $why );
 			break;
 		case 'pause':
 			dreamscaper_sub_update( $pro, array( 'status' => 'paused' ), 'admin_pause', $why );
+			break;
+		case 'grace':
+			// push the non-payment clock back (e.g. the contractor called about a bank problem)
+			if ( $s && 'past_due' === $s->status && $s->past_due_at ) {
+				$wpdb->update( dreamscaper_t( 'subs' ), array( 'past_due_at' => gmdate( 'Y-m-d H:i:s', strtotime( $s->past_due_at . ' UTC' ) + $days * DAY_IN_SECONDS ) ), array( 'pro_id' => $pro ) );
+				dreamscaper_sub_event( $pro, 'admin_grace', 'past_due', 'past_due', ( $why ? $why : 'More time to pay' ) . ' (+' . $days . ' days)' );
+				dreamscaper_sub_flush( $pro );
+			}
 			break;
 		case 'unpause':
 			dreamscaper_sub_update( $pro, array( 'status' => $s && $s->stripe_sub ? 'active' : 'trialing', 'trial_ends' => $s && $s->stripe_sub ? $s->trial_ends : gmdate( 'Y-m-d H:i:s', time() + $days * DAY_IN_SECONDS ) ), 'admin_unpause', $why );
@@ -169,8 +206,8 @@ function dreamscaper_plans_admin() {
 	if ( ! dreamscaper_opt( 'stripe_secret' ) ) {
 		echo '<div class="notice notice-warning"><p>Add your Stripe keys under <a href="' . esc_url( admin_url( 'options-general.php?page=dreamscaper' ) ) . '">Settings → DreamScaper → Selling extra AI credits</a> first. Until billing is on, every approved contractor has full access for free.</p></div>';
 	}
-	echo '<p style="max-width:900px">Contractors pay monthly or yearly for the Contractor Hub. New contractors get <b>one</b> free trial: they verify their phone (by text) and email, and add a card that isn’t charged until the trial ends. Every business that has had a trial is remembered (email, phone, card, Stripe customer, business name + town, address, license and account), so deleting an account, changing email or reinstalling the plugin doesn’t give anyone a second free trial. If a payment fails, the contractor keeps full access for the grace period, then the account is <b>paused, never deleted</b>: they can view and export everything, and paying switches everything back on instantly. You are always on the top plan for free.</p>';
-	echo '<h2>Stripe setup</h2><ol style="max-width:900px"><li>Fill in the prices below and save.</li><li>Click <b>Create these plans in Stripe</b> (or paste price IDs you made yourself).</li><li>In Stripe → Developers → Webhooks, on the endpoint <code>' . esc_html( rest_url( 'dreamscaper/v1/stripe' ) ) . '</code> add the events <code>customer.subscription.created</code>, <code>customer.subscription.updated</code>, <code>customer.subscription.deleted</code>, <code>invoice.paid</code> and <code>invoice.payment_failed</code> (keep <code>checkout.session.completed</code>).</li><li>In Stripe → Settings → Billing → Customer portal, turn on “Update payment methods”, “View invoices” and “Cancel subscriptions (at end of period)”. Turn on Smart Retries under Billing → Revenue recovery.</li><li>Tick <b>Turn on contractor billing</b> and save. Contractors approved before today get one grandfathered trial so nobody is cut off.</li></ol>';
+	echo '<p style="max-width:900px">Contractors pay monthly or yearly for the Contractor Hub. New contractors get <b>one</b> free trial: they verify their phone (by text) and email, and add a card that isn’t charged until the trial ends. Every business that has had a trial is remembered (email, phone, card, Stripe customer, business name + town, address, license and account), so deleting an account, changing email or reinstalling the plugin doesn’t give anyone a second free trial. If a payment fails, access steps down in stages (below) — full access first, then the costly extras pause, then read-only, then the account is <b>suspended, never deleted</b>: they can view and export everything, and paying restores everything instantly and automatically. You are always on the top plan for free.</p>';
+	echo '<h2>Stripe setup</h2><ol style="max-width:900px"><li>Fill in the prices below and save.</li><li>Click <b>Create these plans in Stripe</b> (or paste price IDs you made yourself).</li><li>In Stripe → Developers → Webhooks, on the endpoint <code>' . esc_html( rest_url( 'dreamscaper/v1/stripe' ) ) . '</code> add the events <code>customer.subscription.created</code>, <code>customer.subscription.updated</code>, <code>customer.subscription.deleted</code>, <code>invoice.paid</code> and <code>invoice.payment_failed</code> (keep <code>checkout.session.completed</code>).</li><li>In Stripe → Settings → Billing → Customer portal, turn on “Update payment methods”, “View invoices”, “Switch plans” and “Cancel subscriptions (at end of period)”.</li><li>In Stripe → Billing → Revenue recovery: turn on <b>Smart Retries</b> for <b>2 weeks</b>, set “If all retries for a payment fail” to <b>mark the subscription as unpaid</b> (so paying the invoice later restores the account), and turn <b>off</b> Stripe’s own failed-payment emails — DreamScaper sends the reminders below so contractors hear one consistent voice.</li><li>Tick <b>Turn on contractor billing</b> and save. Contractors approved before today get one grandfathered trial so nobody is cut off.</li></ol>';
 	echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 	wp_nonce_field( 'dreamscaper_plans' );
 	echo '<input type="hidden" name="action" value="dreamscaper_plans"><table class="form-table">';
@@ -180,7 +217,24 @@ function dreamscaper_plans_admin() {
 		echo '<option value="' . esc_attr( $k ) . '" ' . selected( $cfg['trial_plan'], $k, false ) . '>' . esc_html( $pl['name'] ) . '</option>';
 	}
 	echo '</select> plan<br><label><input type="checkbox" name="ds[otp]" value="1" ' . checked( $cfg['otp'], 1, false ) . '> Require a phone number verified by text (needs Twilio)</label>' . ( dreamscaper_sms_ready() ? '' : ' <em>— Twilio isn’t set up, so this is skipped; email verification and the card still apply.</em>' ) . '</td></tr>';
-	echo '<tr><th>Grace period</th><td><input type="number" min="1" max="60" name="ds[grace_days]" value="' . esc_attr( $cfg['grace_days'] ) . '" class="small-text"> days of full access after a failed payment, then the account pauses</td></tr>';
+	echo '<tr><th>Trial allowances</th><td><input type="number" min="0" name="ds[trial_ai_credits]" value="' . esc_attr( $cfg['trial_ai_credits'] ) . '" class="small-text"> AI credits and <input type="number" min="0" name="ds[trial_plans]" value="' . esc_attr( $cfg['trial_plans'] ) . '" class="small-text"> landscape plans during the trial <p class="description">Every feature of the trial plan is on; only these allowances are smaller, to protect AI costs. They rise to the plan’s full amounts when the paid plan starts.</p></td></tr>';
+	$sd = $cfg['stages'];
+	$dn = function ( $n, $v, $min = 1 ) {
+		return '<input type="number" min="' . (int) $min . '" max="90" name="' . esc_attr( $n ) . '" value="' . esc_attr( $v ) . '" class="small-text">';
+	};
+	echo '<tr><th>When a payment fails</th><td><p class="description" style="margin-top:0">Days are counted from the first failed payment. Paying at any stage restores everything instantly.</p><ol style="margin:.5em 0 0 1.2em">'
+		. '<li><b>Day 0 – notice:</b> full access, a quiet banner, one email (and a text if the contractor opted in to billing texts).</li>'
+		. '<li><b>From day ' . $dn( 'ds[stages][reminder]', $sd['reminder'] ) . ' – reminder:</b> full access, a stronger banner, another email.</li>'
+		. '<li><b>From day ' . $dn( 'ds[stages][restricted]', $sd['restricted'] ) . ' – restricted:</b> everything works except what costs you money: '
+		. '<label><input type="checkbox" name="ds[restrict_ai]" value="1" ' . checked( $cfg['restrict_ai'], 1, false ) . '> AI (pictures, AI Quoter)</label> · '
+		. '<label><input type="checkbox" name="ds[restrict_plans]" value="1" ' . checked( $cfg['restrict_plans'], 1, false ) . '> new landscape plans</label> · '
+		. '<label><input type="checkbox" name="ds[restrict_buy]" value="1" ' . checked( $cfg['restrict_buy'], 1, false ) . '> buying credits / storage</label> · '
+		. '<label><input type="checkbox" name="ds[restrict_uploads]" value="1" ' . checked( $cfg['restrict_uploads'], 1, false ) . '> uploads over</label> ' . $dn( 'ds[big_upload_mb]', $cfg['big_upload_mb'] ) . ' MB · '
+		. '<label><input type="checkbox" name="ds[restrict_auto_sms]" value="1" ' . checked( $cfg['restrict_auto_sms'], 1, false ) . '> automatic follow-up texts (emails still go)</label>. Appointment reminders, receipts and invoices keep going to their customers.</li>'
+		. '<li><b>From day ' . $dn( 'ds[stages][readonly]', $sd['readonly'] ) . ' – read-only:</b> view, export and pay only; hidden from homeowners; a final warning with the suspension date.</li>'
+		. '<li><b>Day ' . $dn( 'ds[grace_days]', $cfg['grace_days'], 2 ) . ' – suspended:</b> “Suspended — Payment Required”. Nothing is deleted; reminders after 7, 30 and 60 days.</li>'
+		. '<li><b>After ' . $dn( 'ds[deletion_days]', $cfg['deletion_days'], 30 ) . ' days unpaid:</b> flagged here as eligible for deletion under your retention policy. Nothing is deleted automatically.</li></ol></td></tr>';
+	echo '<tr><th>Fair use</th><td>Alert me when an “unlimited” plan creates <input type="number" min="0" name="ds[fair_plans]" value="' . esc_attr( $cfg['fair_plans'] ) . '" class="small-text"> landscape plans in a month (0 = never). Nothing is blocked.</td></tr>';
 	echo '<tr><th>Keep data after cancelling</th><td>at least <input type="number" min="1" max="120" name="ds[retention_months]" value="' . esc_attr( $cfg['retention_months'] ) . '" class="small-text"> months (shown to contractors; nothing is ever deleted automatically)</td></tr></table>';
 	echo '<h2>Plans</h2><table class="widefat striped" style="max-width:1100px"><thead><tr><th style="width:260px"></th>';
 	foreach ( $cfg['plans'] as $k => $pl ) {
@@ -199,6 +253,9 @@ function dreamscaper_plans_admin() {
 	};
 	$row( 'Name', function ( $k, $pl ) use ( $in ) { return $in( "ds[plans][$k][name]", $pl['name'] ); } );
 	$row( 'Tagline', function ( $k, $pl ) use ( $in ) { return $in( "ds[plans][$k][tag]", $pl['tag'] ); } );
+	$row( 'Most popular badge', function ( $k, $pl ) { return '<input type="radio" name="ds[popular]" value="' . esc_attr( $k ) . '" ' . checked( ! empty( $pl['popular'] ), true, false ) . '>'; } );
+	$row( 'What’s included', function ( $k, $pl ) { return '<textarea name="ds[plans][' . esc_attr( $k ) . '][includes]" rows="8" style="width:100%">' . esc_textarea( $pl['includes'] ) . '</textarea>'; }, 'One line each, shown on the pricing cards.' );
+	$row( 'Not included', function ( $k, $pl ) { return '<textarea name="ds[plans][' . esc_attr( $k ) . '][not]" rows="3" style="width:100%">' . esc_textarea( $pl['not'] ) . '</textarea>'; }, 'Optional. One line each.' );
 	$row( 'Price per month ($)', function ( $k, $pl ) use ( $in ) { return $in( "ds[plans][$k][month]", $pl['month'], '90px' ); } );
 	$row( 'Price per year ($)', function ( $k, $pl ) use ( $in ) { return $in( "ds[plans][$k][year]", $pl['year'], '90px' ); } );
 	$row( 'Stripe price ID — monthly', function ( $k, $pl ) use ( $in ) { return $in( "ds[plans][$k][price_month]", $pl['price_month'] ); }, 'price_…' );
@@ -227,7 +284,7 @@ function dreamscaper_plans_admin() {
 	$mrr  = 0;
 	$by   = array();
 	foreach ( $rows as $r ) {
-		$st         = $r->status ? $r->status : ( dreamscaper_is_owner_pro( $r->user_id ) ? 'owner' : 'none' );
+		$st         = $r->status ? ( 'paused' === $r->status ? 'suspended' : $r->status ) : ( dreamscaper_is_owner_pro( $r->user_id ) ? 'owner' : 'none' );
 		$by[ $st ]  = isset( $by[ $st ] ) ? $by[ $st ] + 1 : 1;
 		if ( in_array( $r->status, array( 'active', 'past_due' ), true ) && isset( $cfg['plans'][ $r->plan ] ) ) {
 			$mrr += 'year' === $r->billing ? $cfg['plans'][ $r->plan ]['year'] / 12 : $cfg['plans'][ $r->plan ]['month'];
@@ -243,8 +300,11 @@ function dreamscaper_plans_admin() {
 	echo '<table class="widefat striped"><thead><tr><th>Business</th><th>Status</th><th>Plan</th><th>Trial / renews</th><th>Last payment</th><th>Notes</th><th>Owner actions (each needs a reason)</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		$owner = dreamscaper_is_owner_pro( $r->user_id );
-		$st    = $owner ? 'owner (free)' : ( $r->status ? $r->status : 'none' );
-		$flags = $wpdb->get_col( $wpdb->prepare( 'SELECT note FROM ' . dreamscaper_t( 'sub_events' ) . " WHERE pro_id=%d AND kind IN ('trial_flag','trial_blocked') ORDER BY id DESC LIMIT 2", $r->user_id ) );
+		$st    = $owner ? 'owner (free)' : ( 'paused' === $r->status ? 'suspended' : ( $r->status ? $r->status : 'none' ) );
+		if ( 'past_due' === $r->status && $r->past_due_at ) {
+			$st .= ' · ' . dreamscaper_sub_stage( (int) $r->user_id ) . ' (day ' . dreamscaper_sub_days_due( $r ) . ')';
+		}
+		$flags = $wpdb->get_col( $wpdb->prepare( 'SELECT note FROM ' . dreamscaper_t( 'sub_events' ) . " WHERE pro_id=%d AND kind IN ('trial_flag','trial_blocked','fair_use','deletion_eligible') ORDER BY id DESC LIMIT 3", $r->user_id ) );
 		echo '<tr id="pro-' . (int) $r->user_id . '"><td><b>' . esc_html( $r->business ) . '</b><br><small>' . esc_html( $r->contact . ' · ' . $r->email . ' · ' . $r->town ) . '</small></td>';
 		echo '<td>' . esc_html( $st ) . ( $r->failures ? '<br><small>' . (int) $r->failures . ' failed payment(s)</small>' : '' ) . '</td>';
 		echo '<td>' . esc_html( $r->plan && isset( $cfg['plans'][ $r->plan ] ) ? $cfg['plans'][ $r->plan ]['name'] . ( $r->billing ? ' · ' . $r->billing . 'ly' : '' ) : '—' ) . '</td>';
@@ -255,7 +315,7 @@ function dreamscaper_plans_admin() {
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">';
 			wp_nonce_field( 'dreamscaper_sub_admin' );
 			echo '<input type="hidden" name="action" value="dreamscaper_sub_admin"><input type="hidden" name="pro" value="' . (int) $r->user_id . '">';
-			echo '<select name="do"><option value="extend">Extend trial</option><option value="comp">Give free access (comp)</option><option value="uncomp">End free access</option><option value="pause">Pause</option><option value="unpause">Unpause</option><option value="second_trial">Grant a second trial (exception)</option><option value="plan">Set plan</option></select>';
+			echo '<select name="do"><option value="extend">Extend trial</option><option value="comp">Give free access (comp)</option><option value="uncomp">End free access</option><option value="grace">Give more time to pay (days)</option><option value="pause">Suspend now</option><option value="unpause">Restore</option><option value="second_trial">Grant a second trial (exception)</option><option value="plan">Set plan</option></select>';
 			echo '<select name="plan">';
 			foreach ( $cfg['plans'] as $k => $pl ) {
 				echo '<option value="' . esc_attr( $k ) . '">' . esc_html( $pl['name'] ) . '</option>';
