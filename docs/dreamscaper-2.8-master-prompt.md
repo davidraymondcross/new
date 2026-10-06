@@ -133,7 +133,11 @@ Contractors get paid in many ways. Build one **Billing Plan** concept that cover
 
 - New table **`dscp_billplans`**: `id, pro_id, client_id, prop_id, quote_id, name, method, amount, currency, interval, interval_n, day_of_month, instalments, instalments_paid, contract_total, season_start, season_end, per_visit_rate, batch (none|weekly|monthly), autopay (0/1), stripe_customer, stripe_pm, status (active|paused|ended), next_at, ends_at, created, updated`. Index `(pro_id, status, next_at)`.
 - Created from: a signed proposal ("Make this a recurring service"), the customer page, or a recurring visit series on the calendar (A3b in 2.7). Recurring visits and their Billing Plan stay linked: skip a visit → no per-visit charge; cancel the series → the plan asks whether to end too.
-- **Autopay (opt-in by the customer).** The customer saves a card or bank account (Stripe Connect, `SetupIntent` on the connected account) from the invoice page or portal; each invoice is charged automatically on its date, with a receipt. The customer can turn autopay off in My Projects at any time. Failed autopay → the invoice stays open, the customer is told kindly, the contractor is alerted.
+- **Payment methods — cards and bank (ACH), decided.** Every invoice and Billing Plan accepts **card** (incl. Apple Pay / Google Pay) and **US bank account (ACH Direct Debit)** through the contractor's Stripe Connect account (`payment_method_types: card, us_bank_account`, bank linked with Stripe Financial Connections for instant verification, micro-deposits as the fallback). The contractor can switch either method off in Settings → Payments and choose who absorbs fees (show the customer "Bank transfer: lower fee" when it applies).
+  - ACH is **not instant**: the invoice shows **Payment processing** (typically 4 business days) and is only marked **Paid** on `payment_intent.succeeded`. Work-release rules (e.g. "deposit must clear before scheduling") wait for the cleared status; the contractor sees "processing" separately from "paid" in every list.
+  - ACH failures and returns (`payment_intent.payment_failed`, `charge.dispute.created` for ACH disputes / R-codes) re-open the invoice, notify the customer kindly and the contractor plainly, and feed the factual "payment reversed" flag (Part H) only after the contractor confirms.
+  - The customer gives a clear ACH debit mandate (Stripe's mandate text) when saving a bank account for autopay; the mandate is stored by Stripe and referenced on every debit.
+- **Autopay (opt-in by the customer).** The customer saves a card **or bank account** (Stripe Connect, `SetupIntent` on the connected account) from the invoice page or portal; each invoice is charged automatically on its date, with a receipt. The customer can turn autopay off in My Projects at any time. Failed autopay → the invoice stays open, the customer is told kindly, the contractor is alerted.
 - **Customer-facing clarity:** the portal shows each plan — what it covers, how much, how often, next charge date, payments so far, and how to cancel or contact the contractor. Every amount the customer is charged was shown to them first.
 - Cron (`dreamscaper_crm_tick`) generates due invoices, batches per-visit charges, runs autopay, and respects the 2.7 non-payment stages (a contractor's own suspension pauses generation; nothing fires backdated on restore).
 - Templates (2.7 §A3c) get: *upcoming charge*, *autopay receipt*, *autopay failed*, *plan ending soon*.
@@ -155,10 +159,12 @@ Contractors get paid in many ways. Build one **Billing Plan** concept that cover
 
 A day planner that answers: *what order should we go in, when do we stop for lunch and fuel, and what will today cost?* It is a decision aid: the contractor always sees **why** and can override anything.
 
+**Decided: one plan per crew.** A route is always planned for **one crew and one vehicle** at a time. The planner starts by asking **which crew** (from the crew list, 2.7.2) and pulls only that crew's visits for the day; the vehicle, fuel level, crew size and wage questions are per crew and remembered per crew. A contractor with three crews plans three routes — the Day view shows each crew's planned route side by side so nothing is double-booked, but stops are never moved between crews automatically (the contractor can reassign a visit to another crew by hand, then re-plan both).
+
 ## D1. Inputs
 
 **Stops** (required):
-- **Pull from my calendar** for a chosen date and crew: every visit with an address, its expected duration (visit `end − start`), and time windows. Missing durations are flagged for input.
+- **Pull from my calendar** for a chosen date and **the chosen crew**: every visit with an address, its expected duration (visit `end − start`), and time windows. Missing durations are flagged for input.
 - **Or add manually:** address (autocomplete — Google Places (New) when a key is set, OpenStreetMap otherwise), expected duration, optional time window ("must be there 9–11"), and priority.
 - Start and end location (default: the business address; "end at home" option).
 
@@ -193,7 +199,7 @@ A day planner that answers: *what order should we go in, when do we stop for lun
 - Totals: miles, drive time, fuel used and cost, crew cost, **savings vs. the calendar order**.
 - Actions: **Apply to calendar** (re-times and reorders the visits, re-sends reminders through the 2.7 reminder engine), **Send to crew** (text/email with Google/Apple Maps links per stop), **Start navigation**, **Re-plan from here** (mid-day changes).
 - Every number marked as an estimate. Never promise a customer an arrival time without the contractor's rules (2.7 §C24).
-- **Tier:** Route Optimizer is Professional+ (advanced options — fuel optimisation, anchors, multi-crew — Business+), per 2.7.1 Plans; API calls count as costly actions.
+- **Tier:** Route Optimizer is Professional+ (advanced options — fuel optimisation, anchors — Business+), per 2.7.1 Plans; each crew's plan is a separate run, and API calls count as costly actions.
 
 ---
 
@@ -233,32 +239,42 @@ Verification is **optional to use DreamScaper** and **required to appear in the 
 
 ## F1. What "Verified" means — say it precisely
 
-The badge means: **the business is registered and active with the State of Connecticut, its trade credential (where one applies) is active, and the person who verified is who they say they are and is connected to the business.** The badge's info panel lists exactly which checks passed and when. Never imply insurance or quality unless separately checked.
+The badge means: **the business is registered and active with the State of Connecticut, its Home Improvement Contractor (HIC) registration is active where the work requires one, and the person who verified is who they say they are and is connected to the business.** The badge's info panel lists exactly which checks passed and when. Never imply insurance or quality unless separately checked.
 
 ## F2. Step 1 — business details
 
 Collect: legal business name, DBA, business type (LLC, corporation, sole proprietor…), owner's name, EIN (optional for sole proprietors who don’t have one), business address, phone, website, email, CT credential numbers (e.g. **HIC** home improvement contractor registration, pesticide applicator licence, arborist licence) and Google Business Profile link (from 2.7.1 socials).
+
+**Is an HIC required? (decided: required if applicable).** Ask from the services chosen (Part C) and one plain question — *"Do you do home improvement work for homeowners in Connecticut (patios, walkways, walls, fences, drainage and similar)?"*. Hardscape and construction services (Patios & walkways, Retaining walls, Fencing, Drainage & grading, Masonry, Hardscape repair, Landscape lighting installs, Irrigation installs) mark the HIC as **required**; maintenance-only services (Lawn care & mowing, Clean-ups, Snow removal, Mulch & planting only) mark it **not required** and the contractor can still add one voluntarily. The site owner can edit which services require an HIC in Settings — DreamScaper never gives legal advice about whether a contractor needs one; the question screen links to the CT Department of Consumer Protection guidance.
 
 ## F3. Step 2 — automated business checks
 
 Run behind a `dreamscaper_verify_*` adapter, results stored with evidence links:
 
 1. **Business registration (CT Secretary of the State).** Query the official **Connecticut Open Data portal (data.ct.gov, Socrata API)** business registry dataset for the name / registration number: status must be **Active**; address and principals compared. (The `service.ct.gov/business/s/onlinebusinesssearch` page is the human-facing version of the same records — link to it as evidence; do not scrape it.)
-2. **Trade credentials (CT Department of Consumer Protection).** Query the DCP licences and credentials dataset on data.ct.gov for the HIC (and other) credential numbers: status **Active**, not expired, name matches.
+2. **HIC and other trade credentials (CT Department of Consumer Protection).** The authoritative source is the **CT eLicense lookup — `https://www.elicense.ct.gov/lookup/licenselookup.aspx`** (search by credential number, name or business; shows credential type, status and expiration).
+   - **Automated check:** query the same DCP credential records through their official open-data publication on data.ct.gov (Socrata API — the DCP licences and credentials dataset, refreshed by the state) for the HIC number: type **Home Improvement Contractor**, status **Active**, expiration in the future, and the credential holder / business name matching F2. Do not scrape the eLicense page (it is an interactive search form; automated scraping is fragile and may break its terms of use).
+   - **Evidence:** store the dataset record and a deep link to the eLicense lookup for that credential number, so the contractor, the site owner and (on the badge panel) homeowners can confirm it on the state's own site.
+   - **Manual fallback:** if the dataset has no match, is stale, or anything differs, the item goes to the site owner's **Needs review** queue with a one-click "Open in eLicense" button and Approve / Reject (with reason) — the reviewer's decision, date and note are stored.
+   - An HIC marked **required** that is missing, expired or not active blocks the badge; one that isn't required never blocks it.
 3. **Online presence.** Google Places (New) text search for the business name + town: a matching Google Business Profile (name, address/phone match) adds confidence; links to the 2.7.1 social GBP link are cross-checked.
 4. **EIN.** There is no public API to confirm an EIN belongs to a business. Collect it (encrypted), match the business name format, and treat it as **self-attested**; optionally the site owner can enable IRS TIN Matching (requires the owner's IRS e-Services enrolment) later. Do not claim an EIN was "verified" unless TIN Matching actually ran.
 5. Any mismatch → **Needs review** (site-owner queue), never an automatic rejection.
 
 ## F4. Step 3 — identity (Stripe Identity)
 
-- Use **Stripe Identity** (`VerificationSession` with `type: document`, `require_matching_selfie: true`, `require_live_capture: true`): front and back of a driver's licence or other government ID, then a guided live selfie that Stripe compares to the ID photo (liveness + face match). About **$1.50 per verification** (first 50 free) — the site owner chooses whether the platform or the contractor pays.
+**When (decided): only once the contractor is paying.** The ID + selfie step unlocks **after the contractor's first successful subscription payment** — the trial converting on day 31, or buying a plan outright (`invoice.paid` with amount > 0 for their DreamScaper subscription). Until then, trial users can complete Steps 1–2 (business details and the automated business/HIC checks) and see "Identity check — available once your plan starts" with a short explanation of why.
+
+**Who pays (decided): it comes out of that payment.** The contractor is never charged separately or extra for the identity check. The platform pays Stripe's per-verification fee from the subscription revenue it has just collected, and records it as a cost against that contractor (`dscp_sub_events` kind `identity_fee`, amount) so the admin MRR/margin report shows it. One covered check per business; up to **2 retries** are covered for genuine problems (glare, expired ID); beyond that the case goes to the site owner, who can approve more. A contractor whose payment later fails keeps a completed verification; the badge is simply not shown while the account is hidden (2.7.1 non-payment stages).
+
+- Use **Stripe Identity** (`VerificationSession` with `type: document`, `require_matching_selfie: true`, `require_live_capture: true`): front and back of a driver's licence or other government ID, then a guided live selfie that Stripe compares to the ID photo (liveness + face match). About **$1.50 per verification** (first 50 free), paid by the platform out of the contractor's first subscription payment (above).
 - DreamScaper stores **only** the session id, status, verified name, date of birth year (optional), document type and expiry — **never** the ID images or face data (Stripe holds them under its retention settings). Webhook: `identity.verification_session.verified` / `requires_input`.
 - The verified ID name must match the owner/principal on the CT business record (fuzzy match; mismatch → Needs review).
 - Explicit consent screen before capture: what's collected, why, who processes it (Stripe), how long it's kept, how to delete it — Connecticut's Data Privacy Act treats biometric data as sensitive data requiring consent.
 
 ## F5. Badge lifecycle
 
-- **Verified** when F3 business checks and F4 identity pass. Shown on the contractor card, profile, proposals and Jobs Board listings with "Verified on {date}".
+- **Verified** when F3 business checks (including a required HIC) and F4 identity pass, on an account with a paid plan. Shown on the contractor card, profile, proposals and Jobs Board listings with "Verified on {date}".
 - **Re-checks:** business and credential status re-queried monthly (cron); credential expiry dates tracked; if something lapses, the badge is removed and the contractor is told what to fix (no public shaming — the badge simply disappears).
 - Tables: `dscp_verifications (id, pro_id, step, status, provider, evidence (JSON), checked_at, expires_at, reviewer, note)`.
 - Find a Contractor filters: **Verified only** · **Unverified only** · **All**.
@@ -272,7 +288,8 @@ Run behind a `dreamscaper_verify_*` adapter, results stored with evidence links:
 - Hub → **Hiring**: toggle **"We're hiring"** (adds a "Hiring" tag and lists the business on the Jobs Board while it has open postings).
 - **Job postings:** title, service category (Part C), employment type (full-time, part-time, seasonal, year-round, temporary), pay (hourly or salary, range), location/towns, start date, hours, requirements (driver's licence, CDL, pesticide licence, lift 50 lb), description, how many openings, application questions (reuse the 2.7 intake-question editor). Status: draft / open / paused / filled.
 - **Applicant tracking:** per posting — new, reviewing, interview, offered, hired, not selected; notes; message the applicant through the 2.7 inbox (a `job` thread kind); schedule an interview on the calendar.
-- Hiring is gated by plan employee seats (2.7.1): hiring someone into the crew list respects the seat limit.
+- **Job postings are free on every plan (decided, for now)** — including Starter, during the trial, and in any number. Keep `ds_lim_job_posts` in the plan catalogue defaulting to unlimited on every tier so this can be changed later in Settings → Plans without code. While an account is read-only or suspended (2.7.1) its postings are paused and hidden, not deleted.
+- Hiring someone **into the crew list** still respects the plan's employee seats (2.7.1); posting and reviewing applicants never does.
 
 ## G2. Job-seekers
 
@@ -370,7 +387,10 @@ Many flags are created **automatically** from these records (with the contractor
 
 **Measure** — 11. Measuring two lawn areas totals correctly (geodesic); saving from a calendar visit attaches screenshot, name, areas and total to that customer's property; starting from scratch can create a new customer.
 
-**Verification** — 12. An active CT business + active HIC + passed Stripe Identity → Verified badge; an inactive registration → Needs review, no badge; filters Verified / Unverified work; no ID image is stored by DreamScaper.
+**Verification** — 12. An active CT business + active HIC (when required) + passed Stripe Identity → Verified badge; an inactive registration or a required HIC that is expired → no badge (Needs review); a maintenance-only business with no HIC can still be Verified; the identity step stays locked during the trial and unlocks on the first successful payment, with the fee logged against that payment and no extra charge to the contractor; filters Verified / Unverified work; no ID image is stored by DreamScaper.
+**ACH** — 12b. An ACH payment shows Processing, becomes Paid only on success, and a returned ACH debit re-opens the invoice and alerts both sides.
+**Route per crew** — 12c. Planning Crew A's day only uses Crew A's visits and vehicle; Crew B's plan is independent; nothing moves between crews automatically.
+**Jobs free** — 12d. A Starter or trial account can publish any number of job postings.
 
 **Jobs** — 13. A résumé is downloadable only by the businesses applied to; withdrawing removes access; filters work; criminal-history questions can't be added.
 
@@ -380,14 +400,20 @@ Many flags are created **automatically** from these records (with the contractor
 
 Complete files, a changed-files list, migrations, new settings and where they appear, the provider setup steps (Google Maps Platform APIs to enable: Maps JavaScript, Places (New), Routes, Route Optimization; Stripe Identity activation and webhook events; data.ct.gov dataset ids), `readme.txt` notes, and a plain-English summary for the sales page.
 
-## J4. Open questions (ask before building those phases)
+## J4. Decisions and open questions
 
-1. Who pays for Stripe Identity checks — the platform or the contractor?
-2. Should verification require a CT credential (HIC etc.) or only an active business registration for trades that don't need one?
-3. Billing plans: should autopay support bank (ACH) as well as card?
-4. Route planner: business hours default, and whether to allow multi-crew optimisation in one run (Business+).
-5. Flags and references: attorney review completed? (Phase 6 does not ship until yes.)
-6. Jobs board: is it open to all job-seekers statewide, and should postings be free on every plan or limited per tier?
+**Decided by the owner:**
+- Identity check runs only after the trial converts or a plan is bought; its fee comes out of that payment (no extra charge). (F4)
+- Verification includes the HIC registration when the contractor's work requires one, checked against CT eLicense records. (F2–F3)
+- Payments: cards **and** ACH bank debits, for one-off invoices, Billing Plans and autopay. (B2)
+- Job postings: free on every plan for now. (G1)
+- Route planning: one crew at a time. (Part D)
+
+**Still open:**
+1. Route planner: default working hours (e.g. 7:00–17:00) and fuel safety reserve (default 15%).
+2. Flags and references: attorney review completed? (Phase 6 does not ship until yes.)
+3. Jobs board: open to job-seekers statewide, or limited to towns where there are contractors?
+4. ACH fees: does the contractor absorb Stripe's ACH fee, or pass a lower "bank transfer" price on to the customer?
 
 ---
 
