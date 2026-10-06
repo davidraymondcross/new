@@ -1,14 +1,16 @@
 /* DreamScaper – editor tool panels added in 2.6:
  *  object controls (move · resize · rotate · flip · duplicate & repeat · order · blend & shadow · layer options),
  *  ground-shape editor, Shapes tool (bed / patio / lawn / walkway / retaining wall / edging),
- *  Measure & zones, Adjust (light · color · detail) + Crop / rotate / straighten / perspective,
+ *  Measure & zones, Adjust (light · color · detail), Crop / rotate / straighten / perspective (own tool),
+ *  many-at-once selection,
  *  Layers window, Design versions, Compare and Presentation mode.
  */
-import { h, put, icon, canvas, canvasToBlob, blobToBitmap, uid } from './util.js?v=2.7.1';
-import { modal } from './capture.js?v=2.7.1';
-import { ZONES, opName } from './editor.js?v=2.7.1';
-import { ADJUST, PRESETS, planTransform, renderTransform, mapView } from './photoedit.js?v=2.7.1';
-import { fmtFtIn } from './takeoff.js?v=2.7.1';
+import { h, put, icon, canvas, canvasToBlob, blobToBitmap, uid } from './util.js?v=2.7.2';
+import { modal } from './capture.js?v=2.7.2';
+import { ZONES, opName } from './editor.js?v=2.7.2';
+import { ADJUST, PRESETS, planTransform, renderTransform, mapView } from './photoedit.js?v=2.7.2';
+import { fmtFtIn } from './takeoff.js?v=2.7.2';
+import { matById, swatch } from './textures.js?v=2.7.2';
 
 const deg = (v) => `${Math.round(v)}°`;
 const pct = (v) => `${Math.round(v)}%`;
@@ -133,30 +135,76 @@ export function panelShapes(el, c) {
 	const B = ed.opts.bed, n = ed.bedPts.length;
 	const line = B.shape === 'walkway' || B.shape === 'wall' || B.shape === 'edge';
 	const area = !line;
+	ed.stage.dataset.fill = area && B.fill ? '1' : '';
 	const how = {
-		bed: 'Tap around the bed. Tap the first point (or Finish) to close it. Curved makes smooth, natural edges.',
-		patio: 'Drag a rectangle on the ground — it follows the photo’s perspective — or switch off Rectangle and tap the corners of any shape.',
-		lawn: 'Tap around the new lawn area, or drag a rectangle.',
+		bed: 'Tap around the bed. A big Start point appears — tap it again to close the loop. Each loop gets a name (Bed 1, Bed 2…) so you can fill them separately.',
+		patio: 'Tap the corners (tap the Start point to close), or switch on Rectangle and drag one on the ground — it follows the photo’s perspective.',
+		lawn: 'Tap around the new lawn area and tap the Start point to close it, or drag a rectangle.',
 		walkway: 'Tap along the middle of the walkway, from one end to the other. It keeps a true width and narrows into the distance.',
 		wall: 'Tap along the bottom of the wall. Set its height — it rises straight up from that line.',
 		edge: 'Tap along the edge line. Pick metal, plastic, stone or brick edging.'
 	}[B.shape];
+	const loops = area ? ed.loops().filter((o) => !ed.isHidden(o)) : [];
+	const approx = ed.isTop ? '' : '≈ ';
+	const matName = (id) => (id && matById[id] ? matById[id].name : 'no fill yet');
+	const drawing = n ? sect('Drawing', h('div', { class: 'ds-row ds-wrap' },
+		area ? h('button', { class: 'ds-btn', disabled: n < 3, onclick: () => ed.finishBed(), title: 'Same as tapping the Start point' }, icon('check', 18), ' Close loop')
+			: h('button', { class: 'ds-btn', disabled: n < 2, onclick: () => ed.finishBed() }, icon('check', 18), ' Finish'),
+		h('button', { class: 'ds-btn ds-ghost', onclick: () => { ed.backPoint(); c.renderPanel(); }, title: 'Backspace' }, '↶ Back 1 point'),
+		h('button', { class: 'ds-btn ds-ghost', onclick: () => { ed.cancelBed(); c.renderPanel(); }, title: 'Esc' }, 'Clear')),
+		h('p', { class: 'ds-hint' }, `${n} point${n > 1 ? 's' : ''} placed` + (area ? (n < 3 ? ` — ${3 - n} more, then tap the Start point to close.` : ' — tap the big Start point (or Close loop) to finish this shape.') : ''))) : null;
+	const fillSect = area && loops.length ? sect('Fill',
+		h('p', { class: 'ds-hint' }, 'Pick a material, then fill every shape at once, tap a shape on the photo, or use Fill next to a shape below.'),
+		swatches(B.fillMat, (id) => { B.fillMat = id; c.renderPanel(); }),
+		h('div', { class: 'ds-row ds-wrap' },
+			h('button', { class: 'ds-btn', onclick: () => { ed.fillLoops(loops, B.fillMat); c.renderPanel(); } }, '🪣 Fill all ' + loops.length + ' with ' + matName(B.fillMat)),
+			h('button', { class: 'ds-btn ds-ghost' + (B.fill ? ' on' : ''), 'aria-pressed': String(!!B.fill), onclick: () => { B.fill = !B.fill; ed.cancelBed(); c.renderPanel(); } }, B.fill ? '✓ Tap a shape to fill it' : '👆 Tap a shape to fill it')),
+		B.fill ? h('p', { class: 'ds-hint' }, 'Fill mode is on: tap inside any shape to fill it with ' + matName(B.fillMat) + '. Tap the button again to go back to drawing.') : null,
+		h('ul', { class: 'ds-loop-list' }, ...loops.map((op) => h('li', null,
+			h('span', { class: 'ds-loop-sw', style: op.mat && matById[op.mat] ? {} : { background: 'transparent' } }, op.mat && matById[op.mat] ? swatchImg(op.mat) : null),
+			h('span', { class: 'ds-grow' }, h('b', null, op.name || opName(op)), h('small', { class: 'ds-muted ds-block' }, `${approx}${Math.round(ed.opMeasure(op).area || 0).toLocaleString()} sq ft · ${matName(op.mat)}`)),
+			h('button', { class: 'ds-btn ds-ghost ds-sm', disabled: op.mat === B.fillMat, onclick: () => { ed.fillLoops([op], B.fillMat); c.renderPanel(); } }, 'Fill'),
+			h('button', { class: 'ds-icon-btn', 'aria-label': 'Rename ' + (op.name || ''), title: 'Rename', onclick: () => { const t = prompt('Name this shape', op.name || ''); if (t) { ed.updateOp(op, { name: t.trim().slice(0, 40) }, 'Renamed a shape'); c.renderPanel(); } } }, icon('edit', 14)),
+			h('button', { class: 'ds-icon-btn', 'aria-label': 'Edit ' + (op.name || 'shape'), title: 'Reshape, edging, remove…', onclick: () => { c.setTool('select'); ed.selectOp(op); } }, icon('select', 14)))))) : null;
 	put(el,
-		sect('Landscape shapes', h('div', { class: 'ds-shape-pick' }, ...SHAPES.map(([id, e, l]) => h('button', { class: 'ds-shape' + (B.shape === id ? ' on' : ''), onclick: () => { B.shape = id; if (id === 'wall' && !/wall|block|stone/i.test(B.mat)) B.mat = c.defaultMat('wall'); if (id === 'patio' || id === 'walkway') { if (/mulch/i.test(B.mat)) B.mat = c.defaultMat('paver'); } if (id === 'lawn') B.mat = c.defaultMat('lawn'); ed.cancelBed(); c.renderPanel(); } }, h('span', null, e), h('small', null, l)))),
+		sect('Landscape shapes', h('div', { class: 'ds-shape-pick' }, ...SHAPES.map(([id, e, l]) => h('button', { class: 'ds-shape' + (B.shape === id ? ' on' : ''), onclick: () => { B.shape = id; B.fill = false; if (id === 'wall' && !/wall|block|stone/i.test(B.mat)) B.mat = c.defaultMat('wall'); else if (id === 'patio' || id === 'walkway') { if (!/paver|stone|brick|gravel|flag/i.test(B.mat)) B.mat = c.defaultMat('paver'); } else if (id === 'lawn') B.mat = c.defaultMat('lawn'); ed.cancelBed(); c.renderPanel(); } }, h('span', null, e), l))),
 			h('p', { class: 'ds-muted' }, how)),
-		n ? sect(null, h('div', { class: 'ds-row' },
-			h('button', { class: 'ds-btn', disabled: n < (line ? 2 : 3), onclick: () => ed.finishBed() }, icon('check', 18), ' Finish'),
-			h('button', { class: 'ds-btn ds-ghost', onclick: () => { ed.bedPts.pop(); ed._drawOverlay(); c.renderPanel(); } }, 'Undo point'),
-			h('button', { class: 'ds-btn ds-ghost', onclick: () => ed.cancelBed() }, 'Cancel')), h('p', { class: 'ds-hint' }, `${n} point${n > 1 ? 's' : ''} placed`)) : null,
+		drawing,
 		sect('Edges', seg([['curved', 'Curved'], ['straight', 'Straight']], B.curved ? 'curved' : 'straight', (k) => { B.curved = k === 'curved'; ed._drawOverlay(); }),
-			area ? h('label', { class: 'ds-check' }, h('input', { type: 'checkbox', checked: !!B.rect, onchange: (e) => { B.rect = e.target.checked; } }), ' Rectangle (drag to draw)') : null),
+			area ? h('label', { class: 'ds-check' }, h('input', { type: 'checkbox', checked: !!B.rect, onchange: (e) => { B.rect = e.target.checked; } }), ' Rectangle (drag to draw)') : null,
+			area ? h('label', { class: 'ds-check' }, h('input', { type: 'checkbox', checked: !!B.outline, onchange: (e) => { B.outline = e.target.checked; c.renderPanel(); } }), ' Draw outlines first, choose materials later') : null),
 		B.shape === 'walkway' ? sect(null, slider('Width', 2, 12, 0.5, B.width, (v) => fmtFtIn(v), (v) => { B.width = v; ed._drawOverlay(); })) : null,
 		B.shape === 'wall' ? sect(null, slider('Wall height', 0.5, 6, 0.5, B.height, (v) => fmtFtIn(v), (v) => { B.height = v; ed._drawOverlay(); }),
 			h('label', { class: 'ds-check' }, h('input', { type: 'checkbox', checked: B.cap, onchange: (e) => { B.cap = e.target.checked; } }), ' Cap stones on top'),
 			h('p', { class: 'ds-hint' }, 'Tip: draw a planting bed behind the wall for a raised planting area.')) : null,
 		B.shape !== 'wall' && B.shape !== 'lawn' ? sect(B.shape === 'edge' ? 'Edging type' : 'Border / edging', seg([...(B.shape === 'edge' ? [] : [['none', 'None']]), ['steel', 'Metal'], ['plastic', 'Plastic'], ['stone', 'Stone'], ['brick', 'Brick']], B.edging, (k) => { B.edging = k; })) : null,
-		B.shape !== 'edge' ? sect(B.shape === 'wall' ? 'Wall material' : B.shape === 'bed' ? 'Fill with (mulch, stone…)' : 'Material', swatches(B.mat, (id) => { B.mat = id; })) : null,
-		sect(null, h('p', { class: 'ds-hint' }, 'Already drew one? Use Select and tap it to reshape, resize, change the material or edging.')));
+		B.shape !== 'edge' && !(area && B.outline) ? sect(B.shape === 'wall' ? 'Wall material' : B.shape === 'bed' ? 'Fill new beds with (mulch, stone…)' : 'Material', swatches(B.mat, (id) => { B.mat = id; })) : null,
+		fillSect,
+		sect(null, h('p', { class: 'ds-hint' }, 'Already drew one? Use Select and tap it to reshape, resize, change the material or edging. Drag a box with Select to move several at once.')));
+}
+const swatchImg = (id) => { const c0 = swatch(id, 28); return c0 instanceof HTMLElement ? c0 : null; };
+
+/** Several items selected with the box (or Shift-click): move, copy, delete or re-layer them together. */
+export function panelMulti(el, c) {
+	const { ed, sect } = c;
+	const n = ed.multiCount(), items = ed.multiItems();
+	const L = ed.view.layers && ed.view.layers.length > 1 ? ed.view.layers : null;
+	put(el,
+		sect(`${n} items selected`, h('p', { class: 'ds-hint' }, 'Drag any of them to move them all together. Arrow keys nudge them (Shift = farther). Shift-click adds or removes one.'),
+			h('div', { class: 'ds-row ds-wrap' },
+				h('button', { class: 'ds-btn ds-ghost', onclick: () => { ed.duplicateMulti(); c.renderPanel(); } }, icon('copy', 16), ' Duplicate all'),
+				h('button', { class: 'ds-btn ds-ghost', onclick: () => { ed.deleteMulti(); c.renderPanel(); } }, icon('trash', 16), ' Delete all'),
+				h('button', { class: 'ds-btn ds-ghost', onclick: () => { ed.clearMulti(); c.renderPanel(); } }, 'Clear selection'))),
+		L ? sect('Move to layer', h('div', { class: 'ds-chips' }, ...L.slice().reverse().map((l) => h('button', { class: 'ds-chip', onclick: () => { ed.moveToLayer(items, l.id); c.toast(`Moved to ${l.name}.`); } }, l.name)))) : null,
+		sect(null, h('p', { class: 'ds-muted' }, `${ed.multi.objs.size} plant${ed.multi.objs.size === 1 ? '' : 's'} / feature${ed.multi.objs.size === 1 ? '' : 's'} · ${ed.multi.ops.size} shape${ed.multi.ops.size === 1 ? '' : 's'}`)));
+}
+
+/** Crop & rotate as its own tool: explain it, then open the dialog. */
+export function panelCrop(el, c) {
+	put(el,
+		c.sect('Crop, rotate & perspective', h('p', { class: 'ds-muted' }, 'Crop the photo, turn it 90°, straighten a tilted horizon, or fix leaning walls. It makes a new view, so this one stays exactly as it is.'),
+			h('button', { class: 'ds-btn ds-wide', onclick: () => transformDialog(c) }, icon('crop', 18), ' Crop & straighten…'),
+			h('p', { class: 'ds-hint' }, 'Everything you placed moves with the photo.')));
 }
 
 /* ============================================================ Measure */
@@ -202,8 +250,7 @@ export function panelAdjust(el, c) {
 			h('div', { class: 'ds-chips ds-chips-sm' }, ...PRESETS.map(([name, a]) => h('button', { class: 'ds-chip', onclick: () => { ed.setAdjust(a, true, cur); c.renderPanel(); } }, name)))),
 		...Object.entries(groups).map(([g, kids]) => h('details', { class: 'ds-sect ds-adj-group', open: g === 'Light' }, h('summary', null, g), ...kids,
 			g === 'Detail' ? slider('Focus point (for blur)', 5, 95, 1, Math.round((cur.focus == null ? 0.6 : cur.focus) * 100), pct, (val) => { cur.focus = val / 100; ed.setAdjust(cur, false); commit(); }) : null)),
-		sect('Crop, rotate & perspective', h('p', { class: 'ds-hint' }, 'Crop, turn, straighten a tilted photo, or fix leaning walls. Makes a new view, so this one stays as it is.'),
-			h('button', { class: 'ds-btn ds-wide', onclick: () => transformDialog(c) }, icon('crop', 18), ' Crop & straighten…')));
+		sect(null, h('p', { class: 'ds-hint' }, 'Crop, rotate and perspective have their own tool now — tap Crop, just below Adjust.')));
 }
 
 /** Crop / rotate 90° / straighten / vertical & horizontal perspective → a new view. */
@@ -285,12 +332,32 @@ export function layersPanel(c) {
 	const close = () => { el.remove(); c.onClose && c.onClose(); };
 	const el = h('aside', { class: 'ds-hist ds-layers-win', role: 'dialog', 'aria-label': 'Layers' },
 		h('div', { class: 'ds-hist-head' }, h('b', null, icon('layers', 18), ' Layers'), h('button', { class: 'ds-icon-btn', 'aria-label': 'Close layers', onclick: close }, icon('close', 18))),
-		h('p', { class: 'ds-hint' }, 'Everything in this view. Show/hide, lock, rename, reorder or remove — tap a name to select it.'),
+		h('p', { class: 'ds-hint' }, 'Design in layers — e.g. “Existing”, “Phase 1”, “Lighting”. New things go on the active layer (●). Below that, everything in this view: show/hide, lock, rename, reorder or remove.'),
 		body);
 	const eye = (on, fn, label) => h('button', { class: 'ds-icon-btn ds-lay-eye' + (on ? '' : ' off'), 'aria-label': (on ? 'Hide ' : 'Show ') + label, title: on ? 'Hide' : 'Show', onclick: (e) => { e.stopPropagation(); fn(); refresh(); } }, icon('eye', 16));
 	const refresh = () => {
 		body.innerHTML = '';
 		const v = ed.view;
+		// design layers (bottom → top in the data; shown top first, like every design app)
+		const L = ed.layers(), multiL = !!(v.layers && v.layers.length);
+		const active = multiL ? (ed.activeLayer || L[L.length - 1].id) : 'base';
+		const count = (l) => [...v.objects, ...v.ops].filter((x) => (ed.layerOf(x) || { id: 'base' }).id === l.id).length;
+		const lay = h('div', { class: 'ds-lay-grp ds-lay-layers' }, h('div', { class: 'ds-lay-h' }, h('b', null, '🗂️ Layers'),
+			h('button', { class: 'ds-btn ds-sm', onclick: () => { const nm = prompt('Name the new layer', 'Layer ' + (L.length + 1)); if (nm !== null) { ed.addLayer(nm.trim() || undefined); refresh(); } } }, '+ Add a layer')));
+		L.slice().reverse().forEach((l) => {
+			const i = L.indexOf(l), on = l.id === active;
+			put(lay, h('div', { class: 'ds-lay-row' + (on ? ' on' : '') + (l.hidden ? ' hid' : '') },
+				h('button', { class: 'ds-icon-btn', role: 'radio', 'aria-checked': String(on), 'aria-label': 'Draw on ' + l.name, title: on ? 'Active — new things go here' : 'Make active', onclick: () => { if (!multiL) return; ed.setActiveLayer(l.id); refresh(); } }, on ? '●' : '○'),
+				eye(!l.hidden, () => ed.toggleLayer(l.id, 'hidden'), l.name),
+				h('span', { class: 'ds-grow ds-lay-name' }, l.name, h('small', { class: 'ds-muted' }, ` · ${count(l)}`)),
+				h('button', { class: 'ds-icon-btn', title: l.lock ? 'Unlock layer' : 'Lock layer', 'aria-label': (l.lock ? 'Unlock ' : 'Lock ') + l.name, onclick: () => { ed.toggleLayer(l.id, 'lock'); refresh(); } }, l.lock ? '🔒' : '🔓'),
+				h('button', { class: 'ds-icon-btn', title: 'Rename', 'aria-label': 'Rename ' + l.name, onclick: () => { const t = prompt('Rename layer', l.name); if (t && t.trim()) { ed.renameLayer(l.id, t.trim()); refresh(); } } }, icon('edit', 14)),
+				multiL ? h('button', { class: 'ds-icon-btn', title: 'Move layer up', 'aria-label': 'Move ' + l.name + ' up', disabled: i === L.length - 1, onclick: () => { ed.moveLayer(l.id, 1); refresh(); } }, '↑') : null,
+				multiL ? h('button', { class: 'ds-icon-btn', title: 'Move layer down', 'aria-label': 'Move ' + l.name + ' down', disabled: i === 0, onclick: () => { ed.moveLayer(l.id, -1); refresh(); } }, '↓') : null,
+				multiL && L.length > 1 ? h('button', { class: 'ds-icon-btn', title: 'Delete layer (keeps its items)', 'aria-label': 'Delete ' + l.name, onclick: () => { if (confirm(`Delete “${l.name}”? Its ${count(l)} item(s) move to the layer below — nothing is deleted.`)) { ed.deleteLayer(l.id); refresh(); } } }, icon('trash', 14)) : null));
+		});
+		body.append(lay);
+		const layerPick = (x, nm) => multiL && L.length > 1 ? h('select', { class: 'ds-lay-pick', 'aria-label': 'Layer for ' + nm, title: 'Move to layer', onchange: (e) => { ed.moveToLayer([x], e.target.value); refresh(); } }, ...L.slice().reverse().map((l) => h('option', { value: l.id, selected: (ed.layerOf(x) || {}).id === l.id }, l.name))) : null;
 		// photo
 		const photo = h('div', { class: 'ds-lay-grp' }, h('div', { class: 'ds-lay-h' }, h('b', null, '📷 Photo')));
 		const peekBtn = h('button', { class: 'ds-btn ds-ghost ds-sm' }, icon('eye', 16), ' Hold for original');
@@ -308,6 +375,7 @@ export function layersPanel(c) {
 			put(grnd, h('div', { class: 'ds-lay-row' + (ed.selOp === op ? ' on' : '') + (op.hidden ? ' hid' : '') },
 				eye(!op.hidden, () => ed.updateOp(op, { hidden: !op.hidden }, op.hidden ? 'Showed a shape' : 'Hid a shape'), nm),
 				h('button', { class: 'ds-grow ds-lay-name', disabled: op.t === 'brush' || op.t === 'mask', onclick: () => { c.setTool('select'); ed.selectOp(op); refresh(); } }, nm.charAt(0).toUpperCase() + nm.slice(1)),
+				layerPick(op, nm),
 				h('button', { class: 'ds-icon-btn', title: op.lock ? 'Unlock' : 'Lock', 'aria-label': op.lock ? 'Unlock' : 'Lock', onclick: () => { ed.updateOp(op, { lock: !op.lock }, op.lock ? 'Unlocked a shape' : 'Locked a shape'); refresh(); } }, op.lock ? '🔒' : '🔓'),
 				h('button', { class: 'ds-icon-btn', title: 'Rename', 'aria-label': 'Rename', onclick: () => { const t = prompt('Name this layer', nm); if (t) { ed.updateOp(op, { name: t.slice(0, 40) }, 'Renamed a shape'); refresh(); } } }, icon('edit', 14)),
 				h('button', { class: 'ds-icon-btn', title: 'Move up', 'aria-label': 'Move up', onclick: () => { ed.moveOp(op, 1); refresh(); } }, '↑'),
@@ -329,6 +397,7 @@ export function layersPanel(c) {
 					eye(!o.hidden, () => { ed.updateSelected({ hidden: !o.hidden }, o); if (o.hidden && ed.sel === o) ed.select(null); }, o.name || it.name),
 					h('img', { class: 'ds-lay-th', src: c.thumbFor(it), alt: '' }),
 					h('button', { class: 'ds-grow ds-lay-name', onclick: () => { if (o.hidden) ed.updateSelected({ hidden: false }, o); if (o.lock) ed.updateSelected({ lock: false }, o); c.setTool('select'); ed.select(o); refresh(); } }, o.name || it.name),
+					layerPick(o, o.name || it.name),
 					h('button', { class: 'ds-icon-btn', title: o.lock ? 'Unlock' : 'Lock', 'aria-label': o.lock ? 'Unlock' : 'Lock', onclick: () => { ed.updateSelected({ lock: !o.lock }, o); if (ed.sel === o) ed.select(null); refresh(); } }, o.lock ? '🔒' : '🔓'),
 					h('button', { class: 'ds-icon-btn', title: 'Bring forward', 'aria-label': 'Bring forward', onclick: () => { ed.orderSelected('forward', o); refresh(); } }, '↑'),
 					h('button', { class: 'ds-icon-btn', title: 'Send backward', 'aria-label': 'Send backward', onclick: () => { ed.orderSelected('backward', o); refresh(); } }, '↓'),

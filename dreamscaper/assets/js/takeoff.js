@@ -519,8 +519,11 @@ export function dreamscapeToPlan(view, lookup) {
 		return view.cam ? groundPoint(x, y, view.cam, view.W) : null;
 	};
 	let i = 0;
+	// hidden shapes and hidden layers stay out of the quantities
+	const L = view.layers || [];
+	const layerHidden = (op) => !!L.length && !!(L.find((l) => l.id === (op.layer || 'base')) || L[0]).hidden;
 	for (const op of view.ops || []) {
-		if (op.erase || op.t !== 'poly' || !op.pts || op.pts.length < 3) continue;
+		if (op.erase || op.hidden || layerHidden(op) || op.t !== 'poly' || !op.pts || op.pts.length < 3) continue;
 		const pts = op.pts.map((p) => toFt(p[0], p[1])).filter(Boolean);
 		if (pts.length < 3) continue;
 		const m = (lookup.mat && lookup.mat(op.mat)) || { name: 'Mulch', group: 'Mulch' };

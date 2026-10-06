@@ -5,13 +5,13 @@
  * inside the homeowner's own DreamScaper account: quotes to sign, who they hired, schedule,
  * invoices to pay, history of past hires and reviews.
  */
-import { h, put, icon } from './util.js?v=2.7.1';
-import { session, api } from './api.js?v=2.7.1';
-import { modal, camera, pickFile, aerial } from './capture.js?v=2.7.1';
-import { money } from './takeoff.js?v=2.7.1';
-import { initRequest, openRequest, basketButton, basketBar, basketAddAll, basketHas } from './request.js?v=2.7.1';
-import { initCalendar, myCalendar, apptCard } from './calendar.js?v=2.7.1';
-import { sectionHead, tip } from './explain.js?v=2.7.1';
+import { h, put, icon } from './util.js?v=2.7.2';
+import { session, api } from './api.js?v=2.7.2';
+import { modal, camera, pickFile, aerial } from './capture.js?v=2.7.2';
+import { money } from './takeoff.js?v=2.7.2';
+import { initRequest, openRequest, basketButton, basketBar, basketAddAll, basketHas } from './request.js?v=2.7.2';
+import { initCalendar, myCalendar, apptCard } from './calendar.js?v=2.7.2';
+import { sectionHead, tip } from './explain.js?v=2.7.2';
 
 let H = null; // { ctx, body, stack, cur }
 const toast = (m, ms) => H && H.ctx.toast(m, ms);

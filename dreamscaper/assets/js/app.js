@@ -1,41 +1,41 @@
 /* DreamScaper – app shell: gallery, project flow, editor UI, autosave. */
-import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.1';
-import { store } from './store.js?v=2.7.1';
-import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.1';
-import { openAssetMaker } from './assetmaker.js?v=2.7.1';
-import { voiceButton } from './voice.js?v=2.7.1';
-import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.1';
-import { thumb, sprite } from './sprites.js?v=2.7.1';
-import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.1';
-import { Editor } from './editor.js?v=2.7.1';
-import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.1';
-import { sampleYard } from './sample.js?v=2.7.1';
-import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.1';
-import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.1';
-import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.1';
-import { openStudio } from './dsai.js?v=2.7.1';
-import { panelAI } from './aitools.js?v=2.7.1';
-import { shareSheet, printDesign } from './share.js?v=2.7.1';
-import { openPlantId } from './plantid.js?v=2.7.1';
-import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.1';
-import { onRewards } from './api.js?v=2.7.1';
-import { segment } from './aiclient.js?v=2.7.1';
-import { historyPanel } from './history.js?v=2.7.1';
-import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.1';
-import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.1';
-import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.1';
-import { initStorage, openStorage } from './storage.js?v=2.7.1';
-import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.1';
-import { initHire, openFind, openProjects } from './hire.js?v=2.7.1';
-import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.1';
-import { initExplain } from './explain.js?v=2.7.1';
-import { initBilling, confirmReturn } from './billing.js?v=2.7.1';
-import { initMsgSettings } from './msgsettings.js?v=2.7.1';
-import { dreamscapeToPlan } from './takeoff.js?v=2.7.1';
-import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.1';
-import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.1';
-import { openGuide, guideBar } from './guide.js?v=2.7.1';
-import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.1';
+import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.2';
+import { store } from './store.js?v=2.7.2';
+import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.2';
+import { openAssetMaker } from './assetmaker.js?v=2.7.2';
+import { voiceButton } from './voice.js?v=2.7.2';
+import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.2';
+import { thumb, sprite } from './sprites.js?v=2.7.2';
+import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.2';
+import { Editor } from './editor.js?v=2.7.2';
+import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.2';
+import { sampleYard } from './sample.js?v=2.7.2';
+import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.2';
+import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.2';
+import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.2';
+import { openStudio } from './dsai.js?v=2.7.2';
+import { panelAI } from './aitools.js?v=2.7.2';
+import { shareSheet, printDesign } from './share.js?v=2.7.2';
+import { openPlantId } from './plantid.js?v=2.7.2';
+import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.2';
+import { onRewards } from './api.js?v=2.7.2';
+import { segment } from './aiclient.js?v=2.7.2';
+import { historyPanel } from './history.js?v=2.7.2';
+import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.2';
+import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.2';
+import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.2';
+import { initStorage, openStorage } from './storage.js?v=2.7.2';
+import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.2';
+import { initHire, openFind, openProjects } from './hire.js?v=2.7.2';
+import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.2';
+import { initExplain } from './explain.js?v=2.7.2';
+import { initBilling, confirmReturn } from './billing.js?v=2.7.2';
+import { initMsgSettings } from './msgsettings.js?v=2.7.2';
+import { dreamscapeToPlan } from './takeoff.js?v=2.7.2';
+import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.2';
+import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.2';
+import { openGuide, guideBar } from './guide.js?v=2.7.2';
+import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.2';
 
 const CFG = (() => {
 	try { return JSON.parse(document.getElementById('dreamscaper-config').textContent); } catch (e) { return {}; }
@@ -44,17 +44,19 @@ CFG.brand = CFG.brand || "David's Landscaping";
 CFG.site = CFG.site || '';
 
 const SEASONS = [['spring', 'Spring'], ['summer', 'Summer'], ['fall', 'Fall'], ['winter', 'Winter']];
+/** [id, icon, full name (tooltip / screen readers), keyboard key, short label under the icon] */
 const TOOLS = [
-	['select', 'select', 'Select & move', 'V'],
-	['plants', 'plant', 'Plants & features', 'P'],
-	['paint', 'paint', 'Paint ground cover', 'B'],
-	['bed', 'shapes', 'Beds, patios, walks & walls', 'L'],
-	['measure', 'ruler', 'Measure & zones', 'M'],
-	['adjust', 'adjust', 'Adjust photo', 'J'],
-	['eraser', 'wand', 'Magic eraser', 'E'],
-	['ai', 'sparkle', 'AI tools', 'A'],
-	['scale', 'scale', 'Scale & perspective', 'S'],
-	['pan', 'hand', 'Pan', 'H']
+	['select', 'select', 'Select & move', 'V', 'Select'],
+	['plants', 'plant', 'Plants & features', 'P', 'Plants'],
+	['paint', 'paint', 'Paint ground cover', 'B', 'Paint'],
+	['bed', 'shapes', 'Beds, patios, walks & walls', 'L', 'Beds'],
+	['measure', 'ruler', 'Measure & zones', 'M', 'Measure'],
+	['adjust', 'adjust', 'Adjust photo', 'J', 'Adjust'],
+	['crop', 'crop', 'Crop, rotate & perspective', 'C', 'Crop'],
+	['eraser', 'wand', 'Magic eraser', 'E', 'Erase'],
+	['ai', 'sparkle', 'AI tools', 'A', 'AI'],
+	['scale', 'scale', 'Scale & perspective', 'S', 'Scale'],
+	['pan', 'hand', 'Pan', 'H', 'Pan']
 ];
 
 let app = null;
@@ -669,8 +671,8 @@ function buildEditorUI() {
 		accountChip({}),
 		h('button', { class: 'ds-icon-btn', 'aria-label': 'Close DreamScaper', onclick: requestClose }, icon('close')));
 
-	ui.tools = h('nav', { class: 'ds-tools', 'aria-label': 'Tools' }, ...TOOLS.map(([id, ic, label, key]) =>
-		h('button', { class: 'ds-tool', 'data-tool': id, title: `${label} (${key})`, 'aria-label': label, onclick: () => setTool(id) }, icon(ic, 24), h('span', null, label.split(' ')[0]))));
+	ui.tools = h('nav', { class: 'ds-tools', 'aria-label': 'Tools' }, ...TOOLS.map(([id, ic, label, key, short]) =>
+		h('button', { class: 'ds-tool', 'data-tool': id, title: `${label} (${key})`, 'aria-label': label, onclick: () => setTool(id) }, icon(ic, 24), h('span', null, short))));
 	ui.stage = h('div', { class: 'ds-stage' });
 	ui.toast = h('div', { class: 'ds-toast', role: 'status', 'aria-live': 'polite' });
 	ui.scenebar = scenebar();
@@ -687,9 +689,11 @@ function buildEditorUI() {
 	app.editor = new Editor(ui.stage, {
 		onSelect: (o, soft) => { if (app.tool === 'select' || app.tool === 'plants') { if (soft && o && ui.inspector && ui.inspector.obj === o) updateInspector(); else renderPanel(); } },
 		onChange: (kind) => { saveSoon(kind); },
-		onHistory: () => { ui.undo.disabled = !app.editor.undoStack.length; ui.redo.disabled = !app.editor.redoStack.length; if (ui.hist) ui.hist.refresh(); if (ui.layers) ui.layers.refresh(); },
+		onHistory: () => { ui.undo.disabled = !app.editor.undoStack.length; ui.redo.disabled = !app.editor.redoStack.length; if (ui.hist) ui.hist.refresh(); if (ui.layers) ui.layers.refresh(); if (app.tool === 'bed' && !app.editor.bedPts.length) renderPanel(); },
 		onTool: (t) => { if (t === 'select' && app.tool !== 'select' && app.tool !== 'plants') { app.tool = 'select'; markTool(); renderPanel(); } },
 		onBed: () => app.tool === 'bed' && renderPanel(),
+		onMulti: () => { if (app.tool === 'select') renderPanel(); if (ui.layers) ui.layers.refresh(); },
+		onLayers: () => { if (ui.layers) ui.layers.refresh(); if (app.tool === 'select' || app.tool === 'bed') renderPanel(); },
 		onSelectOp: (op, soft) => { if (app.tool === 'select' || app.tool === 'plants') { if (op && !soft && app.tool === 'plants') { app.tool = 'select'; markTool(); } renderPanel(); } if (ui.layers) ui.layers.refresh(); },
 		onMeasure: () => { if (app.tool === 'measure') renderPanel(); },
 		onMask: (n) => { if (app.tool === 'ai' && !!n !== !!app._aiSel) { app._aiSel = !!n; renderPanel(); } if (ui.eraseBtn) { ui.eraseBtn.disabled = !n; ui.eraseInfo.textContent = n ? `${n.toLocaleString()} pixels selected` : 'Nothing selected yet'; } },
@@ -803,10 +807,11 @@ function setTool(t) {
 	const ed = app.editor;
 	if (t === 'plants') ed.setTool(ed.placeItem ? 'place' : 'select');
 	else if (t === 'ai') ed.setTool('eraser');
-	else if (t === 'adjust') ed.setTool('pan');
+	else if (t === 'adjust' || t === 'crop') ed.setTool('pan');
 	else ed.setTool(t);
 	markTool();
 	renderPanel();
+	if (t === 'crop') setTimeout(() => transformDialog(edCtx()), 0); // the Crop tool opens straight into the crop dialog
 }
 function markTool() {
 	app.ui.tools.querySelectorAll('.ds-tool').forEach((b) => b.classList.toggle('on', b.dataset.tool === app.tool));
@@ -821,11 +826,12 @@ function renderPanel() {
 	app._lastPanelTool = app.tool; app._lastSel = !!ed.sel;
 	requestAnimationFrame(() => { ui.panel.scrollTop = keepScroll ? st : 0; });
 	const t = app.tool;
+	if (t === 'select' && ed.multiCount() > 1) return panelMulti(ui.panel, edCtx());
 	if ((t === 'select' || t === 'plants') && ed.sel) return inspector(ed.sel);
 	if (t === 'select' && ed.selOp) return opInspector(ui.panel, ed.selOp, edCtx());
 	const P = {
 		select: panelSelect, plants: panelLibrary, paint: panelPaint, bed: (el) => panelShapes(el, edCtx()), eraser: panelEraser, scale: panelScale, pan: panelPan,
-		measure: (el) => panelMeasure(el, edCtx()), adjust: (el) => panelAdjust(el, edCtx()),
+		measure: (el) => panelMeasure(el, edCtx()), adjust: (el) => panelAdjust(el, edCtx()), crop: (el) => panelCrop(el, edCtx()),
 		ai: (el) => panelAI(el, toolCtx())
 	}[t] || panelSelect;
 	P(ui.panel);
@@ -854,10 +860,12 @@ function panelSelect(el) {
 	add(el,
 		sect('Select & move', h('p', { class: 'ds-muted' }, n || v.ops.length ? 'Tap a plant or feature to move, resize, rotate, flip, duplicate, blend or arrange it. Tap a bed, patio, walkway or wall to reshape it.' : 'Nothing placed yet. Open the plant library to start designing.')),
 		n ? null : sect(null, h('button', { class: 'ds-btn ds-wide', onclick: () => setTool('plants') }, icon('plant', 18), ' Open plant library')),
+		n || v.ops.length ? sect('Select many', h('p', { class: 'ds-hint' }, 'Drag a box on an empty part of the picture to select everything inside it, or Shift-click to add items. Then drag any of them to move them all together.'),
+			h('label', { class: 'ds-check' }, h('input', { type: 'checkbox', checked: !!app.editor.opts.select.many, onchange: (e) => { app.editor.opts.select.many = e.target.checked; } }), ' On touch screens: one-finger drag selects (instead of panning)')) : null,
 		sect('In this view', h('div', { class: 'ds-stats' },
 			stat(n, 'plants & features'), stat(v.ops.length, 'ground areas'))),
 		sect('Shortcuts', h('ul', { class: 'ds-keys' },
-			...[['V P B L M J E S H', 'Switch tools'], ['Delete', 'Remove selected'], ['Ctrl D', 'Duplicate'], ['Arrows', 'Nudge selected'], ['[ / ]', 'Rotate selected'], ['Ctrl Z', 'Undo'], ['Space-drag', 'Pan'], ['+ / −', 'Zoom']].map(([k, d]) => h('li', null, h('kbd', null, k), d)))));
+			...[['V P B L M J C E A S H', 'Switch tools'], ['Drag a box', 'Select many'], ['Shift-click', 'Add to selection'], ['Delete', 'Remove selected'], ['Ctrl D', 'Duplicate'], ['Arrows', 'Nudge selected'], ['[ / ]', 'Rotate selected'], ['Ctrl Z', 'Undo'], ['Space-drag', 'Pan'], ['Mouse wheel', 'Zoom'], ['+ / −', 'Zoom']].map(([k, d]) => h('li', null, h('kbd', null, k), d)))));
 }
 function stat(n, t) { return h('div', { class: 'ds-stat' }, h('b', null, String(n)), h('small', null, t)); }
 
@@ -1786,12 +1794,15 @@ function onKey(e) {
 	const ed = app.editor, k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
 	if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? ed.redo() : ed.undo(); return; }
 	if (mod && k === 'y') { e.preventDefault(); ed.redo(); return; }
-	if (mod && k === 'd') { e.preventDefault(); ed.duplicateSelected(); return; }
+	if (mod && k === 'd') { e.preventDefault(); if (ed.multiCount() > 1) { ed.duplicateMulti(); renderPanel(); } else ed.duplicateSelected(); return; }
 	if (mod) return;
+	if (k === 'backspace' && ed.tool === 'bed' && ed.bedPts.length) { e.preventDefault(); ed.backPoint(); return; }
+	if ((k === 'delete' || k === 'backspace') && ed.multiCount() > 1) { e.preventDefault(); ed.deleteMulti(); renderPanel(); return; }
 	if (k === 'delete' || k === 'backspace') { if (ed.sel) { e.preventDefault(); ed.deleteSelected(); } else if (ed.selOp) { e.preventDefault(); ed.deleteOp(ed.selOp); } return; }
-	if (k === 'escape') { if (ed.tool === 'bed') ed.cancelBed(); else if (ed.tool === 'measure') ed.cancelMeasure(); else if (ed.tool === 'place') { ed.setTool('select'); renderPanel(); } else { ed.select(null); ed.selectOp(null); } return; }
+	if (k === 'escape') { if (ed.multiCount()) { ed.clearMulti(); renderPanel(); } else if (ed.tool === 'bed') ed.cancelBed(); else if (ed.tool === 'measure') ed.cancelMeasure(); else if (ed.tool === 'place') { ed.setTool('select'); renderPanel(); } else { ed.select(null); ed.selectOp(null); } return; }
 	if (k === 'enter' && ed.tool === 'bed') { ed.finishBed(); return; }
 	if (k === 'enter' && ed.tool === 'measure') { ed.finishMeasure(); renderPanel(); return; }
+	if (ed.multiCount() > 1 && k.startsWith('arrow')) { e.preventDefault(); const st = (e.shiftKey ? 20 : 4) / ed.z; ed.moveMulti(k === 'arrowleft' ? -st : k === 'arrowright' ? st : 0, k === 'arrowup' ? -st : k === 'arrowdown' ? st : 0); return; }
 	if (ed.sel && k.startsWith('arrow')) { e.preventDefault(); const st = e.shiftKey ? 3 : 0.5; ed.nudgeSelected(k === 'arrowleft' ? -st : k === 'arrowright' ? st : 0, k === 'arrowup' ? st : k === 'arrowdown' ? -st : 0); return; }
 	if (ed.sel && (k === '[' || k === ']')) { ed.updateSelected({ rot: ((ed.sel.rot || 0) + (k === '[' ? -5 : 5) + 540) % 360 - 180 }); return; }
 	if (k === ' ') { if (!ed.spaceDown) { ed.spaceDown = true; window.addEventListener('keyup', (u) => { if (u.key === ' ') ed.spaceDown = false; }, { once: true }); } e.preventDefault(); return; }
@@ -1799,7 +1810,7 @@ function onKey(e) {
 	if (k === '-') return ed.zoomBy(0.8);
 	if (k === '0') return ed.fit();
 	if (k === 'n') { app.project.night = !app.project.night; syncScenebar(); ed.render(); saveSoon(); return; }
-	const map = { v: 'select', p: 'plants', b: 'paint', l: 'bed', m: 'measure', j: 'adjust', e: 'eraser', s: 'scale', h: 'pan' };
+	const map = { v: 'select', p: 'plants', b: 'paint', l: 'bed', m: 'measure', j: 'adjust', c: 'crop', e: 'eraser', a: 'ai', s: 'scale', h: 'pan' };
 	if (map[k]) setTool(map[k]);
 }
 

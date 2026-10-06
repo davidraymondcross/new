@@ -1,7 +1,7 @@
 /* DreamScaper – one-button voice search (Web Speech API, runs in the browser).
  * Chrome, Edge and Safari support it; on browsers without it the button is hidden.
  */
-import { h, icon } from './util.js?v=2.7.1';
+import { h, icon } from './util.js?v=2.7.2';
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 export const voiceSupported = !!SR;

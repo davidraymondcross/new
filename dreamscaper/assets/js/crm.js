@@ -5,22 +5,22 @@
  * text, shortcodes) · Jobs & job costing · Schedule / dispatch · Invoices (Stripe Connect) ·
  * Settings (business, costs & markups, price book, terms, follow-up plan, crew, payments).
  */
-import { h, put, icon } from './util.js?v=2.7.1';
-import { session, api, refreshSession } from './api.js?v=2.7.1';
-import { modal, aerial, pickFile } from './capture.js?v=2.7.1';
-import { openPlan } from './siteplan.js?v=2.7.1';
-import { segment } from './aiclient.js?v=2.7.1';
-import { ALL, matchesWords, searchScore } from './library.js?v=2.7.1';
+import { h, put, icon } from './util.js?v=2.7.2';
+import { session, api, refreshSession } from './api.js?v=2.7.2';
+import { modal, aerial, pickFile } from './capture.js?v=2.7.2';
+import { openPlan } from './siteplan.js?v=2.7.2';
+import { segment } from './aiclient.js?v=2.7.2';
+import { ALL, matchesWords, searchScore } from './library.js?v=2.7.2';
 import {
 	PRICEBOOK, DEFAULT_COSTS, DEFAULT_FOLLOWUPS, DEFAULT_TERMS, SHORTCODES, KINDS,
 	mergeBook, mergeCosts, planToSections, priceEstimate, buildDocuments, scheduleFollowups, merge, missingCodes,
 	money, fmtArea, fmtFtIn, measure, round2
-} from './takeoff.js?v=2.7.1';
-import { inboxPane, inboxDot } from './inbox.js?v=2.7.1';
-import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.1';
-import { billingView, subBanner } from './billing.js?v=2.7.1';
-import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.1';
-import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.1';
+} from './takeoff.js?v=2.7.2';
+import { inboxPane, inboxDot } from './inbox.js?v=2.7.2';
+import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.2';
+import { billingView, subBanner } from './billing.js?v=2.7.2';
+import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.2';
+import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.2';
 
 let X = null; // { ctx, body, stack, cur, me }
 const STAGES = [['lead', 'Lead'], ['prospect', 'Prospect'], ['customer', 'Customer'], ['past', 'Past customer'], ['lost', 'Lost']];

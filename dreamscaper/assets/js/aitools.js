@@ -1,17 +1,19 @@
 /* DreamScaper – AI tools inside the regular editor (separate from Dreamscape AI).
+ *  0. One-click tools — Select / Remove / Add, the same lists as the Dreamscape AI studio (aitoolkit.js)
  *  1. AI Erase        – say/type what to remove ("the trash cans"), or paint it
  *  2. Smart Select    – "select the lawn" → paint a material, erase or replace it
  *  3. Make it real    – blends placed plants/materials into the photo's light & shadows
  *  4. Season & light  – re-light the real photo: spring, fall, winter snow, dusk lights
  *  5. Plant ID        – what plant is this? (opens the shared Plant ID flow)
  */
-import { h, icon, uid, canvas, canvasToBlob } from './util.js?v=2.7.1';
-import { session } from './api.js?v=2.7.1';
-import { openAuth, creditsPill } from './account.js?v=2.7.1';
-import { confirmCredit } from './credits.js?v=2.7.1';
-import { voiceButton } from './voice.js?v=2.7.1';
-import { runEdit, segment, dilateMask, compositeMasked } from './aiclient.js?v=2.7.1';
-import { inpaint, maskCount } from './eraser.js?v=2.7.1';
+import { h, icon, uid, canvas, canvasToBlob } from './util.js?v=2.7.2';
+import { session } from './api.js?v=2.7.2';
+import { openAuth, creditsPill } from './account.js?v=2.7.2';
+import { confirmCredit } from './credits.js?v=2.7.2';
+import { voiceButton } from './voice.js?v=2.7.2';
+import { runEdit, segment, dilateMask, compositeMasked } from './aiclient.js?v=2.7.2';
+import { inpaint, maskCount } from './eraser.js?v=2.7.2';
+import { SELECT, REMOVE, ADD, removePrompt, addPrompt } from './aitoolkit.js?v=2.7.2';
 
 const QUICK_ERASE = ['trash cans', 'garden hose', 'weeds', 'dead shrubs', 'car', 'toys', 'tree stump', 'leaves and debris'];
 const QUICK_SELECT = [['the lawn', 'Lawn'], ['planting beds', 'Beds'], ['driveway', 'Driveway'], ['walkway', 'Walkway'], ['shrubs', 'Shrubs'], ['trees', 'Trees'], ['house', 'House'], ['fence', 'Fence'], ['sky', 'Sky']];
@@ -47,6 +49,9 @@ export function panelAI(el, ctx) {
 		if (!session.ai.unlimited && session.ai.left <= 0) { if (ctx.buyCredits) ctx.buyCredits('You’ve used today’s free AI credits.'); else toast(`You’ve used today’s ${session.ai.limit} AI credits. They refill tomorrow.`); return false; }
 		return confirmCredit(what);
 	};
+
+	/* 0. One-click tools (shared with the AI studio) */
+	el.append(oneClick(ctx, { dis, credit, busyOn, busyOff }));
 
 	/* 1. AI Erase */
 	const what = h('input', { type: 'text', placeholder: 'What should disappear? e.g. the trash cans', disabled: dis });
@@ -98,7 +103,8 @@ export function panelAI(el, ctx) {
 		h('div', { class: 'ds-chips ds-chips-sm' }, ...QUICK_SELECT.map(([q, l]) => h('button', { class: 'ds-chip', disabled: dis || !session.ai.segment, onclick: () => { sq.value = q; doSelect(q); } }, l))),
 		h('div', { class: 'ds-row ds-talkline' }, sm, sq, selBtn),
 		has ? h('div', { class: 'ds-selbox' },
-			h('b', null, 'With the selection:'),
+			h('b', null, ed._aiPick ? `With the ${ed._aiPick.label.toLowerCase()}:` : 'With the selection:'),
+			ed._aiPick && ed._aiPick.ideas && ed._aiPick.ideas.length ? h('div', { class: 'ds-chips ds-chips-sm' }, ...ed._aiPick.ideas.map((x) => h('button', { class: 'ds-chip', disabled: dis, onclick: () => { replaceIn.value = x; repBtn.disabled = false; repBtn.click(); } }, '→ ' + x))) : null,
 			h('p', { class: 'ds-hint' }, 'Fill it with a material:'),
 			ctx.swatches(null, (id) => { if (ed.fillSelection(id)) { toast('Painted! Undo anytime.'); ctx.renderPanel(); } }),
 			h('div', { class: 'ds-row ds-talkline' }, rm, replaceIn, repBtn),
@@ -143,6 +149,114 @@ export function panelAI(el, ctx) {
 	/* 5. Plant ID */
 	el.append(sect('🌿 Plant ID', h('p', { class: 'ds-hint' }, 'Not sure what a plant is? Snap it and get its name, weed warnings and real growth data — then add it to My Library if you want to place it in your design and watch it grow. (Plant ID is also in the top bar on every screen.)'),
 		h('button', { class: 'ds-btn ds-ghost ds-wide', disabled: !session.ai.identify, onclick: () => ctx.plantId() }, icon('search', 18), ' Identify a plant or item')));
+}
+
+/* ------------------------------------------------------- one-click tools */
+
+/**
+ * Select / Remove / Add one thing, exactly like the AI studio's left rail, but working on this
+ * view's photo: Select is free (it becomes the editor selection), Remove and Add are one AI change
+ * each and only the found / selected area of the photo changes (undoable).
+ */
+function oneClick(ctx, u) {
+	const { ed, toast } = ctx;
+	const tab = ed._aiTab || 'select';
+	const lists = { select: SELECT, remove: REMOVE, add: ADD };
+	const tabs = h('div', { class: 'ds-rail-tabs', role: 'tablist' }, ...[['select', 'Select', 'select'], ['remove', 'Remove', 'trash'], ['add', 'Add', 'plus']].map(([id, label, ic]) =>
+		h('button', { role: 'tab', 'aria-selected': String(tab === id), class: tab === id ? 'on' : '', onclick: () => { ed._aiTab = id; ed._aiAdd = null; ctx.renderPanel(); } }, icon(ic, 16), ' ', label)));
+	const note = tab === 'select' ? 'Free — highlights it, then fill, erase or replace it.' : tab === 'remove' ? '1 AI credit each — only that thing changes.' : '1 AI credit — paint or select where it goes first, or let the AI choose.';
+	const off = u.dis || (tab !== 'add' && !session.ai.segment);
+	const grid = h('div', { class: 'ds-oneclick' }, ...lists[tab].map((t) => {
+		const b = h('button', { class: 'ds-rail-btn' + (tab === 'add' && ed._aiAdd && ed._aiAdd[0] === t[0] ? ' on' : ''), disabled: off, title: `${tab === 'select' ? 'Select' : tab === 'remove' ? 'Remove' : 'Add'} ${t[1].toLowerCase()}` },
+			h('span', { class: 'ds-rail-e', 'aria-hidden': 'true' }, t[2]), h('span', null, t[1]));
+		b.onclick = () => (tab === 'select' ? pick(ctx, u, b, t) : tab === 'remove' ? removeOne(ctx, u, b, t) : (ed._aiAdd = t, ctx.renderPanel()));
+		return b;
+	}));
+	const addBox = tab === 'add' && ed._aiAdd ? addUI(ctx, u, ed._aiAdd) : null;
+	return h('section', { class: 'ds-sect ds-oneclick-sect' }, h('h4', null, '⚡ One-click tools'), h('p', { class: 'ds-hint' }, note), tabs, addBox, grid,
+		!session.ai.segment && tab !== 'add' ? h('p', { class: 'ds-hint' }, 'Finding things automatically is being set up.') : null);
+}
+
+async function pick(ctx, u, btn, t) {
+	const { ed, toast } = ctx;
+	const [, label, , what, ideas] = t;
+	u.busyOn(btn, 'Finding…');
+	try {
+		const m = await segment(ed.base, what, ed.W, ed.H);
+		if (!m) toast(`Couldn’t find a ${label.toLowerCase()} in this picture. Try tapping or painting it instead.`, 4500);
+		else { ed.setSelectionMask(m); ed._aiPick = { label, ideas }; toast(`${label} selected — fill it, erase it or replace it below.`); ctx.renderPanel(); }
+	} catch (e) { toast(e.message, 5000); }
+	u.busyOff(btn);
+}
+
+async function removeOne(ctx, u, btn, t) {
+	const { ed, toast } = ctx;
+	const [, label, , what, fill] = t;
+	const W = ed.W, H = ed.H;
+	u.busyOn(btn, 'Finding…');
+	let m = null;
+	try { m = await segment(ed.base, what, W, H); } catch (e) { toast(e.message, 5000); u.busyOff(btn); return; }
+	u.busyOff(btn);
+	if (!m) { toast(`Couldn’t find a ${label.toLowerCase()} in this picture — no credit used. Paint it with Magic eraser, then use AI Erase.`, 5500); return; }
+	ed.setSelectionMask(m);
+	if (!(await u.credit('Removing the ' + label.toLowerCase()))) return;
+	u.busyOn(btn, 'Removing…');
+	try {
+		const r = await runEdit({ image: ed.base, prompt: removePrompt(label.toLowerCase(), fill), mode: 'tool' });
+		const grow = Math.round(Math.max(W, H) * 0.012);
+		ed.applyImage(compositeMasked(ed.base, r.img, dilateMask(m, W, H, grow), Math.max(3, grow * 0.6)), 'Removed ' + label.toLowerCase());
+		ed.clearSelection();
+		toast(`Removed the ${label.toLowerCase()}. Not perfect? Press Undo.`, 4000);
+	} catch (e) { toast(e.message, 5000); }
+	u.busyOff(btn);
+	ctx.renderPanel();
+}
+
+function addUI(ctx, u, t) {
+	const { ed, toast } = ctx;
+	const [, label, , def, ideas] = t;
+	let thing = def;
+	const custom = h('input', { type: 'text', placeholder: `Describe the ${label.toLowerCase()} (optional)…`, disabled: u.dis });
+	const chips = h('div', { class: 'ds-chips ds-chips-sm' }, ...ideas.map((x) => h('button', { class: 'ds-chip', disabled: u.dis, onclick: (e) => { thing = x; chips.querySelectorAll('.ds-chip').forEach((c) => c.classList.remove('on')); e.currentTarget.classList.add('on'); } }, x)));
+	const where = ed.selMask && maskCount(ed.selMask);
+	const go = h('button', { class: 'ds-btn ds-wide', disabled: u.dis }, icon('sparkle', 16), ` Add ${label.toLowerCase()}${where ? ' in the selected area' : ''}`);
+	go.onclick = async () => {
+		const desc = custom.value.trim() || thing;
+		const full = desc === def ? def : `${desc} (${label.toLowerCase()})`;
+		if (!(await u.credit('Adding ' + label.toLowerCase()))) return;
+		u.busyOn(go, 'Adding…');
+		try {
+			const W = ed.W, H = ed.H;
+			if (where) {
+				const o = outlinedArea(ed.base, ed.selMask, W, H);
+				const r = await runEdit({ image: o.img, prompt: addPrompt(full, true), mode: 'tool' });
+				ed.applyImage(compositeMasked(ed.base, r.img, o.paste, Math.round(Math.max(W, H) * 0.003)), 'Added ' + label.toLowerCase());
+				ed.clearSelection();
+			} else {
+				const r = await runEdit({ image: ed.base, prompt: addPrompt(full, false), mode: 'tool' });
+				ed.applyImage(fit(r.img, W, H), 'Added ' + label.toLowerCase());
+			}
+			ed._aiAdd = null;
+			toast(`Added ${label.toLowerCase()}. Press Undo if you don’t like it.`, 4000);
+		} catch (e) { toast(e.message, 5000); }
+		u.busyOff(go);
+		ctx.renderPanel();
+	};
+	return h('div', { class: 'ds-selbox' }, h('b', null, `Add: ${label}`),
+		h('p', { class: 'ds-hint' }, where ? 'It goes inside the area you selected.' : 'Tip: paint or Smart-Select where it should go first (Magic eraser or Select above) — or the AI picks a natural spot.'),
+		chips, custom, go, h('button', { class: 'ds-link', onclick: () => { ed._aiAdd = null; ctx.renderPanel(); } }, 'Cancel'));
+}
+
+/** A thin pink outline just outside the area, so the AI knows where; we paste back only inside it. */
+function outlinedArea(src, m, W, H) {
+	const r1 = Math.round(Math.max(W, H) * 0.006), r2 = Math.max(3, Math.round(Math.max(W, H) * 0.004));
+	const inner = dilateMask(m, W, H, r1), outer = dilateMask(m, W, H, r1 + r2);
+	const c = canvas(W, H), x = c.getContext('2d', { willReadFrequently: true });
+	x.drawImage(src, 0, 0, W, H);
+	const d = x.getImageData(0, 0, W, H);
+	for (let k = 0, i = 0; k < m.length; k++, i += 4) if (outer[k] && !inner[k]) { d.data[i] = 255; d.data[i + 1] = 47; d.data[i + 2] = 160; }
+	x.putImageData(d, 0, 0);
+	return { img: c, paste: inner };
 }
 
 /* ---------------------------------------------------------------- actions */

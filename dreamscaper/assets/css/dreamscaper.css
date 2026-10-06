@@ -1712,3 +1712,22 @@
 .ds-hub-tab .ds-dot-n { top: -4px; right: -4px; }
 .ds-rem input[type=number] { width: 90px; flex: none; }
 .ds-ib-in-hub .ds-ib-msgs { max-height: max(240px, calc(100vh - 470px)); }
+
+/* 2.7.2 — designer: one-click AI tools in the regular designer, loops & fill, layers, select many */
+.ds-oneclick-sect .ds-rail-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 6px 0; }
+.ds-oneclick { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; max-height: 300px; overflow-y: auto; }
+.ds-oneclick .ds-rail-btn { min-height: 44px; }
+.ds-loop-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ds-loop-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line2); border-radius: 12px; min-height: 44px; }
+.ds-loop-sw { width: 28px; height: 28px; flex: none; border-radius: 8px; overflow: hidden; border: 1px dashed var(--line2); }
+.ds-loop-sw canvas { display: block; width: 28px; height: 28px; }
+.ds-btn.on { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ds-stage[data-tool="bed"][data-fill="1"] { cursor: copy; }
+.ds-lay-layers { border: 1px solid var(--line2); border-radius: 12px; padding: 6px; }
+.ds-lay-layers .ds-lay-row.on { background: rgba(123,224,160,.12); }
+.ds-lay-pick { max-width: 110px; font-size: 12px; min-height: 32px; }
+/* names stay readable: rows wrap, and the layer picker drops to its own line when space is tight */
+.ds-lay-row { flex-wrap: wrap; }
+.ds-lay-row .ds-lay-name { flex: 1 1 96px; min-width: 96px; }
+.ds-lay-row .ds-lay-pick { order: 10; flex: 0 0 calc(100% - 44px); max-width: none; margin: 0 4px 2px 36px; }
+.ds-lay-layers .ds-lay-row .ds-lay-name { flex: 1 1 120px; }

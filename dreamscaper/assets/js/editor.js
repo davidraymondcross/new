@@ -1,11 +1,11 @@
 /* DreamScaper – canvas editor engine: scene rendering, perspective, tools, history. */
-import { canvas, clamp, uid, smoothPath } from './util.js?v=2.7.1';
-import { byId, sizeAt } from './library.js?v=2.7.1';
-import { sprite } from './sprites.js?v=2.7.1';
-import { fillGround } from './textures.js?v=2.7.1';
-import { magicSelect, inpaint, dilate, maskBBox, maskCount } from './eraser.js?v=2.7.1';
-import { groundPoint, polyArea, fmtFtIn, sampleSmooth } from './takeoff.js?v=2.7.1';
-import { applyAdjust, hasAdjust } from './photoedit.js?v=2.7.1';
+import { canvas, clamp, uid, smoothPath } from './util.js?v=2.7.2';
+import { byId, sizeAt } from './library.js?v=2.7.2';
+import { sprite } from './sprites.js?v=2.7.2';
+import { fillGround } from './textures.js?v=2.7.2';
+import { magicSelect, inpaint, dilate, maskBBox, maskCount } from './eraser.js?v=2.7.2';
+import { groundPoint, polyArea, fmtFtIn, sampleSmooth } from './takeoff.js?v=2.7.2';
+import { applyAdjust, hasAdjust } from './photoedit.js?v=2.7.2';
 
 const EDGING = {
 	none: null,
@@ -39,7 +39,8 @@ export class Editor {
 		this.tool = 'select';
 		this.opts = {
 			paint: { mat: 'mulch', size: 40, erase: false, soft: 0, alpha: 1, restore: false },
-			bed: { mat: 'mulch', edging: 'steel', shape: 'bed', curved: true, width: 4, height: 2, cap: true, rect: false },
+			bed: { mat: 'mulch', edging: 'steel', shape: 'bed', curved: true, width: 4, height: 2, cap: true, rect: false, outline: true, fill: false, fillMat: 'mulch' },
+			select: { many: false },
 			measure: { mode: 'dist', zone: 'plant' },
 			eraser: { mode: 'region', tol: 30, grow: 3, brush: null, size: 30 },
 			scale: { person: true }
@@ -51,6 +52,9 @@ export class Editor {
 		this.pointers = new Map();
 		this.hover = null;
 		this.bedPts = [];
+		this.multi = { objs: new Set(), ops: new Set() }; // box-select / shift-click: many items at once
+		this.marq = null;
+		this.activeLayer = null;
 		this.selMask = null;
 		this.selOp = null;
 		this.measPts = [];
@@ -82,6 +86,8 @@ export class Editor {
 		this._buildShade();
 		this.undoStack = []; this.redoStack = [];
 		this.sel = null; this.selMask = null; this.bedPts = []; this.selOp = null; this.measPts = []; this.peek = null; this.orig = null;
+		this.multi = { objs: new Set(), ops: new Set() }; this.marq = null;
+		this.activeLayer = view.layers && view.layers.length ? view.layers[view.layers.length - 1].id : null;
 		if (!view.meas) view.meas = [];
 		this.adjusted = null;
 		if (view.kind !== 'aerial' && !view.cam) view.cam = { horizon: Math.round(H * 0.42), camH: 5, focal: Math.round(0.785 * Math.max(W, H)) };
@@ -144,9 +150,109 @@ export class Editor {
 	rebuildGround() {
 		const g = this.ground.getContext('2d');
 		g.clearRect(0, 0, this.W, this.H);
-		for (const op of this.view.ops) if (!op.hidden) this._applyOp(op);
+		for (const op of this.layerOrdered(this.view.ops)) if (!this.isHidden(op)) this._applyOp(op);
 		this._composeGround();
 	}
+
+	/* -------------------------------------------------------------- layers */
+	// view.layers = [{ id, name, hidden, lock }] bottom → top. Items carry `layer`; no `layer` = the base
+	// layer ('base', or the first one). Designs without layers behave exactly as before (one layer).
+
+	layers() { return this.view.layers && this.view.layers.length ? this.view.layers : [{ id: 'base', name: 'Layer 1' }]; }
+	layerOf(item) {
+		const L = this.view.layers;
+		if (!L || !L.length) return null;
+		return L.find((l) => l.id === (item.layer || 'base')) || L[0];
+	}
+	_layIdx(item) { const L = this.view.layers, l = this.layerOf(item); return l ? L.indexOf(l) : 0; }
+	isHidden(item) { if (item.hidden) return true; const l = this.layerOf(item); return !!(l && l.hidden); }
+	isLocked(item) { if (item.lock) return true; const l = this.layerOf(item); return !!(l && l.lock); }
+	/** Ops in drawing order: lower layers first, original order within a layer. */
+	layerOrdered(ops) {
+		if (!this.view.layers || this.view.layers.length < 2) return ops;
+		return ops.map((op, i) => [op, i]).sort((a, b) => this._layIdx(a[0]) - this._layIdx(b[0]) || a[1] - b[1]).map((x) => x[0]);
+	}
+	/** New items go on the active layer. */
+	_stamp(item) {
+		if (item.layer || !this.view.layers || !this.view.layers.length) return item;
+		const L = this.view.layers;
+		const a = L.find((l) => l.id === this.activeLayer) || L[L.length - 1];
+		if (a.id !== 'base') item.layer = a.id;
+		return item;
+	}
+	_layerSnap() {
+		const v = this.view, as = {};
+		for (const x of [...v.objects, ...v.ops]) if (x.layer) as[x.id] = x.layer;
+		return { layers: v.layers ? JSON.parse(JSON.stringify(v.layers)) : null, as, active: this.activeLayer };
+	}
+	_layerRestore(s) {
+		const v = this.view;
+		if (s.layers) v.layers = JSON.parse(JSON.stringify(s.layers)); else delete v.layers;
+		for (const x of [...v.objects, ...v.ops]) { if (s.as[x.id]) x.layer = s.as[x.id]; else delete x.layer; }
+		this.activeLayer = s.active;
+		this.rebuildGround(); this.render();
+		this.hooks.onLayers && this.hooks.onLayers();
+	}
+	/** Any change to layers, as one undo step. */
+	_layerChange(label, fn) {
+		const before = this._layerSnap();
+		fn();
+		const after = this._layerSnap();
+		this.rebuildGround(); this.render();
+		this._push({ label, icon: 'layers', undo: () => this._layerRestore(before), redo: () => this._layerRestore(after) }, false);
+		this.changed();
+		this.hooks.onLayers && this.hooks.onLayers();
+	}
+	addLayer(name) {
+		let id = null;
+		this._layerChange('Added a layer', () => {
+			const v = this.view;
+			if (!v.layers || !v.layers.length) v.layers = [{ id: 'base', name: 'Layer 1' }];
+			id = 'L' + uid();
+			v.layers.push({ id, name: (name || 'Layer ' + (v.layers.length + 1)).slice(0, 40) });
+			this.activeLayer = id;
+		});
+		return id;
+	}
+	setActiveLayer(id) { this.activeLayer = id; this.hooks.onLayers && this.hooks.onLayers(); }
+	renameLayer(id, name) {
+		this._layerChange('Renamed a layer', () => {
+			if (!this.view.layers || !this.view.layers.length) this.view.layers = [{ id: 'base', name: 'Layer 1' }];
+			const l = this.view.layers.find((x) => x.id === id);
+			if (l) l.name = String(name).slice(0, 40);
+		});
+	}
+	toggleLayer(id, key) {
+		this._layerChange(key === 'hidden' ? 'Showed/hid a layer' : 'Locked/unlocked a layer', () => {
+			if (!this.view.layers || !this.view.layers.length) this.view.layers = [{ id: 'base', name: 'Layer 1' }];
+			const l = this.view.layers.find((x) => x.id === id);
+			if (l) l[key] = !l[key];
+			if (key === 'hidden' && l && l.hidden) { if (this.sel && this.layerOf(this.sel) === l) this.select(null); if (this.selOp && this.layerOf(this.selOp) === l) this.selectOp(null); this.clearMulti(); }
+		});
+	}
+	moveLayer(id, d) {
+		this._layerChange('Reordered layers', () => {
+			const L = this.view.layers, i = L ? L.findIndex((x) => x.id === id) : -1, j = i + d;
+			if (i < 0 || j < 0 || j >= L.length) return;
+			L.splice(j, 0, L.splice(i, 1)[0]);
+		});
+	}
+	/** Delete a layer: its items move to the layer below (or above) — nothing is ever deleted with it. */
+	deleteLayer(id) {
+		this._layerChange('Deleted a layer (its items were kept)', () => {
+			const L = this.view.layers;
+			if (!L || L.length < 2) return;
+			const i = L.findIndex((x) => x.id === id);
+			if (i < 0) return;
+			const gone = L[i], to = L[i > 0 ? i - 1 : 1];
+			for (const x of [...this.view.objects, ...this.view.ops]) if (this.layerOf(x) === gone) x.layer = to.id;
+			L.splice(i, 1);
+			if (this.activeLayer === id) this.activeLayer = to.id;
+			if (L.length === 1) { for (const x of [...this.view.objects, ...this.view.ops]) delete x.layer; L[0].id = 'base'; this.activeLayer = 'base'; }
+		});
+	}
+	/** Move items (objects and/or ground shapes) to a layer. */
+	moveToLayer(items, id) { this._layerChange('Moved to another layer', () => { for (const x of items) { if (id === 'base') delete x.layer; else x.layer = id; } }); }
 
 	/* ---------------------------------------------- ground geometry helpers */
 
@@ -429,8 +535,9 @@ export class Editor {
 
 	/** Back-to-front drawing order: depth in the photo, then manual layer order (zd). */
 	sortedObjects(all) {
-		const key = (o) => (o.zd || 0) * 1e7 + (this.isTop ? (byId[o.item] ? byId[o.item].h : 0) * 1000 + (o.z || 0) : o.y + (o.z || 0) * 1e-3);
-		return this.view.objects.filter((o) => byId[o.item] && (all || !o.hidden)).sort((a, b) => key(a) - key(b));
+		// upper layers always draw above lower ones; inside a layer, natural depth then manual order
+		const key = (o) => this._layIdx(o) * 1e9 + (o.zd || 0) * 1e7 + (this.isTop ? (byId[o.item] ? byId[o.item].h : 0) * 1000 + (o.z || 0) : o.y + (o.z || 0) * 1e-3);
+		return this.view.objects.filter((o) => byId[o.item] && (all || !this.isHidden(o))).sort((a, b) => key(a) - key(b));
 	}
 
 	/* ---------------------------------------------------------- measuring */
@@ -606,6 +713,27 @@ export class Editor {
 			for (const p of op.pts) { ctx.beginPath(); ctx.arc(p[0], p[1], 7 / z, 0, 7); ctx.fill(); ctx.stroke(); }
 			ctx.restore();
 		}
+		// many selected: a dashed box or outline on each, plus the selection box being dragged
+		if (this.multiCount()) {
+			ctx.save();
+			ctx.strokeStyle = accent; ctx.lineWidth = lw * 1.6; ctx.setLineDash([6 / z, 4 / z]);
+			for (const o of this.multi.objs) if (o._bb) { const b = o._bb; ctx.strokeRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0); }
+			for (const op of this.multi.ops) {
+				const pp = this.opPoly(op);
+				ctx.beginPath();
+				(pp || op.pts).forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])));
+				if (pp) ctx.closePath();
+				ctx.stroke();
+			}
+			ctx.restore();
+		}
+		if (this.marq) {
+			const r = this.marq;
+			ctx.save();
+			ctx.fillStyle = 'rgba(123,224,160,.12)'; ctx.fillRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
+			ctx.strokeStyle = accent; ctx.lineWidth = lw * 1.4; ctx.setLineDash([5 / z, 4 / z]); ctx.strokeRect(r.x0, r.y0, r.x1 - r.x0, r.y1 - r.y0);
+			ctx.restore();
+		}
 		// place ghost
 		if (this.tool === 'place' && this.placeItem && this.hover) {
 			const fake = { item: this.placeItem.id, x: this.hover.x, y: this.hover.y, age: this.placeItem.plant || 0, scale: 1, seed: 1 };
@@ -634,9 +762,34 @@ export class Editor {
 			ctx.fillText((this.isTop ? '' : '≈ ') + Math.round(m.area || 0) + ' sq ft', c0[0], c0[1] + 18 / z);
 			ctx.restore();
 		}
+		// loops: dashed outline while unfilled, and a name label so "Bed 1" / "Bed 2" can be filled separately
+		if (this.tool === 'bed' || this.tool === 'select') {
+			ctx.save();
+			for (const op of this.loops()) {
+				if (this.isHidden(op)) continue;
+				const unfilled = !op.mat;
+				if (unfilled) {
+					const pp = this.opPoly(op);
+					ctx.beginPath(); pp.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.closePath();
+					ctx.fillStyle = 'rgba(123,224,160,.10)'; ctx.fill();
+					ctx.strokeStyle = '#fff'; ctx.lineWidth = lw * 3; ctx.stroke();
+					ctx.strokeStyle = accent; ctx.lineWidth = lw * 1.6; ctx.setLineDash([8 / z, 5 / z]); ctx.stroke(); ctx.setLineDash([]);
+				}
+				if (this.tool === 'bed' || unfilled) {
+					const [cx, cy] = this.loopCenter(op), txt = (op.name || opName(op)) + (unfilled ? ' · no fill yet' : '');
+					ctx.font = `700 ${13 / z}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+					const tw = ctx.measureText(txt).width + 14 / z, th = 22 / z;
+					ctx.fillStyle = 'rgba(16,28,20,.82)';
+					ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(cx - tw / 2, cy - th / 2, tw, th, th / 2); else ctx.rect(cx - tw / 2, cy - th / 2, tw, th); ctx.fill();
+					ctx.fillStyle = '#fff'; ctx.fillText(txt, cx, cy + 0.5 / z);
+				}
+			}
+			ctx.restore();
+		}
 		if (this.tool === 'bed' && this.bedPts.length) {
-			const pts = this.hover ? [...this.bedPts, [this.hover.x, this.hover.y]] : this.bedPts;
-			const B = this.opts.bed, closed = B.shape === 'bed' || B.shape === 'patio' || B.shape === 'lawn';
+			const B = this.opts.bed, closed = this.bedCloses();
+			const snap = this.hover && this.nearStart(this.hover);
+			const pts = this.hover ? [...this.bedPts, snap ? this.bedPts[0] : [this.hover.x, this.hover.y]] : this.bedPts;
 			ctx.save();
 			if (!closed && pts.length > 1 && (B.shape === 'walkway' || B.shape === 'wall')) {
 				const pp = B.shape === 'walkway' ? this._pathPoly(pts, B.width, B.curved) : (() => { const w = this._wallPoly(pts, B.height, B.curved); return Array.isArray(w) ? w : w.poly; })();
@@ -650,10 +803,30 @@ export class Editor {
 			ctx.strokeStyle = accent; ctx.lineWidth = lw * 2; ctx.setLineDash([8 / z, 5 / z]); ctx.stroke();
 			ctx.setLineDash([]);
 			this.bedPts.forEach((p, i) => {
-				ctx.fillStyle = i === 0 ? accent : '#fff';
-				ctx.beginPath(); ctx.arc(p[0], p[1], (i === 0 ? 7 : 4.5) / z, 0, 7); ctx.fill();
+				if (!i) return;
+				ctx.fillStyle = '#fff';
+				ctx.beginPath(); ctx.arc(p[0], p[1], 5 / z, 0, 7); ctx.fill();
 				ctx.strokeStyle = '#123'; ctx.lineWidth = lw; ctx.stroke();
 			});
+			// the start point: big, labelled, and it lights up when the next tap will close the loop
+			const s0 = this.bedPts[0], canClose = closed && this.bedPts.length > 2, R = 16 / z;
+			if (canClose && !snap && !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+				const t = (performance.now() % 1400) / 1400;
+				ctx.strokeStyle = `rgba(123,224,160,${(1 - t).toFixed(2)})`; ctx.lineWidth = lw * 2;
+				ctx.beginPath(); ctx.arc(s0[0], s0[1], R * (1 + t * 0.8), 0, 7); ctx.stroke();
+				if (!this._pulse) this._pulse = requestAnimationFrame(() => { this._pulse = 0; if (this.tool === 'bed' && this.bedPts.length > 2) this._drawOverlay(); });
+			}
+			ctx.fillStyle = snap ? accent : 'rgba(16,28,20,.85)';
+			ctx.beginPath(); ctx.arc(s0[0], s0[1], snap ? R * 1.15 : R, 0, 7); ctx.fill();
+			ctx.strokeStyle = accent; ctx.lineWidth = lw * 2.5; ctx.stroke();
+			ctx.fillStyle = snap ? '#0b2a18' : '#fff'; ctx.font = `800 ${12 / z}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+			ctx.fillText(snap ? '✓' : 'S', s0[0], s0[1] + 0.5 / z);
+			const tip = snap ? 'Close loop' : canClose ? 'Start — tap here to close' : 'Start';
+			ctx.font = `700 ${13 / z}px system-ui`;
+			const tw = ctx.measureText(tip).width + 16 / z, th = 24 / z, ty = s0[1] - R - th - 6 / z;
+			ctx.fillStyle = snap ? accent : 'rgba(16,28,20,.88)';
+			ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(s0[0] - tw / 2, ty, tw, th, th / 2); else ctx.rect(s0[0] - tw / 2, ty, tw, th); ctx.fill();
+			ctx.fillStyle = snap ? '#0b2a18' : '#fff'; ctx.fillText(tip, s0[0], ty + th / 2 + 0.5 / z);
 			ctx.restore();
 		}
 		if (this.tool === 'measure') this._drawMeas(ctx, true, 'temp');
@@ -755,6 +928,7 @@ export class Editor {
 
 	setTool(t) {
 		if (this.tool === 'bed' && t !== 'bed') this.bedPts = [];
+		if (t !== 'select') this.clearMulti(true);
 		if (t !== 'measure') this.measPts = [];
 		if (t !== 'select' && this.selOp) this.selectOp(null);
 		if (t !== 'eraser') { this.selMask = null; this.selMaskCanvas = null; }
@@ -774,7 +948,7 @@ export class Editor {
 	_hit(p) {
 		const list = this.sortedObjects().reverse();
 		for (const o of list) {
-			if (o.lock) continue;
+			if (this.isLocked(o)) continue;
 			const b = o._bb;
 			if (b && p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1) return o;
 		}
@@ -796,10 +970,19 @@ export class Editor {
 		st.addEventListener('pointercancel', (e) => this._up(e));
 		st.addEventListener('pointerleave', () => { this.hover = null; this._drawOverlay(); });
 		st.addEventListener('dblclick', (e) => { if (this.tool === 'bed') { e.preventDefault(); this.finishBed(); } });
+		// mouse wheel / trackpad pinch zooms the drawing around the pointer — only while over the canvas
+		st.addEventListener('wheel', (e) => {
+			e.preventDefault();
+			const r = this.stage.getBoundingClientRect();
+			let dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * r.height : e.deltaY;
+			dy = clamp(dy, -240, 240);
+			this.zoomBy(Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.002)), e.clientX - r.left, e.clientY - r.top);
+		}, { passive: false });
 		st.addEventListener('contextmenu', (e) => e.preventDefault());
 	}
 
 	_down(e) {
+		this.ptrType = e.pointerType || 'mouse';
 		this.stage.setPointerCapture(e.pointerId);
 		this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 		if (this.pointers.size === 2) {
@@ -828,11 +1011,20 @@ export class Editor {
 					if (vi >= 0) { this.drag = { kind: 'opvert', op: this.selOp, i: vi, before: JSON.parse(JSON.stringify(this.selOp.pts)) }; return; }
 				}
 				const o = this._hit(p);
+				const op = o ? null : this._hitOp(p);
+				const hit = o || (op && op.t !== 'mask' ? op : null);
+				// shift-click adds/removes items from a multi-selection
+				if (e.shiftKey && hit) { this._toggleMulti(hit); return; }
+				// pressing on one of several selected items moves them all together
+				if (hit && this.multiCount() > 1 && this._inMulti(hit)) { this.drag = { kind: 'multimove', from: [p.x, p.y], before: this._multiSnap() }; return; }
+				if (hit) this.clearMulti(true);
 				if (o) { this.select(o); this.drag = { kind: 'move', o, dx: p.x - o.x, dy: p.y - o.y, x0: o.x, y0: o.y }; break; }
-				const op = this._hitOp(p);
 				if (op) { this.select(null); this.selectOp(op); this.drag = { kind: 'opmove', op, from: [p.x, p.y], before: JSON.parse(JSON.stringify(op.pts)) }; break; }
 				this.select(null);
 				this.selectOp(null);
+				this.clearMulti(true);
+				// empty canvas: mouse/pen drag draws a selection box; one finger pans unless "Select many" is on
+				if (this.ptrType !== 'touch' || this.opts.select.many) { this.drag = { kind: 'marquee', a: [p.x, p.y] }; this.marq = null; break; }
 				this.drag = { kind: 'pan', sx: e.clientX, sy: e.clientY, ox: this.ox, oy: this.oy };
 				break;
 			}
@@ -862,8 +1054,14 @@ export class Editor {
 			case 'bed': {
 				const B = this.opts.bed;
 				if (B.rect && (B.shape === 'patio' || B.shape === 'bed' || B.shape === 'lawn') && !this.bedPts.length) { this.drag = { kind: 'rect', a: [p.x, p.y] }; return; }
-				const first = this.bedPts[0];
-				if (first && this.bedPts.length > 2 && Math.hypot(p.x - first[0], p.y - first[1]) < 14 / this.z) { this.finishBed(); return; }
+				// Fill tool: tap a loop to fill it with the chosen material
+				if (B.fill && !this.bedPts.length) {
+					const hitL = this._hitOp(p);
+					if (hitL && hitL.t === 'poly') this.fillLoops([hitL], B.fillMat);
+					else if (this.hooks.toast) this.hooks.toast('Tap inside a closed shape to fill it.');
+					return;
+				}
+				if (this.nearStart(p)) { this.finishBed(); return; }
 				this.bedPts.push([p.x, p.y]);
 				this._drawOverlay();
 				this.hooks.onBed && this.hooks.onBed(this.bedPts.length);
@@ -921,6 +1119,8 @@ export class Editor {
 			if (d.kind === 'opvert') { d.op.pts[d.i] = [p.x, p.y]; d.moved = true; this._rebuildSoon(); return; }
 			if (d.kind === 'opmove') { const dx = p.x - d.from[0], dy = p.y - d.from[1]; d.op.pts = d.before.map((q) => [q[0] + dx, q[1] + dy]); d.moved = true; this._rebuildSoon(); return; }
 			if (d.kind === 'rect') { this.rectDrag = { pts: this._groundRect(d.a, [p.x, p.y]) }; this._drawOverlay(); return; }
+			if (d.kind === 'marquee') { this.marq = { x0: Math.min(d.a[0], p.x), y0: Math.min(d.a[1], p.y), x1: Math.max(d.a[0], p.x), y1: Math.max(d.a[1], p.y) }; this._drawOverlay(); return; }
+			if (d.kind === 'multimove') { this._multiApply(d.before, p.x - d.from[0], p.y - d.from[1]); d.moved = true; return; }
 		}
 		if (this.restoreStroke) {
 			const r = this.restoreStroke, st = Math.max(2, r.size * 0.15);
@@ -974,7 +1174,7 @@ export class Editor {
 	_hitOp(p) {
 		for (let i = this.view.ops.length - 1; i >= 0; i--) {
 			const op = this.view.ops[i];
-			if (op.hidden || op.lock || op.erase) continue;
+			if (this.isHidden(op) || this.isLocked(op) || op.erase) continue;
 			if (op.t === 'edge') {
 				for (let k = 1; k < op.pts.length; k++) if (segDist([p.x, p.y], op.pts[k - 1], op.pts[k]) < 12 / this.z) return op;
 				continue;
@@ -1053,6 +1253,17 @@ export class Editor {
 			this.changed();
 			if (this.hooks.onSelectOp) this.hooks.onSelectOp(op, true);
 		}
+		if (d.kind === 'marquee') {
+			const r = this.marq;
+			this.marq = null;
+			if (r && (r.x1 - r.x0) * this.z > 4 && (r.y1 - r.y0) * this.z > 4) this._boxSelect(r);
+			else this._drawOverlay();
+		}
+		if (d.kind === 'multimove' && d.moved) {
+			const before = d.before, after = this._multiSnap();
+			this._push({ label: `Moved ${this.multiCount()} items together`, icon: 'hand', undo: () => this._multiRestore(before), redo: () => this._multiRestore(after) }, false);
+			this.changed();
+		}
 		if (d.kind === 'rect') {
 			const r = this.rectDrag;
 			this.rectDrag = null;
@@ -1077,10 +1288,10 @@ export class Editor {
 	}
 
 	_endStroke() {
-		const op = this.stroke;
+		const op = this._stamp(this.stroke);
 		this.stroke = null;
 		this.view.ops.push(op);
-		this._composeGround();
+		if (this.view.layers && this.view.layers.length > 1) this.rebuildGround(); else this._composeGround();
 		this._push({
 			label: op.erase ? 'Erased paint' : 'Painted ' + (op.mat || 'ground'), icon: 'paint',
 			undo: () => { this.view.ops.splice(this.view.ops.indexOf(op), 1); this.rebuildGround(); },
@@ -1098,17 +1309,137 @@ export class Editor {
 		const op = B.shape === 'walkway' ? { id: uid(), t: 'path', mat: B.mat, edging: ed, width: B.width, curved: B.curved, pts, label }
 			: B.shape === 'wall' ? { id: uid(), t: 'wall', mat: B.mat, height: B.height, cap: B.cap, curved: B.curved, pts, label }
 				: B.shape === 'edge' ? { id: uid(), t: 'edge', edging: ed || 'steel', curved: B.curved, pts, label }
-					: { id: uid(), t: 'poly', mat: B.mat, edging: B.shape === 'lawn' ? null : ed, straight: !!fromRect || !B.curved, kind: B.shape, pts, label };
+					: { id: uid(), t: 'poly', mat: B.outline ? '' : B.mat, edging: B.shape === 'lawn' ? null : ed, straight: !!fromRect || !B.curved, kind: B.shape, pts, label, name: this._nextLoopName(B.shape) };
 		this.bedPts = [];
 		this.addOp(op);
 		this.hooks.onBed && this.hooks.onBed(0);
 	}
 	cancelBed() { this.bedPts = []; this._drawOverlay(); this.hooks.onBed && this.hooks.onBed(0); }
+	/** Step back one point while drawing. */
+	backPoint() { this.bedPts.pop(); this._drawOverlay(); this.hooks.onBed && this.hooks.onBed(this.bedPts.length); }
+	/** Does this shape close into a loop (bed, patio, lawn) rather than run as a line? */
+	bedCloses() { const s = this.opts.bed.shape; return s === 'bed' || s === 'patio' || s === 'lawn'; }
+	/** Is p close enough to the start point to close the loop? Generous, and bigger for fingers. */
+	nearStart(p) {
+		const f = this.bedPts[0];
+		if (!f || this.bedPts.length < 3 || !this.bedCloses()) return false;
+		return Math.hypot(p.x - f[0], p.y - f[1]) < (this.ptrType === 'touch' ? 34 : 24) / this.z;
+	}
+	/** "Bed 3", "Patio 1", "Lawn 2" — the next free name for a new loop. */
+	_nextLoopName(kind) {
+		const base = { bed: 'Bed', patio: 'Patio', lawn: 'Lawn' }[kind] || 'Area';
+		let n = 1;
+		const used = new Set(this.view.ops.map((o) => o.name));
+		while (used.has(base + ' ' + n)) n++;
+		return base + ' ' + n;
+	}
+	/** Closed loops on this view (beds, patios, lawn areas), in drawing order. */
+	loops() { return this.view.ops.filter((o) => o.t === 'poly' && !o.erase); }
+	/** Fill one or many loops with a material — one undo step. */
+	fillLoops(ops, mat) {
+		ops = ops.filter((o) => o && !this.isLocked(o));
+		if (!ops.length) return;
+		const before = ops.map((o) => o.mat);
+		for (const o of ops) o.mat = mat;
+		this.rebuildGround();
+		const name = ops.length === 1 ? (ops[0].name || opName(ops[0])) : ops.length + ' shapes';
+		this._push({ label: 'Filled ' + name, icon: 'paint', undo: () => { ops.forEach((o, i) => { o.mat = before[i]; }); this.rebuildGround(); }, redo: () => { for (const o of ops) o.mat = mat; this.rebuildGround(); } }, false);
+		this.changed();
+		this.hooks.onBed && this.hooks.onBed(0);
+	}
+	/** Where to put a loop's label: the centre of its outline. */
+	loopCenter(op) {
+		const pp = this.opPoly(op) || op.pts;
+		let a = 0, cx = 0, cy = 0;
+		for (let i = 0, j = pp.length - 1; i < pp.length; j = i++) {
+			const f = pp[j][0] * pp[i][1] - pp[i][0] * pp[j][1];
+			a += f; cx += (pp[j][0] + pp[i][0]) * f; cy += (pp[j][1] + pp[i][1]) * f;
+		}
+		if (Math.abs(a) < 1e-6) return pp.reduce((m, q) => [m[0] + q[0] / pp.length, m[1] + q[1] / pp.length], [0, 0]);
+		return [cx / (3 * a), cy / (3 * a)];
+	}
+
+	/* ------------------------------------------------- many at once */
+
+	multiCount() { return this.multi.objs.size + this.multi.ops.size; }
+	multiItems() { return [...this.multi.objs, ...this.multi.ops]; }
+	_inMulti(x) { return this.multi.objs.has(x) || this.multi.ops.has(x); }
+	clearMulti(quiet) {
+		if (!this.multiCount()) return;
+		this.multi = { objs: new Set(), ops: new Set() };
+		this._drawOverlay();
+		if (!quiet) this.hooks.onMulti && this.hooks.onMulti(0);
+	}
+	_setMulti(objs, ops) {
+		this.multi = { objs: new Set(objs), ops: new Set(ops) };
+		const n = this.multiCount();
+		if (n === 1) { const one = this.multiItems()[0]; this.multi = { objs: new Set(), ops: new Set() }; if (this.view.objects.includes(one)) this.select(one); else { this.select(null); this.selectOp(one); } }
+		else { this.sel = null; this.selOp = null; this.hooks.onSelect && this.hooks.onSelect(null); }
+		this._drawOverlay();
+		this.hooks.onMulti && this.hooks.onMulti(this.multiCount());
+	}
+	_toggleMulti(x) {
+		const objs = new Set(this.multi.objs), ops = new Set(this.multi.ops);
+		if (this.sel) objs.add(this.sel);
+		if (this.selOp) ops.add(this.selOp);
+		const isObj = this.view.objects.includes(x), set = isObj ? objs : ops;
+		if (set.has(x)) set.delete(x); else set.add(x);
+		this._setMulti(objs, ops);
+	}
+	/** Everything the box touches (visible, unlocked; not photo fills). */
+	_boxSelect(r) {
+		const hit = (b) => b && b.x1 >= r.x0 && b.x0 <= r.x1 && b.y1 >= r.y0 && b.y0 <= r.y1;
+		const objs = this.sortedObjects().filter((o) => !this.isLocked(o) && hit(o._bb));
+		const ops = this.view.ops.filter((op) => !op.erase && op.t !== 'mask' && op.t !== 'brush' && !this.isHidden(op) && !this.isLocked(op) && hit(this._opBox(op)));
+		this._setMulti(objs, ops);
+		if (!objs.length && !ops.length) { this.select(null); this.selectOp(null); }
+	}
+	_multiSnap() {
+		return { objs: [...this.multi.objs].map((o) => [o, o.x, o.y]), ops: [...this.multi.ops].map((op) => [op, JSON.parse(JSON.stringify(op.pts))]) };
+	}
+	_multiApply(s, dx, dy) {
+		for (const [o, x, y] of s.objs) { o.x = clamp(x + dx, 0, this.W); o.y = clamp(y + dy, 0, this.H); }
+		for (const [op, pts] of s.ops) op.pts = pts.map((q) => [q[0] + dx, q[1] + dy]);
+		if (s.ops.length) this._rebuildSoon(); else this.render();
+	}
+	_multiRestore(s) { this._multiApply(s, 0, 0); this.rebuildGround(); this.render(); }
+	/** Nudge every selected item (arrow keys), merged into one undo step while tapping. */
+	moveMulti(dx, dy) {
+		const before = this._multiSnap();
+		this._multiApply(before, dx, dy);
+		const after = this._multiSnap();
+		this._push({ label: `Moved ${this.multiCount()} items`, icon: 'hand', key: 'multinudge', undo: () => this._multiRestore(before), redo: () => this._multiRestore(after) }, true);
+		this.changed();
+	}
+	deleteMulti() {
+		const v = this.view, objs = [...this.multi.objs], ops = [...this.multi.ops];
+		if (!objs.length && !ops.length) return;
+		const oi = objs.map((o) => v.objects.indexOf(o)), pi = ops.map((op) => v.ops.indexOf(op));
+		const del = () => { for (const o of objs) { const i = v.objects.indexOf(o); if (i >= 0) v.objects.splice(i, 1); } for (const op of ops) { const i = v.ops.indexOf(op); if (i >= 0) v.ops.splice(i, 1); } this.rebuildGround(); };
+		const put = () => { objs.map((o, k) => [o, oi[k]]).sort((a, b) => a[1] - b[1]).forEach(([o, i]) => v.objects.splice(i, 0, o)); ops.map((op, k) => [op, pi[k]]).sort((a, b) => a[1] - b[1]).forEach(([op, i]) => v.ops.splice(i, 0, op)); this.rebuildGround(); };
+		del();
+		this.clearMulti(true);
+		this._push({ label: `Removed ${objs.length + ops.length} items`, icon: 'trash', undo: put, redo: del }, false);
+		this.changed();
+		this.hooks.onMulti && this.hooks.onMulti(0);
+	}
+	duplicateMulti() {
+		const v = this.view, d = 24;
+		const objs = [...this.multi.objs].map((o) => ({ ...JSON.parse(JSON.stringify({ ...o, _bb: undefined })), id: uid(), x: o.x + d, y: o.y + d * 0.5 }));
+		const ops = [...this.multi.ops].map((op) => ({ ...JSON.parse(JSON.stringify(op)), id: uid(), name: op.name ? op.name + ' copy' : op.name, pts: op.pts.map((q) => [q[0] + d, q[1] + d * 0.5]) }));
+		const add = () => { v.objects.push(...objs); v.ops.push(...ops); this.rebuildGround(); };
+		const rem = () => { for (const o of objs) v.objects.splice(v.objects.indexOf(o), 1); for (const op of ops) v.ops.splice(v.ops.indexOf(op), 1); this.rebuildGround(); };
+		add();
+		this._push({ label: `Copied ${objs.length + ops.length} items`, icon: 'copy', undo: rem, redo: add }, false);
+		this._setMulti(objs, ops);
+		this.changed();
+	}
 
 	addOp(op) {
+		this._stamp(op);
 		this.view.ops.push(op);
-		this._applyOp(op);
-		this._composeGround();
+		if (this.view.layers && this.view.layers.length > 1) this.rebuildGround(); // keep layer order
+		else { this._applyOp(op); this._composeGround(); }
 		this._push({
 			label: op.label || (op.t === 'poly' ? 'Drew a bed' : op.t === 'mask' ? 'Filled the selection with ' + (op.mat || 'material') : 'Changed the ground'), icon: op.t === 'mask' || op.t === 'brush' ? 'paint' : 'bed',
 			undo: () => { this.view.ops.splice(this.view.ops.indexOf(op), 1); this.rebuildGround(); },
@@ -1120,7 +1451,7 @@ export class Editor {
 	/* ------------------------------------------------------------ objects */
 
 	addObject(item, x, y, extra = {}) {
-		const o = { id: uid(), item: item.id, x, y, age: item.plant || 0, scale: 1, seed: Math.floor(Math.random() * 1e6), flip: Math.random() < 0.5, ...extra };
+		const o = this._stamp({ id: uid(), item: item.id, x, y, age: item.plant || 0, scale: 1, seed: Math.floor(Math.random() * 1e6), flip: Math.random() < 0.5, ...extra });
 		this.view.objects.push(o);
 		this._push({ label: 'Added ' + (byId[o.item] ? byId[o.item].name : 'item'), icon: 'plus', undo: () => this._remove(o), redo: () => this.view.objects.push(o) }, false);
 		this.changed();
@@ -1288,7 +1619,7 @@ export class Editor {
 		}
 		this._updateSelCanvas();
 	}
-	clearSelection() { this.selMask = null; this.selMaskCanvas = null; this._drawOverlay(); this.hooks.onMask && this.hooks.onMask(0); }
+	clearSelection() { this.selMask = null; this.selMaskCanvas = null; this._aiPick = null; this._drawOverlay(); this.hooks.onMask && this.hooks.onMask(0); }
 
 	eraseSelection() {
 		if (!this.selMask) return false;

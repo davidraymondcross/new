@@ -4,7 +4,7 @@ Tags: landscape design, garden planner, yard design, visualizer
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.7.1
+Stable tag: 2.7.2
 License: GPLv2 or later
 
 A fun, full-screen yard design studio for your website visitors.
@@ -65,6 +65,16 @@ The live camera needs the page to load over https. If the camera isn't available
 to the phone's photo picker.
 
 == Changelog ==
+
+= 2.7.2 =
+* Beds: tap around a bed and a big, labelled Start point appears; move near it and it snaps and says "Close loop" — tap it to close the shape. Back 1 point (or Backspace) and Clear while drawing.
+* Every closed shape gets a name on the picture (Bed 1, Bed 2, Patio 1…) with its size. Draw outlines first and choose materials later: Fill all at once, tap a shape to fill just that one, or fill each from the list — every fill is one Undo.
+* Layers: add, rename, reorder, hide, lock and delete layers (deleting keeps the items — they move to the layer below). New plants, shapes and paint go on the active layer; move anything to another layer from the Layers window. Hidden layers stay out of pictures and quantities. Older designs open as one layer, unchanged.
+* Mouse wheel (and trackpad pinch) zooms the design around the pointer. The page never scrolls while you're over the picture.
+* Select many: drag a box on an empty part of the picture (or Shift-click) to select plants and shapes together, then drag, nudge, duplicate, delete or re-layer them all at once — one Undo each. On touch screens, "Select many" switches one-finger drag from panning to box-select.
+* AI tools in the regular designer now start with the same one-click Select, Remove and Add tools as Dreamscape AI.
+* Crop, rotate & perspective is its own tool, just below Adjust (shortcut C). New shortcut A for AI tools.
+* Fix: the Beds tool showed as "Beds," in the tool bar.
 
 = 2.7.1 =
 * Four contractor plans: Starter ($59/mo), Professional ($129/mo, Most Popular), Business ($249/mo) and Pro+ ($499/mo); yearly = 10× monthly. Each plan has field employees (1 / 5 / 15 / 50), crews (1 / 2 / 5 / unlimited), monthly AI credits (50 / 200 / 750 / 2,500), storage (5 / 25 / 100 / 500 GB) and landscape plans per month (none / 3 / 15 / unlimited, fair use). The AI Quoter and Landscape Plan Generator start at Professional; work gallery at Business; featured placement at Pro+. Every name, price, allowance, feature and "what's included" line is editable in Settings → DreamScaper Plans.
