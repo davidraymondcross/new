@@ -66,6 +66,7 @@ function dreamscaper_session_payload() {
 		'socials' => dreamscaper_social_providers(),
 		'storage' => dreamscaper_storage_status( $uid ),
 		'community' => dreamscaper_community_status( $uid ),
+		'crm'       => function_exists( 'dreamscaper_crm_status' ) ? dreamscaper_crm_status( $uid ) : array( 'on' => false ),
 	);
 }
 function dreamscaper_ajax_me() {

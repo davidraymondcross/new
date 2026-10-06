@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: DreamScaper
- * Description: A fun landscape design studio for your visitors. Customers photograph their yard (or use Connecticut aerial imagery), add real plants and garden features, paint mulch and stone, magic-erase what they don't want, watch plants grow year by year, and save named designs. Customer accounts (email, Google, Facebook) keep designs online across devices and unlock Dreamscape AI (FLUX.2 [klein]) plus AI Erase, Smart Select, Make it real, Season & light and plant/weed identification. Share to social media and print. Shortcode: [dreamscaper]
- * Version: 2.4.0
+ * Description: A fun landscape design studio for your visitors. Customers photograph their yard (or use Connecticut aerial imagery), add real plants and garden features, paint mulch and stone, magic-erase what they don't want, watch plants grow year by year, and save named designs. Customer accounts (email, Google, Facebook) keep designs online across devices and unlock Dreamscape AI (FLUX.2 [klein]) plus AI Erase, Smart Select, Make it real, Season & light and plant/weed identification. Share to social media and print. Contractor CRM: Design → Quote estimating, e-signature, follow-ups, scheduling, job costing and invoices. Shortcodes: [dreamscaper], [dreamscaper_quote]
+ * Version: 2.5.0
  * Author: David's Landscaping
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DREAMSCAPER_VERSION', '2.4.0' );
+define( 'DREAMSCAPER_VERSION', '2.5.0' );
 define( 'DREAMSCAPER_URL', plugin_dir_url( __FILE__ ) );
 define( 'DREAMSCAPER_OPT', 'dreamscaper_settings' );
 
@@ -75,6 +75,13 @@ function dreamscaper_defaults() {
 		'redeem_storage_pts' => 500,
 		'redeem_storage_mb'  => 250,
 		'storage_packs'      => "Plus 500 MB | 500 | 1.99\nExtra 2 GB | 2048 | 4.99\nPro 5 GB | 5120 | 9.99",
+		'crm_on'             => 1,
+		'crm_auto_approve'   => 0,
+		'twilio_sid'         => '',
+		'twilio_token'       => '',
+		'twilio_from'        => '',
+		'twilio_msid'        => '',
+		'connect_fee_pct'    => 0,
 	);
 }
 
@@ -89,6 +96,7 @@ require_once __DIR__ . '/includes/ai.php';
 require_once __DIR__ . '/includes/billing.php';
 require_once __DIR__ . '/includes/community.php';
 require_once __DIR__ . '/includes/community-admin.php';
+require_once __DIR__ . '/includes/crm.php';
 
 add_action( 'admin_menu', function () {
 	add_options_page( 'DreamScaper', 'DreamScaper', 'manage_options', 'dreamscaper', 'dreamscaper_settings_page' );
@@ -150,6 +158,13 @@ function dreamscaper_sanitize( $in ) {
 		'community_notify_admin' => empty( $in['community_notify_admin'] ) ? 0 : 1,
 		'community_hide_at'  => max( 1, min( 20, (int) ( isset( $in['community_hide_at'] ) ? $in['community_hide_at'] : 3 ) ) ),
 		'storage_packs'      => sanitize_textarea_field( isset( $in['storage_packs'] ) ? $in['storage_packs'] : $d['storage_packs'] ),
+		'crm_on'             => empty( $in['crm_on'] ) ? 0 : 1,
+		'crm_auto_approve'   => empty( $in['crm_auto_approve'] ) ? 0 : 1,
+		'twilio_sid'         => preg_replace( '/[^A-Za-z0-9]/', '', $txt( 'twilio_sid' ) ),
+		'twilio_token'       => $secret( 'twilio_token' ),
+		'twilio_from'        => $txt( 'twilio_from' ),
+		'twilio_msid'        => preg_replace( '/[^A-Za-z0-9]/', '', $txt( 'twilio_msid' ) ),
+		'connect_fee_pct'    => max( 0, min( 20, round( (float) ( isset( $in['connect_fee_pct'] ) ? $in['connect_fee_pct'] : 0 ), 2 ) ) ),
 	);
 	foreach ( $d as $k => $v ) {
 		if ( preg_match( '/^(pts_|redeem_)/', $k ) ) {
@@ -307,6 +322,32 @@ function dreamscaper_settings_page() {
 				<tr><th>Storage store</th><td><?php $check( 'storage_on', 'Let customers buy extra storage' ); ?></td></tr>
 				<tr><th><label for="ds_spacks">Storage packs</label></th><td><textarea class="large-text code" rows="3" id="ds_spacks" name="<?php echo esc_attr( $n ); ?>[storage_packs]"><?php echo esc_textarea( $o['storage_packs'] ); ?></textarea>
 					<p class="description">One pack per line: <code>Name | megabytes | price in dollars</code> (1 GB = 1024 MB). A Plant ID plant uses about 0.2–0.5 MB; a Dreamscape about 1–4 MB.</p></td></tr>
+			</table>
+
+			<h2>Contractors (CRM)</h2>
+			<p>Approved contractors get the <b>Contractor Hub</b>: customers and properties, the 2D site plan, automatic takeoff &amp; estimates, two quotes (job cost + customer proposal), e-signature, email/text follow-ups, scheduling, job costing and invoices. Homeowners use <b>Find a Local Contractor</b> and see their hires in <b>My Projects</b>. Review applications under <a href="<?php echo esc_url( admin_url( 'options-general.php?page=dreamscaper-contractors' ) ); ?>">Settings → DreamScaper Contractors</a>. Put <code>[dreamscaper_quote]</code> on a page for a lead form that goes straight into your CRM (<code>[dreamscaper_quote pro="USER_ID"]</code> for another contractor).</p>
+			<table class="form-table">
+				<tr><th>Contractor tools</th><td><?php $check( 'crm_on', 'Turn on the Contractor Hub, Find a Local Contractor and My Projects' ); $check( 'crm_auto_approve', 'Approve contractor applications automatically (not recommended)' ); ?></td></tr>
+			</table>
+			<h3>Text messages (Twilio)</h3>
+			<ol style="max-width:820px">
+				<li>Create an account at <a href="https://www.twilio.com/try-twilio" target="_blank" rel="noopener">twilio.com</a> and buy a local phone number with SMS.</li>
+				<li>US texting requires <b>A2P 10DLC registration</b> (Twilio Console → Messaging → Regulatory Compliance). Register your business and a “Customer care / account notifications” campaign. Texts are blocked by carriers until this is approved.</li>
+				<li>Optional but recommended: create a <em>Messaging Service</em>, add your number to it and paste its SID (<code>MG…</code>) below.</li>
+				<li>On the phone number (or Messaging Service) set “A message comes in” to <b>Webhook, HTTP POST</b>: <code><?php echo esc_html( rest_url( 'dreamscaper/v1/crm/twilio' ) ); ?></code>. Customer replies are logged in the CRM and emailed to the contractor; texts from unknown numbers become leads for you; STOP is honored.</li>
+			</ol>
+			<table class="form-table">
+				<?php
+				$row( 'twilio_sid', 'Twilio Account SID', 'Starts with <code>AC</code>.' );
+				$row( 'twilio_token', 'Twilio Auth Token', '', 'secret' );
+				$row( 'twilio_from', 'Twilio phone number', 'e.g. <code>+18605550100</code>. Not needed if you use a Messaging Service.' );
+				$row( 'twilio_msid', 'Messaging Service SID (optional)', 'Starts with <code>MG</code>.' );
+				?>
+			</table>
+			<h3>Contractor payments (Stripe Connect)</h3>
+			<p>Contractors connect their own Stripe account from the Contractor Hub (Settings → Get paid online). Homeowners pay deposits, progress and final invoices by card, Apple Pay or Google Pay; the money goes to the contractor’s Stripe account. Uses the Stripe keys above. In your Stripe Dashboard turn on <b>Connect</b> (Express accounts) and add the events <code>checkout.session.completed</code> and <code>account.updated</code> to your webhook.</p>
+			<table class="form-table">
+				<?php $row( 'connect_fee_pct', 'Platform fee (% of each contractor payment)', 'What this site keeps from each payment. 0 = nothing. Stripe’s own fee (2.9% + 30¢) is paid by the contractor.', 'number' ); ?>
 			</table>
 			<?php submit_button(); ?>
 		</form>

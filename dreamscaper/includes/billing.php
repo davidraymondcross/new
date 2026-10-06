@@ -279,5 +279,6 @@ function dreamscaper_rest_stripe_webhook( WP_REST_Request $r ) {
 	if ( isset( $e['type'] ) && in_array( $e['type'], array( 'checkout.session.completed', 'checkout.session.async_payment_succeeded' ), true ) ) {
 		dreamscaper_credit_session( $e['data']['object'] );
 	}
+	do_action( 'dreamscaper_stripe_event', $e );
 	return array( 'received' => true );
 }
