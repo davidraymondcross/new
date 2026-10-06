@@ -1,7 +1,7 @@
 /* DreamScaper – the logo: a head in profile with a dream of plants growing out of it
  * (like the "idea" lightbulb, but leaves and a curling vine). Pure SVG, no files.
  */
-import { h } from './util.js?v=2.4.0';
+import { h } from './util.js?v=2.5.0';
 
 let n = 0;
 const leaf = (x, y, rot, s, fill, vein = true) =>

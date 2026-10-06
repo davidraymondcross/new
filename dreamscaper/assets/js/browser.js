@@ -2,9 +2,9 @@
  * filter by tags (several at once), favorites, sort, multi-select, and open, rename,
  * duplicate, tag or delete — for designs on this device and designs saved in the account.
  */
-import { h, put, icon } from './util.js?v=2.4.0';
-import { session, api } from './api.js?v=2.4.0';
-import { modal } from './capture.js?v=2.4.0';
+import { h, put, icon } from './util.js?v=2.5.0';
+import { session, api } from './api.js?v=2.5.0';
+import { modal } from './capture.js?v=2.5.0';
 
 /** Ready-made tags that fit most Dreamscapes. Customers can add their own. */
 export const PRESET_TAGS = [

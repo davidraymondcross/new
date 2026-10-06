@@ -2,9 +2,9 @@
  * and explains each one. Offered once per screen (home, editor, AI); customers can skip,
  * switch tours off for good, and turn them back on in How it works or My Account.
  */
-import { h, put, icon } from './util.js?v=2.4.0';
-import { modal } from './capture.js?v=2.4.0';
-import { resetCreditAsk } from './credits.js?v=2.4.0';
+import { h, put, icon } from './util.js?v=2.5.0';
+import { modal } from './capture.js?v=2.5.0';
+import { resetCreditAsk } from './credits.js?v=2.5.0';
 
 let ROOT = null;
 export function initTour(root) { ROOT = root; }
@@ -61,7 +61,7 @@ let active = null;
 /** Offer the tour for this screen once (unless turned off). */
 export function maybeTour(name) {
 	if (!ROOT || active || !toursOn() || get(DONE + name)) return;
-	setTimeout(() => { if (!active && toursOn() && !get(DONE + name)) offer(name); }, 700);
+	setTimeout(() => { if (!active && toursOn() && !get(DONE + name) && onScreen(name)) offer(name); }, 700);
 }
 
 function offer(name) {
@@ -77,6 +77,14 @@ function offer(name) {
 		h('label', { class: 'ds-check' }, never, h('span', null, 'Don’t offer tours again')),
 		h('small', { class: 'ds-muted' }, 'You can turn tours back on any time in How it works.'));
 	ROOT.append(card);
+	// The offer belongs to this screen: drop it if the person moves on without answering.
+	const watch = setInterval(() => { if (!card.isConnected) return clearInterval(watch); if (!onScreen(name)) { card.remove(); clearInterval(watch); } }, 400);
+}
+/** Is the screen this tour explains still showing? */
+function onScreen(name) {
+	const t = TOURS[name];
+	const el = t && t.steps.length ? ROOT.querySelector(t.steps[0][0]) : null;
+	return !!(el && el.isConnected && visible(el));
 }
 
 /** Run a tour now. */

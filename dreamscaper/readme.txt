@@ -4,7 +4,7 @@ Tags: landscape design, garden planner, yard design, visualizer
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.4.0
+Stable tag: 2.5.0
 License: GPLv2 or later
 
 A fun, full-screen yard design studio for your website visitors.
@@ -49,6 +49,12 @@ stored or edited (as Google's terms require).
 If you use a caching/minify plugin, exclude assets/js/*.js in this plugin from JavaScript
 combining/minification (they are ES modules) and exclude /wp-json/dreamscaper/* from page caching.
 
+= Contractor CRM (optional) =
+5. Settings → DreamScaper → Contractors: leave “Turn on the Contractor Hub…” ticked. Approve contractors under Settings → DreamScaper Contractors.
+6. Text messages: add your Twilio Account SID, Auth Token and number (or Messaging Service), register for A2P 10DLC, and point the number's incoming-message webhook at the URL shown on the settings page.
+7. Payments: in Stripe turn on Connect (Express) and add checkout.session.completed and account.updated to your webhook. Contractors connect their own account from Contractor Hub → Settings → Get paid online.
+8. WP-Cron sends follow-ups every 5 minutes. On low-traffic sites, set up a real cron job that calls wp-cron.php so follow-ups go out on time.
+
 == Frequently Asked Questions ==
 
 = Where are designs saved? =
@@ -59,6 +65,27 @@ The live camera needs the page to load over https. If the camera isn't available
 to the phone's photo picker.
 
 == Changelog ==
+
+= 2.5.0 =
+* New: Contractor Hub — a CRM for landscapers built around the DESIGN → QUOTE engine. Any contractor can apply (My Account / home screen → For Contractors); you approve them under Settings → DreamScaper Contractors. You are always approved as your own business.
+* Design → Plan → Takeoff → Estimate: turn any before & after Dreamscape into a measured 2D plan, an automatic quantity takeoff, and TWO quotes — an internal Job Cost sheet (materials, labor hours, equipment, subcontractors, disposal, delivery, overhead, gross profit and margin) and a customer Proposal with an exact scope of work that defines the contractor's responsibilities. Both are fully editable: every quantity, unit cost, line, section, price, wording, add-on, payment schedule and term.
+* Quantities come from geometry, never from AI. Example: a 400 sq ft bed at 3" = 3.7 yd³ measured → 4 yd³ ordered, plus delivery, bed prep and 80 lf of edging. Rules for mulch, stone, new beds (turf removal, compost, disposal), edging, sod, seed, paver patios & walkways (excavation, base, sand, restraint, polymeric sand, compactor, saw), gravel paths, retaining walls (block, caps, base, drainage stone, pipe, fabric, geogrid), fences, grading, boulders, plants by size, landscape lighting and removals.
+* Contractors set their own burdened labor rate, overhead, markups by cost type (or a target gross margin), sales tax (CT 6.35% on the whole job by default), deposit %, minimum job, rounding and how long quotes are good for — plus a full editable price book of supplier costs and production rates.
+* 2D Landscape Plan: draw beds (curved or straight), lawn, patios, walkways with width, walls with height, edging, fences, plants, lights, boulders, features, house/structures/driveway/property line and notes on a to-scale Connecticut aerial, an uploaded survey (set the scale with one known length) or a blank grid. Type exact lengths (32' 6"), set rectangle sizes, snap to 6" and square corners. Mark anything existing, or existing + remove to price the removal. Dreamscapes import automatically — bird's-eye views to scale, photo views estimated with the camera model.
+* AI Measure (Meta SAM 3): traces lawn, beds, patios, driveways, walkways, roofs and sheds on the aerial; the outlines become normal editable shapes measured with the same math. Slope check from USGS 3D Elevation data.
+* AI wording: "Polish wording with AI" rewrites the scope in plain English. The model is told never to add work or change numbers, and the server rejects any section where a number changed.
+* Send / Send for signature to any of the customer's contacts (spouse, tenant, property manager) by email or text, with the before & after picture, total and what's included. Customers open a mobile proposal page, tick optional add-ons, type their name, sign with a finger and agree to sign electronically; the signature, time, IP address, browser and a fingerprint of exactly what they signed are kept. Decline with a reason. You're told the moment they open it and when they sign.
+* Follow-ups: a best-practice 6-touch plan is filled in for every quote (day 1 email, day 3 text, day 7 before & after, day 14 scheduling nudge, day 21 "want to adjust?", day 30 close-the-loop). Change the date, time, channel, who it goes to, the message and what's attached; add or remove steps; save your own default plan. Shortcodes like {customer_first_name}, {project_name}, {customer_address}, {quote_total}, {quote_link}, {valid_until} — tap to insert, with a warning for any code that has no value. Follow-ups stop automatically when the customer signs or declines.
+* Customers: everything a service business tracks — contacts, stage (lead → prospect → customer → past/lost), lead source (website, phone, text, referral, social, contractor referral, DreamScaper), preferences, budget, timeline, access/gate code, pets, irrigation, hidden utilities, HOA, billing, tax exempt, maintenance plan, tags, notes and a property photo. Full communication history (emails, texts, calls, notes, views, signatures, payments).
+* Property profiles: address, aerial imagery, measurements/plan, photos from the guided capture, slope, structures and notes.
+* Lead intake: the [dreamscaper_quote] website form, homeowner quote requests from DreamScaper, inbound texts to your Twilio number (unknown numbers become leads), and leads you add from phone calls, referrals and social media.
+* Jobs: signed quotes become jobs. Schedule visits, notify the customer, send crew sheets (address, map link, scope, notes) by email or text, and track job costing — actual materials, crew hours, equipment, subs and disposal against the estimate with variance and actual margin. Add finished photos and show the job on your public profile.
+* Invoices: automatic deposit invoice on signing, progress and final invoices, and recurring (weekly / monthly / yearly) maintenance billing. Customers pay by card, Apple Pay or Google Pay through Stripe Connect — the money goes to the contractor's own Stripe account (optional platform fee in Settings). Mark cash/check payments paid.
+* Homeowners: new "Find a Local Contractor" — search by town or ZIP and service, sort by distance, rating or Dream-to-Reality score; contractor profiles show license/insurance, ratings, reviews, and Dreamscapes they turned into real yards (before → design → finished). Request a quote with one of your Dreamscapes (plant list and measured beds go with it).
+* Guided property capture: address → bird's-eye view → front → left side → right side → backyard → important structures → existing landscape. Every step says exactly where to stand and WHY the photo is needed.
+* My Projects is the customer portal inside the homeowner's own account: quotes to review and sign, who they hired and their history of past hires, what the job includes, the schedule, invoices to pay, and reviews (overall stars + "how closely does the finished yard match your Dreamscape?" with a finished photo).
+* Editor ⋯ menu: "Get a quote from a local contractor" and, for contractors, "Turn into a quote".
+* Fix: messages outside the editor showed as browser pop-up alerts; they're now on-screen notices. Fix: the home-screen tour invitation could stay on top after you moved to another screen.
 
 = 2.4.0 =
 * New: Dreamscape Browser — the DreamScaper community. Members post finished designs (with a before/after slider) and "Ask for ideas" photos of spots in their yard.

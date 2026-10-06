@@ -337,13 +337,13 @@ function dreamscaper_quote_page( $tok ) {
 		function size(){var r=c.getBoundingClientRect(), d=window.devicePixelRatio||1; c.width=r.width*d; c.height=r.height*d; x.scale(d,d); x.lineWidth=2.4; x.lineCap='round'; x.lineJoin='round'; x.strokeStyle='#111';}
 		size(); window.clr=function(){x.clearRect(0,0,c.width,c.height); drawn=false;};
 		function pt(e){var r=c.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top];}
-		c.addEventListener('pointerdown',function(e){c.setPointerCapture(e.pointerId); last=pt(e);});
+		c.addEventListener('pointerdown',function(e){c.setPointerCapture(e.pointerId); last=pt(e); var mm=document.getElementById('msg'); if(mm)mm.textContent='';});
 		c.addEventListener('pointermove',function(e){if(!last)return; var p=pt(e); x.beginPath(); x.moveTo(last[0],last[1]); x.lineTo(p[0],p[1]); x.stroke(); last=p; drawn=true;});
 		c.addEventListener('pointerup',function(){last=null;});
 		var money=function(v){return '$'+v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});};
 		var tax=<?php echo wp_json_encode( array( 'pct' => isset( $t['taxPct'] ) ? (float) $t['taxPct'] : 0, 'on' => isset( $t['taxOn'] ) ? $t['taxOn'] : 'all' ) ); ?>;
-		function addons(){var s=0, ids=[]; document.querySelectorAll('.addon:checked').forEach(function(b){ids.push(b.value); s+=parseFloat(b.dataset.price)*(1+(tax.on==='all'?tax.pct/100:0));}); return {s:Math.round(s*100)/100, ids:ids};}
-		document.querySelectorAll('.addon').forEach(function(b){b.addEventListener('change',function(){var a=addons(), base=parseFloat(document.getElementById('total').dataset.base); document.getElementById('addrow').hidden=document.getElementById('addv').hidden=!a.s; document.getElementById('addv').textContent=money(a.s); document.getElementById('total').textContent=money(base+a.s); var d=document.getElementById('dep'); if(d){d.textContent=money((base+a.s)*parseFloat(d.dataset.pct)/100);}});});
+		function addons(){var s=0, ids=[]; document.querySelectorAll('.addon:checked').forEach(function(b){ids.push(b.value); s+=parseFloat(b.dataset.price)*(1+(tax.on==='all'?tax.pct/100:0));}); return {s:Math.round((s+1e-9)*100)/100, ids:ids};}
+		document.querySelectorAll('.addon').forEach(function(b){b.addEventListener('change',function(){var a=addons(), base=parseFloat(document.getElementById('total').dataset.base); document.getElementById('addrow').hidden=document.getElementById('addv').hidden=!a.s; document.getElementById('addv').textContent=money(a.s); document.getElementById('total').textContent=money(Math.round((base+a.s)*100)/100); var d=document.getElementById('dep'); if(d){d.textContent=money((base+a.s)*parseFloat(d.dataset.pct)/100);}});});
 		var msg=document.getElementById('msg');
 		function post(path,body){return fetch(api+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),credentials:'same-origin'}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message||'Something went wrong.');return j;});});}
 		document.getElementById('go').onclick=function(){

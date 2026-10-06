@@ -75,14 +75,14 @@ class Plan {
 		this.sum = h('div', { class: 'ds-sp-sum' });
 		this.toolbar = h('nav', { class: 'ds-sp-tools', 'aria-label': 'Drawing tools' }, ...TOOLS.map(([id, e, label]) => h('button', { class: 'ds-sp-tool', 'data-tool': id, title: label, 'aria-label': label, onclick: () => this.setTool(id) }, h('span', null, e), h('small', null, label))));
 		const top = h('header', { class: 'ds-sp-top' },
-			h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => this.close(false) }, '✕ Close'),
+			h('button', { class: 'ds-btn ds-ghost ds-sm', 'aria-label': 'Close', onclick: () => this.close(false) }, '✕', h('span', { class: 'ds-hide-sm' }, ' Close')),
 			h('b', { class: 'ds-sp-title' }, o.title || '2D Landscape Plan'),
 			h('div', { class: 'ds-spacer' }),
 			h('button', { class: 'ds-icon-btn', title: 'Undo', 'aria-label': 'Undo', onclick: () => this.doUndo() }, icon('undo', 20)),
 			h('button', { class: 'ds-icon-btn', title: 'Redo', 'aria-label': 'Redo', onclick: () => this.doRedo() }, icon('redo', 20)),
 			h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => this.backdropMenu() }, icon('map', 18), h('span', { class: 'ds-hide-sm' }, ' Backdrop')),
 			o.segment ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => this.aiMeasure() }, icon('sparkle', 18), h('span', { class: 'ds-hide-sm' }, ' AI Measure')) : null,
-			h('button', { class: 'ds-btn ds-sm', onclick: () => this.close(true) }, icon('check', 18), ' Save plan'));
+			h('button', { class: 'ds-btn ds-sm', onclick: () => this.close(true) }, icon('check', 18), ' Save', h('span', { class: 'ds-hide-sm' }, ' plan')));
 		const opts = h('div', { class: 'ds-sp-opts' },
 			h('label', null, h('input', { type: 'checkbox', checked: this.snap, onchange: (e) => { this.snap = e.target.checked; } }), ' Snap 6"'),
 			h('label', null, h('input', { type: 'checkbox', checked: this.square, onchange: (e) => { this.square = e.target.checked; } }), ' Square corners'),
@@ -245,7 +245,7 @@ class Plan {
 		const c = this.ctx, s = this.view.s;
 		let ft = 5;
 		for (const f of [5, 10, 20, 25, 50, 100]) { ft = f; if (f * s > 70) break; }
-		const x = 14, y = this.H - 18;
+		const x = 14, y = this.W < 600 ? 70 : this.H - 18;
 		c.fillStyle = 'rgba(255,255,255,.9)'; c.fillRect(x - 6, y - 18, ft * s + 52, 26);
 		c.strokeStyle = '#1d2a22'; c.lineWidth = 2;
 		c.beginPath(); c.moveTo(x, y); c.lineTo(x + ft * s, y); c.moveTo(x, y - 5); c.lineTo(x, y + 3); c.moveTo(x + ft * s, y - 5); c.lineTo(x + ft * s, y + 3); c.stroke();
@@ -593,10 +593,10 @@ class Plan {
 				field('Material', txt('material', 'double-ground hardwood')), field('Depth (inches)', numIn('depth', 0.5, 1)),
 				chk('isNew', 'New bed — remove turf & amend soil'),
 				field('Edging', sel('edging', [['none', 'None'], ['steel', 'Steel'], ['aluminum', 'Aluminum'], ['plastic', 'Plastic'], ['stone', 'Stone/paver'], ['brick', 'Brick'], ['natural', 'Natural spade edge']])),
-				field('Edging along (% of edge)', h('input', { type: 'number', min: 0, max: 100, step: 5, value: Math.round((s.props.edgeFrac ?? 1) * 100), onchange: (e) => set('edgeFrac', Math.max(0, Math.min(100, +e.target.value || 0)) / 100) })));
+				field('Edging along (% of edge)', h('input', { type: 'number', min: 0, max: 100, step: 5, value: Math.round((s.props.edgeFrac ?? 1) * 100), onchange: (e) => set('edgeFrac', Math.max(0, Math.min(100, +e.target.value || 0)) / 100) })), this.sizeBox(s));
 			break;
-		case 'stone': put(pn, field('Material', txt('material')), field('Depth (inches)', numIn('depth', 0.5, 1))); break;
-		case 'lawn': put(pn, field('Method', sel('method', [['sod', 'New sod'], ['seed', 'Seed'], ['existing', 'Keep existing lawn']]))); break;
+		case 'stone': put(pn, field('Material', txt('material')), field('Depth (inches)', numIn('depth', 0.5, 1)), this.sizeBox(s)); break;
+		case 'lawn': put(pn, field('Method', sel('method', [['sod', 'New sod'], ['seed', 'Seed'], ['existing', 'Keep existing lawn']])), this.sizeBox(s)); break;
 		case 'patio': put(pn, field('Material', sel('material', [['Concrete pavers', 'Concrete pavers'], ['Clay brick', 'Clay brick'], ['Bluestone (thermal)', 'Bluestone'], ['Natural flagstone', 'Natural flagstone'], ['Porcelain pavers', 'Porcelain pavers'], ['Tumbled stone', 'Tumbled stone']])), field('Border course', sel('border', [['none', 'None'], ['soldier', 'Soldier course'], ['contrast', 'Contrasting color']])), field('Steps', numIn('steps', 1, 0)), this.sizeBox(s)); break;
 		case 'walkway': put(pn, field('Width (ft)', numIn('width', 0.5, 1)), field('Material', sel('material', [['Concrete pavers', 'Concrete pavers'], ['Bluestone (thermal)', 'Bluestone'], ['Natural flagstone', 'Flagstone'], ['Clay brick', 'Brick'], ['gravel', 'Gravel path']])), field('Steps', numIn('steps', 1, 0))); break;
 		case 'wall': put(pn, field('Exposed height (ft)', numIn('height', 0.5, 0.5)), field('Material', txt('material')), chk('cap', 'Caps'), chk('planting', 'Planting area behind')); break;

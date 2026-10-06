@@ -1,5 +1,5 @@
 /* Expanded shrub library, part 2. */
-import { fam, sp } from './data-x-helpers.js?v=2.4.0';
+import { fam, sp } from './data-x-helpers.js?v=2.5.0';
 
 export const SHRUBS_X2 = [
 	...fam('Shrub Rose', 'Rosa', 'rose', 18, 'z4-9 s:F bl:pink w:Jun-Oct fk:cup', 'Easy repeat-blooming shrub rose.', [

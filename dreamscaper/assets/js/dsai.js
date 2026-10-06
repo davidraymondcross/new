@@ -2,16 +2,16 @@
  * Talk, tap ideas, add inspiration photos — any mix — and the prompt writes itself.
  * Every generation is kept; tweaks can always be undone back to the original.
  */
-import { h, put, icon, uid, canvas, canvasToBlob, blobToBitmap } from './util.js?v=2.4.0';
-import { session, onSession } from './api.js?v=2.4.0';
-import { openAuth, creditsPill } from './account.js?v=2.4.0';
-import { openCredits, confirmCredit } from './credits.js?v=2.4.0';
-import { SELECT, REMOVE, ADD, removePrompt, replacePrompt, improvePrompt, addPrompt } from './aitoolkit.js?v=2.4.0';
-import { historyPanel } from './history.js?v=2.4.0';
-import { maybeTour } from './tour.js?v=2.4.0';
-import { voiceButton, voiceSupported } from './voice.js?v=2.4.0';
-import { IDEAS, IDEA_GROUPS, GOAL_GROUPS, REF_ROLES, TWEAKS, buildPrompt, summarize, tweakPrompt, regionPrompt } from './aiprompt.js?v=2.4.0';
-import { runEdit, compositeMasked, loadImage, aiReady, segment, dilateMask } from './aiclient.js?v=2.4.0';
+import { h, put, icon, uid, canvas, canvasToBlob, blobToBitmap } from './util.js?v=2.5.0';
+import { session, onSession } from './api.js?v=2.5.0';
+import { openAuth, creditsPill } from './account.js?v=2.5.0';
+import { openCredits, confirmCredit } from './credits.js?v=2.5.0';
+import { SELECT, REMOVE, ADD, removePrompt, replacePrompt, improvePrompt, addPrompt } from './aitoolkit.js?v=2.5.0';
+import { historyPanel } from './history.js?v=2.5.0';
+import { maybeTour } from './tour.js?v=2.5.0';
+import { voiceButton, voiceSupported } from './voice.js?v=2.5.0';
+import { IDEAS, IDEA_GROUPS, GOAL_GROUPS, REF_ROLES, TWEAKS, buildPrompt, summarize, tweakPrompt, regionPrompt } from './aiprompt.js?v=2.5.0';
+import { runEdit, compositeMasked, loadImage, aiReady, segment, dilateMask } from './aiclient.js?v=2.5.0';
 
 /**
  * ctx: { root, toast, store, brand, capture(kind) → shot, pickLibrary() → canvas|null,

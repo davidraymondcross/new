@@ -2,11 +2,11 @@
  * like / rate / comment, member profiles, follow & friends, messages, notifications,
  * points, levels, badges and rewards.
  */
-import { h, put, icon, canvas, canvasToBlob } from './util.js?v=2.4.0';
-import { session, api, onSession, setCommunity, setAi, setStorage } from './api.js?v=2.4.0';
-import { openAuth } from './account.js?v=2.4.0';
-import { modal } from './capture.js?v=2.4.0';
-import { PRESET_TAGS } from './browser.js?v=2.4.0';
+import { h, put, icon, canvas, canvasToBlob } from './util.js?v=2.5.0';
+import { session, api, onSession, setCommunity, setAi, setStorage } from './api.js?v=2.5.0';
+import { openAuth } from './account.js?v=2.5.0';
+import { modal } from './capture.js?v=2.5.0';
+import { PRESET_TAGS } from './browser.js?v=2.5.0';
 
 let C = null; // { ctx, body, stack, cur }
 const COMMUNITY_TAGS = ['Front yard', 'Backyard', 'Bed designs', 'Paver designs', 'Patio', 'Walkway', 'Low maintenance', 'Native plants', 'Pollinator garden', 'Shade garden', 'Privacy', 'Curb appeal', 'Modern', 'Cottage', 'Before & after', 'AI design'];
@@ -629,11 +629,13 @@ async function viewNotes(b) {
 			if (x.type === 'message') return go({ v: 'thread', with: x.actor.id });
 			if (x.type === 'follow' || x.type === 'friend' || x.type === 'friend_ok') return go({ v: x.type === 'friend' ? 'friends' : 'user', id: x.actor && x.actor.id });
 			if (x.type === 'badge' || x.type === 'level' || x.type === 'bonus') return go({ v: 'me' });
+			if (x.type === 'crm') return C.ctx.openHub && C.ctx.openHub();
+			if (x.type === 'project') return C.ctx.openProjects && C.ctx.openProjects();
 			if (x.target) return go({ v: 'post', id: x.target });
 		};
 		if (!j.items.length) put(b, emptyBox('🔔', 'No notifications yet', 'When someone likes, comments, follows or messages you, it shows up here.'));
 		put(b, h('div', { class: 'ds-cm-notes' }, ...j.items.map((x) => h('button', { class: 'ds-cm-note' + (x.read ? '' : ' unread'), onclick: () => go2(x) },
-			x.actor ? avatar(x.actor, 38) : h('span', { class: 'ds-cm-ne' }, x.type === 'badge' ? '🏅' : x.type === 'level' ? '⬆️' : '🎁'),
+			x.actor ? avatar(x.actor, 38) : h('span', { class: 'ds-cm-ne' }, x.type === 'badge' ? '🏅' : x.type === 'level' ? '⬆️' : x.type === 'crm' ? '🧰' : x.type === 'project' ? '📋' : '🎁'),
 			h('span', null, x.text), h('small', null, ago(x.created))))));
 		if (j.unread.notes) { const r = await api('c/notes/read', { body: {} }); setCommunity({ unread: r.unread }); }
 	} catch (e) { toast(e.message); }

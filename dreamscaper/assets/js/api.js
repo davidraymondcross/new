@@ -1,6 +1,6 @@
 /* DreamScaper – talking to the website: session (who's signed in), REST calls. */
 
-export const session = { user: null, nonce: '', ai: { enabled: false, left: 0, limit: 0 }, socials: [], storage: null, community: { on: false }, ready: false };
+export const session = { user: null, nonce: '', ai: { enabled: false, left: 0, limit: 0 }, socials: [], storage: null, community: { on: false }, crm: { on: false }, ready: false };
 const subs = new Set();
 let CFG = {};
 
@@ -16,6 +16,7 @@ export function applySession(j) {
 	if (j.socials) session.socials = j.socials;
 	if ('storage' in j) session.storage = j.storage;
 	if (j.community) { session.community = j.community; if (j.community.rewards && j.community.rewards.length) rewardFn(j.community.rewards); }
+	if (j.crm) session.crm = j.crm;
 	session.ready = true;
 	emit();
 }

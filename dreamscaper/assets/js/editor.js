@@ -1,9 +1,9 @@
 /* DreamScaper – canvas editor engine: scene rendering, perspective, tools, history. */
-import { canvas, clamp, uid, smoothPath } from './util.js?v=2.4.0';
-import { byId, sizeAt } from './library.js?v=2.4.0';
-import { sprite } from './sprites.js?v=2.4.0';
-import { fillGround } from './textures.js?v=2.4.0';
-import { magicSelect, inpaint, dilate, maskBBox, maskCount } from './eraser.js?v=2.4.0';
+import { canvas, clamp, uid, smoothPath } from './util.js?v=2.5.0';
+import { byId, sizeAt } from './library.js?v=2.5.0';
+import { sprite } from './sprites.js?v=2.5.0';
+import { fillGround } from './textures.js?v=2.5.0';
+import { magicSelect, inpaint, dilate, maskBBox, maskCount } from './eraser.js?v=2.5.0';
 
 const EDGING = {
 	none: null,

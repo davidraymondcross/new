@@ -167,7 +167,7 @@ export const DEFAULT_COSTS = {
 	laborRate: 38, // burdened cost per crew hour (wage + taxes + workers comp + insurance)
 	overheadPct: 12, // office, trucks, insurance — added to direct cost to get TRUE cost
 	mode: 'markup', // 'markup' (per category) or 'margin' (target gross margin on everything)
-	markup: { material: 35, labor: 85, equipment: 25, sub: 15, disposal: 20, delivery: 15, other: 25 },
+	markup: { material: 50, labor: 100, equipment: 30, sub: 20, disposal: 25, delivery: 20, other: 30 },
 	marginPct: 40,
 	taxPct: 6.35, // Connecticut: landscaping services are taxable
 	taxOn: 'all', // 'all' | 'materials' | 'none'
