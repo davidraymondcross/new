@@ -10,17 +10,19 @@
  * USGS elsewhere) or a survey, corrected by one tape measurement; photos record what can't be seen
  * from above. The geometry and the plan generator live in plangen.js; photo checks in photocheck.js.
  */
-import { h, put, icon, stateSelect } from './util.js?v=2.7.7';
-import { api, session } from './api.js?v=2.7.7';
-import { modal } from './capture.js?v=2.7.7';
-import { addressField, addressGroup } from './address.js?v=2.7.7';
-import { segment, toJpeg, aiReady } from './aiclient.js?v=2.7.7';
-import { traceMask } from './siteplan.js?v=2.7.7';
-import { PLANTS } from './library.js?v=2.7.7';
-import { parseFtIn, fmtFtIn, fmtArea } from './takeoff.js?v=2.7.7';
-import { sectionHead, tip } from './explain.js?v=2.7.7';
-import { frame, validateTrace, checkScale, shotPlan, STYLES, styleById, pickPlants, generatePlan, checkDesign, accuracy, area as polyArea, dist, centroid, inside } from './plangen.js?v=2.7.7';
-import { readExif, analyze, checkPhoto, worst, compass } from './photocheck.js?v=2.7.7';
+import { h, put, icon, stateSelect } from './util.js?v=2.7.8';
+import { api, session } from './api.js?v=2.7.8';
+import { modal } from './capture.js?v=2.7.8';
+import { addressField, addressGroup } from './address.js?v=2.7.8';
+import { segment, toJpeg, aiReady } from './aiclient.js?v=2.7.8';
+import { traceMask } from './siteplan.js?v=2.7.8';
+import { PLANTS } from './library.js?v=2.7.8';
+import { parseFtIn, fmtFtIn, fmtArea } from './takeoff.js?v=2.7.8';
+import { sectionHead, tip } from './explain.js?v=2.7.8';
+import { frame, validateTrace, checkScale, shotPlan, STYLES, styleById, pickPlants, generatePlan, checkDesign, accuracy, area as polyArea, dist, centroid, inside } from './plangen.js?v=2.7.8';
+import { readExif, analyze, checkPhoto, worst, compass } from './photocheck.js?v=2.7.8';
+import { streetMap, captureArea, worldLatLng, floatGuide } from './map.js?v=2.7.8';
+export { floatGuide };
 
 let W = null;
 /** ctx: the hub context; tools: { editPlan(plan, prop, title) → Promise<plan|null> } */
@@ -166,7 +168,7 @@ async function viewWizard(b, view, go) {
 		bar.innerHTML = '';
 		main.append(h('p', { class: 'ds-pw-of' }, `Step ${i + 1} of ${STEPS.length}`));
 		STEP_FN[STEPS[i][0]](ctx);
-		main.scrollIntoView({ block: 'start', behavior: 'smooth' });
+		main.scrollIntoView({ block: 'start' });
 	}
 	ctx.show = show;
 	show(view.step != null ? view.step : s.step || 0);
@@ -315,68 +317,76 @@ function stepScope(ctx) {
 
 function stepBase(ctx) {
 	const s = ctx.s;
-	const cfg = W.ctx.cfg || {};
-	const st = { lat: s.base && s.base.where ? s.base.where.lat : s.lat, lng: s.base && s.base.where ? s.base.where.lng : s.lng, span: (s.base && s.base.span) || 90, j: null, src: '' };
-	const img = h('img', { alt: 'Bird’s-eye view of the property', class: 'ds-pw-aerial' });
-	const status = h('p', { class: 'ds-hint', 'aria-live': 'polite' });
-	const view = h('div', { class: 'ds-aerial-view ds-pw-aerialbox' }, img, h('span', { class: 'ds-cross' }));
-	const pad = h('div', { class: 'ds-pad' }, ...[['n', '▲', 'Move north'], ['w', '◀', 'Move west'], ['e', '▶', 'Move east'], ['s', '▼', 'Move south'], ['in', '＋', 'Closer'], ['out', '－', 'Show more']].map(([m, t, l]) => h('button', { type: 'button', 'aria-label': l, title: l, onclick: () => move(m) }, t)));
-	const scaleNote = h('p', { class: 'ds-hint' });
+	const status = h('p', { class: 'ds-ms-status', 'aria-live': 'polite' }, 'Finding the property…');
+	const mapBox = h('div', { class: 'ds-ms-map' });
+	const useB = h('button', { class: 'ds-btn', onclick: (e) => useIt(e.currentTarget) }, '✓ Use this view');
+	const guide = floatGuide('Step 3 · Frame the property', [
+		'Drag the map so the house is in the middle.',
+		'Zoom (pinch, scroll or ＋/－) until the WHOLE property, all its edges, fits on the screen.',
+		'Tap “✓ Use this view”. More map around it is kept, so nothing gets cut off.'], () => {});
+	const bar = h('div', { class: 'ds-ms-bar' }, h('p', { class: 'ds-ms-live' }, 'The whole property on screen? Then:'), h('div', { class: 'ds-ms-btns' }, useB));
+	const wrap = h('div', { class: 'ds-ms-mapwrap' }, mapBox, guide, bar);
 	const res = h('div');
-	put(ctx.main, h('h3', null, 'Get the property from above'),
-		todo('The bird’s-eye view loads at the address. Check the crosshair is on the right house.', 'Use ＋ / － and the arrows until the WHOLE property fits inside the picture with a little space around it (you’ll trace the property line next).', 'Tap “Use this view”.'),
-		card(null, view, h('div', { class: 'ds-row ds-wrap' }, pad, scaleNote), status,
-			h('div', { class: 'ds-row ds-wrap' }, h('button', { class: 'ds-btn', onclick: (e) => useIt(e.currentTarget) }, '✓ Use this view'))),
+	put(ctx.main, h('h3', null, 'Get the property from above'), status, wrap, res,
 		card('No bird’s-eye view? Other ways to measure',
 			h('div', { class: 'ds-row ds-wrap' },
 				h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => survey() }, '📄 Upload a survey / plot plan'),
 				h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { s.base = { kind: 'grid' }; save(); ctx.next(); } }, '📏 I’ll measure everything with a tape')),
-			h('p', { class: 'ds-hint' }, 'A survey (from the homeowner’s closing papers or the town hall) gives the most accurate property lines. With a tape only, you’ll type the lot and house sizes.')), res);
-	view.hidden = true;
-	const load = async (body) => {
-		status.textContent = 'Loading the bird’s-eye view…';
-		try {
-			const r = await fetch((cfg.api || '/wp-json/dreamscaper/v1/') + 'aerial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-			const j = await r.json();
-			if (!r.ok) throw new Error(j.message || 'Could not load imagery.');
-			img.src = j.image;
-			await img.decode();
-			// a blank picture means no imagery here (e.g. just over the Connecticut line): try the nationwide service
-			const m = analyze(img, img.naturalWidth, img.naturalHeight);
-			if (m.sd < 4 && !body.src) return load({ ...body, src: 'national' });
-			Object.assign(st, { lat: j.lat, lng: j.lng, span: j.span, j, src: body.src || '' });
-			view.hidden = false;
-			const ppf = j.ppf || img.naturalWidth / (j.span * 3.28084);
-			scaleNote.textContent = `Showing about ${Math.round(j.span * 3.28084)} ft across · ${j.source || ''}`;
-			status.textContent = m.sd < 4 ? '⚠️ This picture looks empty — there may be no imagery here. Use a survey or tape instead.' : (j.res > 1 ? `Imagery detail: about ${j.res} ft per pixel — fine for the property, house and driveway. You’ll confirm the scale with a tape, and small things are drawn in the editor.` : 'Sharp 3-inch imagery — edges can be traced to within about a foot.');
-			st.ppf = ppf;
-		} catch (e) { status.textContent = e.message; }
+			h('p', { class: 'ds-hint' }, 'A survey (from the homeowner’s closing papers or the town hall) gives the most accurate property lines. With a tape only, you’ll type the lot and house sizes.')));
+	let map = null, info = null, home = null;
+	const draw = (x, mp) => {
+		if (!home) return;
+		const [cx, cy] = mp.project(home[0], home[1]);
+		x.strokeStyle = '#ffd43b'; x.lineWidth = 3;
+		x.beginPath(); x.arc(cx, cy, 12, 0, 7); x.moveTo(cx - 20, cy); x.lineTo(cx + 20, cy); x.moveTo(cx, cy - 20); x.lineTo(cx, cy + 20); x.stroke();
+		if (s.trace && s.trace.boundary && s.base && s.base.geo) {
+			const g = s.base.geo; // base picture pixels == world px at g.z
+			x.setLineDash([8, 5]); x.strokeStyle = COLORS.boundary; x.lineWidth = 2; x.beginPath();
+			s.trace.boundary.forEach((p, i) => { const ll = worldLatLng(g.ox + p[0] * s.base.ppf, g.oy + p[1] * s.base.ppf, g.z); const q = mp.project(ll[0], ll[1]); i ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1]); });
+			x.closePath(); x.stroke(); x.setLineDash([]);
+		}
 	};
-	const move = (k) => {
-		if (!st.j) return;
-		const d = st.span * 0.3;
-		let { lat, lng, span } = st;
-		if (k === 'n') lat += d / 111320;
-		if (k === 's') lat -= d / 111320;
-		if (k === 'e') lng += d / (111320 * Math.cos((lat * Math.PI) / 180));
-		if (k === 'w') lng -= d / (111320 * Math.cos((lat * Math.PI) / 180));
-		if (k === 'in') span = Math.max(30, span * 0.75);
-		if (k === 'out') span = Math.min(400, span / 0.75);
-		load({ lat, lng, span, src: st.src });
+	const start = async () => {
+		try {
+			const q = s.lat ? { lat: s.lat, lng: s.lng } : { address: s.address };
+			info = await api('aerial/info', { query: q });
+			home = [info.lat, info.lng];
+			if (!s.lat) { s.lat = info.lat; s.lng = info.lng; }
+			status.textContent = info.ok ? `${info.source}${info.res > 1 ? ` · about ${info.res} ft per pixel — fine for the property, house and driveway; small things are drawn in the editor` : ' · sharp 3-inch detail'}.` : '⚠️ No aerial photos for this spot. Use a survey or a tape measure (below).';
+			status.classList.toggle('warn', !info.ok);
+			const prev = s.base && s.base.geo && s.base.where;
+			map = streetMap(mapBox, { center: prev ? [prev.lat, prev.lng] : home, zoom: prev ? (s.base.view || 19) : 19, minZoom: 12, tiles: info.ok ? { url: info.tiles, attr: info.source, max: info.max || 21 } : undefined, draw, noDblZoom: true });
+			W.cleanup = () => { if (map) { map.destroy(); map = null; } };
+			useB.disabled = !info.ok;
+			requestAnimationFrame(() => wrap.scrollIntoView({ block: 'end' }));
+		} catch (e) { status.textContent = e.message + ' Check the address in step 1, or use a survey / tape below.'; status.classList.add('warn'); useB.disabled = true; }
 	};
 	const useIt = async (btn) => {
-		if (!st.j) return toast('Wait for the bird’s-eye view to load.');
+		if (!map || !info || !info.ok) return toast('Wait for the map to load.');
 		btn.disabled = true;
+		const old = btn.textContent;
+		btn.textContent = 'Saving the view…';
 		try {
-			const p = await api('crm/property', { body: { id: s.prop_id, client_id: s.client_id, aerial: st.j.image, ppf: st.ppf } });
-			const changed = !s.base || s.base.url !== p.aerial;
-			s.base = { kind: 'aerial', url: p.aerial, W: img.naturalWidth, H: img.naturalHeight, ppf: st.ppf, span: st.span, res: st.j.res || 0.25, source: st.j.source || '', where: { lat: st.lat, lng: st.lng } };
-			if (changed && s.trace.boundary) { s.trace = fresh().trace; s.check = null; toast('New view — trace the property again on it.'); }
-			W.img = img;
+			const bb = map.bounds();
+			// keep a wide margin around what's on screen: the trace never runs off the edge
+			const mx = (bb.east - bb.west) * 0.35, my = (bb.north - bb.south) * 0.35;
+			const cap = await captureArea(info.tiles, Math.min(info.max || 21, 21), bb.north + my, bb.west - mx, bb.south - my, bb.east + mx, 3000);
+			if (cap.loaded < cap.total * 0.6) throw new Error('The aerial pictures didn’t finish loading. Check the connection and try again.');
+			const url = cap.canvas.toDataURL('image/jpeg', 0.84);
+			const p = await api('crm/property', { body: { id: s.prop_id, client_id: s.client_id, aerial: url, ppf: cap.ppf } });
+			const im = await loadImg(p.aerial || url);
+			const old2 = s.base;
+			s.base = { kind: 'aerial', url: p.aerial || url, W: cap.W, H: cap.H, ppf: cap.ppf, span: cap.W / cap.ppf / 3.28084, res: info.res || 0.25, source: info.source || '', where: { lat: map.center[0], lng: map.center[1] }, view: map.zoom, geo: { z: cap.z, ox: cap.ox, oy: cap.oy, url: info.tiles, max: info.max || 21 } };
+			if (old2 && old2.kind === 'aerial' && s.trace.boundary) {
+				// same place: carry the tracing over to the new picture instead of starting again
+				if (old2.geo) shiftTrace(s.trace, old2, s.base); else { s.trace = fresh().trace; s.check = null; toast('New view — trace the property on it.'); }
+			}
+			W.img = im; im.dataset.url = s.base.url;
 			save(true);
 			ctx.next();
-		} catch (e) { toast(e.message); }
+		} catch (e) { toast(e.message, 6000); }
 		btn.disabled = false;
+		btn.textContent = old;
 	};
 	const survey = async () => {
 		const f = await pickPhotoFile(false);
@@ -393,11 +403,20 @@ function stepBase(ctx) {
 			surveyScale(ctx);
 		} catch (e) { toast(e.message); }
 	};
-	if (s.base && s.base.kind === 'aerial') put(res, h('p', { class: 'ds-pw-okline' }, '✓ A bird’s-eye view is already chosen. Load a new one only if the property doesn’t fit.'), h('button', { class: 'ds-btn ds-sm', onclick: () => ctx.next() }, 'Keep it and continue →'));
-	if (s.base && s.base.kind === 'survey') put(res, h('p', { class: 'ds-pw-okline' }, `✓ Survey uploaded${s.base.ppf ? ' and scaled' : ' — set its scale'}.`), h('button', { class: 'ds-btn ds-sm', onclick: () => (s.base.ppf ? ctx.next() : surveyScale(ctx)) }, s.base.ppf ? 'Continue →' : 'Set the scale →'));
-	if (st.lat) load({ lat: st.lat, lng: st.lng, span: st.span });
-	else if (s.address) load({ address: s.address, span: st.span });
-	footer(ctx, s.base && (s.base.kind !== 'survey' || s.base.ppf) ? [] : [{ level: 'bad', text: 'Choose the bird’s-eye view (or a survey / tape).' }]);
+	if (s.base && s.base.kind === 'aerial') put(res, card(null, h('p', { class: 'ds-pw-okline' }, '✓ A bird’s-eye view is already chosen. Use a new view only if part of the property was cut off.'), h('button', { class: 'ds-btn ds-sm', onclick: () => ctx.next() }, 'Keep it and continue →')));
+	if (s.base && s.base.kind === 'survey') put(res, card(null, h('p', { class: 'ds-pw-okline' }, `✓ Survey uploaded${s.base.ppf ? ' and scaled' : ' — set its scale'}.`), h('button', { class: 'ds-btn ds-sm', onclick: () => (s.base.ppf ? ctx.next() : surveyScale(ctx)) }, s.base.ppf ? 'Continue →' : 'Set the scale →')));
+	start();
+	footer(ctx, s.base && (s.base.kind !== 'survey' || s.base.ppf) ? [] : [{ level: 'bad', text: 'Tap “Use this view” (or use a survey / tape).' }]);
+}
+/** Move traced shapes (feet on the old picture) onto a new picture of the same place. */
+function shiftTrace(t, a, b) {
+	// feet on a → world px at a.z → world px at b.z → feet on b
+	const k = Math.pow(2, b.geo.z - a.geo.z);
+	const mv = (p) => [((a.geo.ox + p[0] * a.ppf) * k - b.geo.ox) / b.ppf, ((a.geo.oy + p[1] * a.ppf) * k - b.geo.oy) / b.ppf];
+	for (const key of ['boundary', 'house', 'driveway']) if (t[key]) t[key] = t[key].map(mv);
+	for (const key of ['street', 'door']) if (t[key]) t[key] = mv(t[key]);
+	if (t.structures) t.structures = t.structures.map((sh) => sh.map(mv));
+	if (t.trees) t.trees = t.trees.map((tr) => ({ ...tr, pt: mv(tr.pt) }));
 }
 /** Survey: draw along a dimensioned line and type its length — that sets the scale. */
 async function surveyScale(ctx) {
@@ -448,33 +467,45 @@ async function stepTrace(ctx) {
 	if (!im) { put(ctx.main, h('p', { class: 'ds-warn' }, 'The bird’s-eye picture couldn’t be loaded. Go back one step and choose it again.')); return footer(ctx, [{ level: 'bad', text: 'Picture missing.' }]); }
 	W.img = im; im.dataset.url = s.base.url;
 	const box = h('div', { class: 'ds-pw-tracer' });
-	const head = h('div', { class: 'ds-pw-part' });
 	const parts = h('div', { class: 'ds-chips ds-pw-parts' });
+	const guide = floatGuide('', []);
+	const actions = h('div', { class: 'ds-ms-bar' });
+	const below = h('div');
 	const issuesBox = h('div');
-	put(ctx.main, h('h3', null, 'Trace the property'),
-		todo('Follow the highlighted step below — each one says exactly what to tap.', 'Zoom with the mouse wheel, pinch, or ＋/－. Drag to move. Drag a corner dot to fix it. “Undo” removes the last tap.'),
-		parts, head, box, issuesBox);
-	const tr = tracer(box, { img: im, W: s.base.W, H: s.base.H, ppf: s.base.ppf, trace: t, active: TRACE_PARTS[part], onChange: () => { save(); refresh(); } });
+	put(ctx.main, h('h3', null, 'Trace the property'), parts, box, below, issuesBox);
+	const tr = tracer(box, { img: im, W: s.base.W, H: s.base.H, ppf: s.base.ppf, geo: s.base.geo, trace: t, active: TRACE_PARTS[part], focus: t.boundary, top: guide, bottom: actions, onChange: () => { save(); refresh(); } });
 	W.cleanup = () => tr.destroy();
+	requestAnimationFrame(() => tr.el.scrollIntoView({ block: 'end' }));
+	const isDone = (p) => (p.type === 'poly' ? (p.multi ? t[p.key].length > 0 : t[p.key] && t[p.key].length >= 3) : p.type === 'points' ? t[p.key].length > 0 : !!t[p.key]) || (p.key === 'driveway' && t.noDriveway);
+	/** What to do right now, in one line. */
+	const nowLine = (P) => {
+		const d = tr.draft();
+		if (P.type === 'poly') {
+			if (d && d.length) return d.length < 3 ? `${d.length} corner${d.length > 1 ? 's' : ''} — keep tapping the corners in order.` : `${d.length} corners — when you’re back at the start, tap the big yellow “Start” dot.`;
+			if (isDone(P) && !P.multi) return '✓ Done. Drag any dot to fix it, or tap “Next part”.';
+			return P.multi && isDone(P) ? `✓ ${t[P.key].length} traced. Trace another, or tap “Next part”.` : 'Tap the FIRST corner.';
+		}
+		if (P.type === 'points') return t[P.key].length ? `✓ ${t[P.key].length} marked. Tap more, or “Next part”.` : 'Tap each one.';
+		return isDone(P) ? '✓ Marked. Tap again to move it, or tap “Next part”.' : 'Tap the spot on the map.';
+	};
+	const goPart = (i) => { part = i; tr.setActive(TRACE_PARTS[i]); refresh(); };
 	const refresh = () => {
 		parts.innerHTML = '';
-		TRACE_PARTS.forEach((p, i) => {
-			const done = p.type === 'poly' ? (p.multi ? t[p.key].length > 0 : t[p.key] && t[p.key].length >= 3) : p.type === 'points' ? t[p.key].length > 0 : !!t[p.key];
-			const skipped = p.key === 'driveway' && t.noDriveway;
-			parts.append(h('button', { type: 'button', class: 'ds-chip' + (i === part ? ' on' : ''), onclick: () => { part = i; tr.setActive(TRACE_PARTS[i]); refresh(); } }, (done || skipped ? '✓ ' : p.need ? '• ' : '') + p.title.replace(' (optional)', '')));
-		});
+		TRACE_PARTS.forEach((p, i) => parts.append(h('button', { type: 'button', class: 'ds-chip' + (i === part ? ' on' : ''), onclick: () => goPart(i) }, (isDone(p) ? '✓ ' : p.need ? '• ' : '') + p.title.replace(' (optional)', ''))));
 		const P = TRACE_PARTS[part];
-		head.innerHTML = '';
-		put(head, h('div', { class: 'ds-pw-parthead' }, h('b', null, `${part + 1}. ${P.title}`), h('p', null, P.how),
-			P.key === 'boundary' ? h('div', null, h('p', { class: 'ds-hint' }, 'Where do the property lines come from?'), chipSet([['survey', '📄 Survey / town GIS map'], ['visible', '🧱 Fences, hedges, curbs'], ['approx', '🤷 My best guess']], () => s.boundaryKnown, (k) => { s.boundaryKnown = k; save(); }),
-				h('p', { class: 'ds-hint' }, 'Most towns have a free online parcel map: ', h('a', { href: 'https://www.google.com/search?q=' + encodeURIComponent(townOf(s.address) + ' GIS parcel map'), target: '_blank', rel: 'noopener' }, 'search for it'), ' and copy the corners. Fences are often not on the line.')) : null,
-			P.key === 'house' ? h('p', { class: 'ds-hint' }, 'From above you see the roof, which overhangs the walls by about 1–2 ft. That’s fine — the wizard keeps beds outside the roof edge, where rain falls.') : null),
-			h('div', { class: 'ds-row ds-wrap' },
-				h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => tr.undo() }, '↶ Undo'),
-				h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { if (confirm('Clear this part and trace it again?')) { tr.clearActive(); } } }, 'Clear'),
-				P.ai && aiReady() ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: (e) => aiFind(e.currentTarget, P) }, icon('sparkle', 16), ' Find it with AI') : null,
-				P.key === 'driveway' ? h('label', { class: 'ds-check' }, h('input', { type: 'checkbox', checked: !!t.noDriveway, onchange: (e) => { t.noDriveway = e.target.checked; if (t.noDriveway) t.driveway = null; save(); tr.redraw(); refresh(); } }), ' No driveway') : null,
-				part < TRACE_PARTS.length - 1 ? h('button', { class: 'ds-btn ds-sm', onclick: () => { part++; tr.setActive(TRACE_PARTS[part]); refresh(); } }, 'Next part →') : null));
+		guide.setSteps(`Part ${part + 1} of ${TRACE_PARTS.length}: ${P.title}`, [P.how, h('b', { class: 'ds-fg-now' }, '👉 ', nowLine(P))],
+			P.key === 'house' ? h('small', null, 'From above you see the roof — it overhangs the walls 1–2 ft. That’s fine.') : P.key === 'boundary' ? h('small', null, 'Can’t see the corners? Zoom out (－) — the map keeps going past the edges.') : null);
+		actions.innerHTML = '';
+		const nextP = part < TRACE_PARTS.length - 1;
+		put(actions, h('p', { class: 'ds-ms-live' }, nowLine(P)), h('div', { class: 'ds-ms-btns' },
+			h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => tr.undo() }, '↶ Undo'),
+			h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { if (confirm('Clear this part and trace it again?')) tr.clearActive(); } }, '✕ Clear'),
+			P.ai && aiReady() ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: (e) => aiFind(e.currentTarget, P) }, icon('sparkle', 16), ' Find it with AI') : null,
+			P.key === 'driveway' ? h('label', { class: 'ds-check ds-ms-chk' }, h('input', { type: 'checkbox', checked: !!t.noDriveway, onchange: (e) => { t.noDriveway = e.target.checked; if (t.noDriveway) t.driveway = null; save(); tr.redraw(); refresh(); } }), ' No driveway') : null,
+			nextP ? h('button', { class: 'ds-btn ds-sm' + (isDone(P) || !P.need ? '' : ' ds-ghost'), onclick: () => goPart(part + 1) }, 'Next part →') : h('button', { class: 'ds-btn ds-sm', onclick: () => { const nb = ctx.bar.querySelector('button:last-of-type'); if (nb && !nb.disabled) nb.click(); else toast((ctx.bar.querySelector('.ds-pw-block') || {}).textContent || 'Finish the required parts first (marked •).', 6000); } }, 'Done tracing →')));
+		below.innerHTML = '';
+		if (P.key === 'boundary') put(below, card(null, h('p', { class: 'ds-hint' }, 'Where do the property lines come from?'), chipSet([['survey', '📄 Survey / town GIS map'], ['visible', '🧱 Fences, hedges, curbs'], ['approx', '🤷 My best guess']], () => s.boundaryKnown, (k) => { s.boundaryKnown = k; save(); }),
+			h('p', { class: 'ds-hint' }, 'Most towns have a free online parcel map: ', h('a', { href: 'https://www.google.com/search?q=' + encodeURIComponent(townOf(s.address) + ' GIS parcel map'), target: '_blank', rel: 'noopener' }, 'search for it'), ' and copy the corners. Fences are often not on the line.')));
 		const probs = validateTrace(t, s.base);
 		if (!t.door) probs.push({ level: 'warn', text: 'The front door isn’t marked.', fix: 'Without it the wizard can’t draw a front walk.' });
 		if (!t.driveway && !t.noDriveway) probs.push({ level: 'warn', text: 'The driveway isn’t traced.', fix: 'Trace it, or tick “No driveway”, so no beds are drawn on it.' });
@@ -569,12 +600,14 @@ async function stepScale(ctx) {
 	const box = h('div', { class: 'ds-pw-tracer' });
 	const tape = h('input', { type: 'text', inputmode: 'decimal', placeholder: 'e.g. 11\' 8" or 11.7', value: c.tape || '' });
 	const out = h('div', { 'aria-live': 'polite' });
+	const sguide = floatGuide('Check the scale', ['Find something FLAT you can measure on site — the driveway width at the street is ideal.', 'Tap one edge of it on the map, then the other edge.', 'Type the tape measurement below the map.']);
 	put(ctx.main, h('h3', null, 'Check the scale with one tape measurement'),
-		todo('Pick something FLAT on the ground you can measure on site — the driveway width at the street is ideal.', 'On the picture, tap one edge of it, then the other edge.', 'Measure the same thing with a tape (or measuring wheel) and type it in.'),
 		h('div', { class: 'ds-explain' }, h('p', null, '📏 ', h('b', null, 'Why: '), 'aerial pictures are very close to scale, but one real measurement proves it and corrects the whole plan. Don’t use the house — its roof overhangs, so it looks bigger from above.')),
-		card(null, field('What did you measure?', chipSet(REFS, () => c.what, (k) => { c.what = k; save(); })), box, field('Tape measurement', tape, s.check && s.check.survey ? 'Survey plans: measure the house width on site and draw along the house wall.' : 'At least 8 ft. Feet and inches are fine.')), out,
+		box, out, card(null, field('What did you measure?', chipSet(REFS, () => c.what, (k) => { c.what = k; save(); })), h('p', { class: 'ds-hint' }, s.check && s.check.survey ? 'Survey plans: measure the house width on site and draw along the house wall.' : 'Measure at least 8 ft. Feet and inches are fine (11\' 8").')),
 		h('button', { class: 'ds-link', onclick: () => { if (confirm('Skip the tape check? The plan will use the picture’s scale only and be marked less accurate.')) { s.check = { ...c, skipped: true, level: 'warn', text: 'Scale not checked with a tape.' }; save(); ctx.next(); } } }, 'I can’t measure on site right now — skip (less accurate)'));
-	const tr = im ? tracer(box, { img: im, W: s.base.W, H: s.base.H, ppf: s.base.ppf, trace: { ...s.trace, line: c.line }, active: { key: 'line', type: 'line' }, onChange: () => { c.line = tr.data().line; evaluate(); } }) : null;
+	const live = h('p', { class: 'ds-ms-live' });
+	const sbar = h('div', { class: 'ds-ms-bar' }, live, h('label', { class: 'ds-pw-tape' }, h('span', null, '📏 Tape:'), tape));
+	const tr = im ? tracer(box, { img: im, W: s.base.W, H: s.base.H, ppf: s.base.ppf, geo: s.base.geo, focus: c.line && c.line.length === 2 ? c.line : s.trace.driveway || s.trace.boundary, top: sguide, bottom: sbar, trace: { ...s.trace, line: c.line }, active: { key: 'line', type: 'line' }, onChange: () => { c.line = tr.data().line; evaluate(); } }) : null;
 	W.cleanup = () => tr && tr.destroy();
 	const evaluate = () => {
 		c.tape = tape.value;
@@ -584,12 +617,14 @@ async function stepScale(ctx) {
 		out.innerHTML = '';
 		if (r) { Object.assign(c, { planFt, tapeFt, k: r.level === 'bad' ? 1 : r.k, level: r.level, text: r.text, skipped: false }); put(out, issueList([{ level: r.level, text: `Picture: ${fmtFtIn(planFt)} · Tape: ${fmtFtIn(tapeFt)}. ${r.text}`, fix: r.level === 'bad' ? 'Check that both measure the same thing, edge to edge. Re-draw the line, or measure again.' : '' }])); }
 		else put(out, h('p', { class: 'ds-hint' }, planFt ? `On the picture: ${fmtFtIn(planFt)}. Now type the tape measurement.` : 'Tap both ends on the picture.'));
+		live.textContent = r ? (r.level === 'bad' ? '✖ The tape and the map don’t agree — redraw the line or measure again.' : `✓ Map ${fmtFtIn(planFt)} · tape ${fmtFtIn(tapeFt)} — good. Tap Next.`) : planFt ? `👉 On the map: ${fmtFtIn(planFt)}. Type your tape measurement →` : c.line && c.line.length === 1 ? '👉 Now tap the OTHER edge.' : '👉 Tap one edge of the driveway (or whatever you measured).';
 		save();
 		if (!r && c.survey) return footer(ctx, [{ level: 'warn', text: 'Optional for surveys: check one length (like the house width) with a tape.' }]);
 		footer(ctx, r ? (r.level === 'bad' ? [{ level: 'bad', text: 'The tape and the picture don’t agree.' }] : []) : [{ level: 'bad', text: planFt ? 'Type the tape measurement.' : 'Draw the line on the picture.' }]);
 	};
 	tape.addEventListener('input', evaluate);
 	evaluate();
+	if (tr) requestAnimationFrame(() => tr.el.scrollIntoView({ block: 'end' }));
 }
 
 /* ================================================================ 6. photos */
@@ -1015,8 +1050,44 @@ const COLORS = { boundary: '#e53935', house: '#546e7a', driveway: '#9e9e9e', str
 export function tracer(el, o) {
 	const cv = h('canvas', { class: 'ds-pw-cv', tabindex: 0, 'aria-label': 'Tracing area. Tap to add a point, drag to move, scroll or pinch to zoom.' });
 	const zoom = h('div', { class: 'ds-map-zoom' }, h('button', { type: 'button', 'aria-label': 'Zoom in', onclick: () => zoomAt(1.4) }, '+'), h('button', { type: 'button', 'aria-label': 'Zoom out', onclick: () => zoomAt(1 / 1.4) }, '−'), h('button', { type: 'button', 'aria-label': 'Fit', onclick: () => fit() }, '⤢'));
-	const wrap = h('div', { class: 'ds-pw-cvwrap' }, cv, zoom);
+	// o.top / o.bottom: instructions and buttons that float on the map (so nobody scrolls to read them)
+	const wrap = h('div', { class: 'ds-pw-cvwrap' + (o.top || o.bottom ? ' ds-pw-staged' : '') }, cv, zoom, o.top ? h('div', { class: 'ds-pw-ovtop' }, o.top) : null, o.bottom ? h('div', { class: 'ds-pw-ovbot' }, o.bottom) : null);
 	el.append(wrap);
+	// o.geo { z, ox, oy, url, max }: the picture is a piece of the tile map, so the map around it is drawn
+	// too — zooming out or moving past its edge shows more imagery, never blank space
+	const geo = o.geo && o.geo.url ? o.geo : null;
+	const tileImgs = new Map();
+	const tileAt = (tz, tx, ty) => {
+		const k = tz + '/' + tx + '/' + ty;
+		let im = tileImgs.get(k);
+		if (!im) {
+			im = new Image();
+			im.onload = () => requestAnimationFrame(draw);
+			im.onerror = () => { im.bad = true; };
+			im.src = geo.url.replace('{z}', tz).replace('{x}', tx).replace('{y}', ty);
+			tileImgs.set(k, im);
+			if (tileImgs.size > 400) tileImgs.delete(tileImgs.keys().next().value);
+		}
+		return im;
+	};
+	const drawTiles = (x, w, hh) => {
+		const per = o.W / (o.img ? o.img.naturalWidth : o.W); // W units per base-image pixel
+		const sc = view.s * per; // screen px per world px at geo.z
+		const tz = Math.max(10, Math.min(geo.max || 21, Math.round(geo.z + Math.log2(sc))));
+		const T = 256 * Math.pow(2, geo.z - tz); // a tile, in world px at geo.z
+		const wx0 = geo.ox + (-view.x) / sc, wy0 = geo.oy + (-view.y) / sc, wx1 = geo.ox + (w - view.x) / sc, wy1 = geo.oy + (hh - view.y) / sc;
+		const n = Math.pow(2, tz);
+		for (let ty = Math.max(0, Math.floor(wy0 / T)); ty <= Math.min(n - 1, Math.floor(wy1 / T)); ty++) {
+			for (let tx = Math.floor(wx0 / T); tx <= Math.floor(wx1 / T); tx++) {
+				const im = tileAt(tz, ((tx % n) + n) % n, ty);
+				if (im.complete && im.naturalWidth && !im.bad) x.drawImage(im, view.x + (tx * T - geo.ox) * sc, view.y + (ty * T - geo.oy) * sc, T * sc + 0.5, T * sc + 0.5);
+			}
+		}
+	};
+	// fade the floating instructions while the map is being moved or tapped
+	let busyT = 0;
+	const busyOn = () => { wrap.classList.add('busy'); clearTimeout(busyT); };
+	const busyOff = () => { clearTimeout(busyT); busyT = setTimeout(() => wrap.classList.remove('busy'), 900); };
 	const t = o.trace;
 	let act = o.active, draft = null, view = { s: 1, x: 0, y: 0 }, dpr = window.devicePixelRatio || 1;
 	const imgK = o.img ? o.img.naturalWidth / o.W : 1; // image px per "W" px
@@ -1024,12 +1095,14 @@ export function tracer(el, o) {
 	const scrToFt = (x, y) => [(x - view.x) / view.s / o.ppf, (y - view.y) / view.s / o.ppf];
 	const size = () => { const r = wrap.getBoundingClientRect(); cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px'; };
 	const fit = () => { size(); const w = cv.width / dpr, hh = cv.height / dpr; view.s = Math.min(w / o.W, hh / o.H); view.x = (w - o.W * view.s) / 2; view.y = (hh - o.H * view.s) / 2; draw(); };
-	const zoomAt = (k, sx, sy) => { const w = cv.width / dpr, hh = cv.height / dpr; sx = sx == null ? w / 2 : sx; sy = sy == null ? hh / 2 : sy; const ns = Math.max(0.05, Math.min(40, view.s * k)); view.x = sx - ((sx - view.x) * ns) / view.s; view.y = sy - ((sy - view.y) * ns) / view.s; view.s = ns; draw(); };
+	const minS = () => { const w = cv.width / dpr, hh = cv.height / dpr, fitS = Math.min(w / o.W, hh / o.H); return geo ? fitS / 16 : fitS * 0.8; };
+	const zoomAt = (k, sx, sy) => { const w = cv.width / dpr, hh = cv.height / dpr; sx = sx == null ? w / 2 : sx; sy = sy == null ? hh / 2 : sy; const ns = Math.max(minS(), Math.min(40, view.s * k)); view.x = sx - ((sx - view.x) * ns) / view.s; view.y = sy - ((sy - view.y) * ns) / view.s; view.s = ns; draw(); };
 	function draw() {
 		const x = cv.getContext('2d');
 		x.setTransform(dpr, 0, 0, dpr, 0, 0);
 		x.clearRect(0, 0, cv.width, cv.height);
-		x.fillStyle = '#eef2ec'; x.fillRect(0, 0, cv.width, cv.height);
+		x.fillStyle = geo ? '#c9d2c9' : '#26362d'; x.fillRect(0, 0, cv.width, cv.height);
+		if (geo) drawTiles(x, cv.width / dpr, cv.height / dpr);
 		if (o.img) x.drawImage(o.img, view.x, view.y, o.W * view.s, o.H * view.s);
 		const poly = (pts, color, closed, fill, activeNow) => {
 			if (!pts || !pts.length) return;
@@ -1061,7 +1134,7 @@ export function tracer(el, o) {
 		if (draft) poly(draft, COLORS[act.key] || '#00b0ff', false, false, true);
 		// scale bar
 		const ft = [5, 10, 20, 50, 100, 200].find((f) => f * o.ppf * view.s > 60) || 200;
-		const L = ft * o.ppf * view.s, y0 = cv.height / dpr - 14;
+		const L = ft * o.ppf * view.s, y0 = cv.height / dpr - (o.bottom ? 96 : 14);
 		x.fillStyle = 'rgba(255,255,255,.85)'; x.fillRect(8, y0 - 14, L + 40, 20);
 		x.fillStyle = '#222'; x.fillRect(12, y0 - 2, L, 3); x.font = '11px sans-serif'; x.fillText(ft + ' ft', 16 + L, y0 + 2);
 	}
@@ -1074,6 +1147,9 @@ export function tracer(el, o) {
 	const activePts = () => (draft ? draft : act.type === 'poly' && !act.multi ? t[act.key] : act.type === 'line' ? t.line : null);
 	cv.addEventListener('pointerdown', (e) => {
 		cv.setPointerCapture(e.pointerId);
+		busyOn();
+		// small screens: fold the instructions once work starts (the bottom bar keeps saying what to do next)
+		if (o.top && o.top.classList && !o.top.folded && (cv.width / dpr) < 600) { o.top.folded = true; o.top.classList.add('min'); }
 		const p = local(e);
 		ptrs.set(e.pointerId, p);
 		if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), s: view.s, c: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] }; press = null; return; }
@@ -1091,10 +1167,18 @@ export function tracer(el, o) {
 		if (Math.hypot(p[0] - press.p[0], p[1] - press.p[1]) > 5) press.moved = true;
 		if (!press.moved) return;
 		if (dragV) { dragV.pts[dragV.i] = scrToFt(p[0], p[1]); draw(); return; }
-		view.x = press.vx + p[0] - press.p[0]; view.y = press.vy + p[1] - press.p[1]; draw();
+		view.x = press.vx + p[0] - press.p[0]; view.y = press.vy + p[1] - press.p[1]; keepInView(); draw();
 	});
+	// without the map around it, keep the picture on screen (it can't be dragged away into nothing)
+	function keepInView() {
+		if (geo) return;
+		const w = cv.width / dpr, hh = cv.height / dpr, iw = o.W * view.s, ih = o.H * view.s, m = 60;
+		view.x = iw + 2 * m < w ? Math.min(Math.max(view.x, m), w - iw - m) : Math.min(m, Math.max(view.x, w - iw - m));
+		view.y = ih + 2 * m < hh ? Math.min(Math.max(view.y, m), hh - ih - m) : Math.min(m, Math.max(view.y, hh - ih - m));
+	}
 	const up = (e) => {
 		ptrs.delete(e.pointerId);
+		if (!ptrs.size) busyOff();
 		if (ptrs.size < 2) pinch = null;
 		if (!press) return;
 		if (dragV && press.moved) { dragV = null; press = null; o.onChange && o.onChange(); return; }
@@ -1103,7 +1187,7 @@ export function tracer(el, o) {
 	};
 	cv.addEventListener('pointerup', up);
 	cv.addEventListener('pointercancel', up);
-	cv.addEventListener('wheel', (e) => { e.preventDefault(); const p = local(e); zoomAt(Math.exp(-Math.max(-240, Math.min(240, e.deltaY)) * 0.0025), p[0], p[1]); }, { passive: false });
+	cv.addEventListener('wheel', (e) => { e.preventDefault(); busyOn(); busyOff(); const p = local(e); zoomAt(Math.exp(-Math.max(-240, Math.min(240, e.deltaY)) * 0.0025), p[0], p[1]); }, { passive: false });
 	cv.addEventListener('keydown', (e) => { if (e.key === 'Backspace' || (e.key === 'z' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); api.undo(); } });
 	function tap(p) {
 		const ft = scrToFt(p[0], p[1]);
@@ -1125,7 +1209,7 @@ export function tracer(el, o) {
 		draw();
 		o.onChange && o.onChange();
 	}
-	const ro = new ResizeObserver(() => { const had = cv.width; size(); if (!had) fit(); else draw(); });
+	const ro = new ResizeObserver(() => { const had = cv.width; size(); if (!had) (o.focus && o.focus.length >= 2 ? api.show(o.focus) : fit()); else draw(); });
 	ro.observe(wrap);
 	const api = {
 		setActive(a) { if (draft && draft.length >= 3) close(); draft = null; act = a; draw(); },
@@ -1139,10 +1223,26 @@ export function tracer(el, o) {
 			draw(); o.onChange && o.onChange();
 		},
 		clearActive() { draft = null; if (act.type === 'points' || act.multi) t[act.key] = []; else if (act.type === 'line') t.line = []; else t[act.key] = null; draw(); o.onChange && o.onChange(); },
-		redraw: draw, fit, data: () => t, draft: () => draft, view: () => ({ ...view }),
-		destroy() { ro.disconnect(); wrap.remove(); }
+		redraw: draw, fit, data: () => t, draft: () => draft, view: () => ({ ...view }), el: wrap,
+		/** Zoom to show these points (feet) with a margin — e.g. the property line. */
+		show(pts) {
+			if (!pts || !pts.length) return fit();
+			size();
+			const w = cv.width / dpr, hh = cv.height / dpr;
+			const xs = pts.map((p) => p[0] * o.ppf), ys = pts.map((p) => p[1] * o.ppf);
+			const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+			// keep clear of the floating instructions (top) and the button bar (bottom)
+			const top = o.top && o.top.offsetHeight ? o.top.offsetHeight + 16 : 0, bot = o.bottom && o.bottom.offsetHeight ? o.bottom.offsetHeight + 20 : 0;
+			const ah = Math.max(120, hh - top - bot);
+			view.s = Math.min(w / ((x1 - x0) * 1.3 || 1), ah / ((y1 - y0) * 1.3 || 1), 8);
+			view.x = w / 2 - ((x0 + x1) / 2) * view.s; view.y = top + ah / 2 - ((y0 + y1) / 2) * view.s;
+			draw();
+		},
+		destroy() { ro.disconnect(); clearTimeout(busyT); wrap.remove(); }
 	};
 	void imgK;
-	requestAnimationFrame(fit);
+	api.toScreen = ftToScr;
+	wrap.dsTracer = api; // for automated tests
+	requestAnimationFrame(() => (o.focus && o.focus.length >= 2 ? api.show(o.focus) : fit()));
 	return api;
 }

@@ -7,8 +7,8 @@
  * yard. Homeowners never see any of this — the contractor tools are only offered to them as a
  * small "Are you a contractor?" link, and the server refuses contractor actions from anyone else.
  */
-import { h, put, icon } from './util.js?v=2.7.7';
-import { api, session } from './api.js?v=2.7.7';
+import { h, put, icon } from './util.js?v=2.7.8';
+import { api, session } from './api.js?v=2.7.8';
 
 const hm = (t) => new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 const money = (v) => '$' + Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -28,6 +28,7 @@ export function proHome(ctx) {
 	const tile = (emoji, label, sub, fn, extra = '') => h('button', { class: 'ds-tile' + extra, onclick: fn }, h('span', { class: 'ds-tile-ic', 'aria-hidden': 'true' }, emoji), h('b', null, label), sub ? h('small', null, sub) : null);
 	const reqN = pro.requests || 0;
 	const main = h('main', { class: 'ds-home ds-home2 ds-prohome' },
+		ctx.modeBar ? ctx.modeBar() : null,
 		h('header', { class: 'ds-ph-head' },
 			h('div', null, h('p', { class: 'ds-ph-kicker' }, '🧰 Contractor Hub'), h('h1', null, hello), pro.business ? h('p', { class: 'ds-muted' }, pro.business) : null),
 			h('button', { class: 'ds-btn', onclick: () => ctx.newQuote() }, icon('plus', 18), ' New quote')),
@@ -55,7 +56,7 @@ export function proHome(ctx) {
 				h('button', { class: 'ds-btn ds-ghost', onclick: () => ctx.myDreamscapes() }, '🗂️ My Dreamscapes'),
 				h('button', { class: 'ds-btn ds-ghost', onclick: () => ctx.assetLibrary() }, '📚 Plants & materials'),
 				h('button', { class: 'ds-btn ds-ghost', onclick: () => ctx.plantId() }, '🌿 Identify a plant'))),
-		h('p', { class: 'ds-ph-switch' }, h('button', { class: 'ds-link', onclick: () => ctx.homeowner() }, '🏡 Use DreamScaper as a homeowner (for your own yard)')));
+		null);
 	root.append(ctx.header(), main);
 	(async () => {
 		try {

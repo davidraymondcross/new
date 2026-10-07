@@ -4,8 +4,8 @@
  * plant's size at any age, and re-coloured for the season (fall colour, winter
  * dormancy, flowers only in bloom months), so it still grows and changes over time.
  */
-import { canvas, clamp, rng } from './util.js?v=2.7.7';
-import { SEASON_MONTHS } from './library.js?v=2.7.7';
+import { canvas, clamp, rng } from './util.js?v=2.7.8';
+import { SEASON_MONTHS } from './library.js?v=2.7.8';
 
 const listeners = new Set();
 /** Called whenever a photo finishes loading, so views can redraw. */
@@ -58,7 +58,8 @@ export async function loadPhotoPack(byId, extraUrl) {
 	const urls = [new URL('../photos/manifest.json', import.meta.url).href];
 	if (extraUrl) urls.push(extraUrl);
 	let n = 0;
-	for (const url of urls) {
+	for (const u of urls) {
+		const url = new URL(u, location.href).href; // the site may give a relative address
 		try {
 			const r = await fetch(url, { cache: 'no-cache' });
 			if (!r.ok) continue;

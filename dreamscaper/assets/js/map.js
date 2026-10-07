@@ -7,7 +7,7 @@
  *   const map = streetMap(el, { center: [lat, lng], zoom: 17, tiles: { url, attr, max }, onTap, onMove })
  *   map.setPins([{ id, lat, lng, color, icon, label, ring }]); map.setView([lat, lng], zoom); map.bounds();
  */
-import { h } from './util.js?v=2.7.7';
+import { h, put } from './util.js?v=2.7.8';
 
 const TS = 256;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -20,6 +20,43 @@ function project(lat, lng, z) {
 function unproject(x, y, z) {
 	const s = TS * Math.pow(2, z), n = Math.PI - (2 * Math.PI * y) / s;
 	return [(180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))), (x / s) * 360 - 180];
+}
+
+export { project as worldPx, unproject as worldLatLng, TS as TILE_SIZE };
+/** Ground feet per screen pixel at zoom z and latitude lat (Web Mercator). */
+export const ftPerPx = (lat, z) => (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (TS * Math.pow(2, z)) * 3.28084;
+
+/**
+ * One picture of the map between two corners, built from the same tiles (same site → not tainted).
+ * Picks the sharpest zoom ≤ max where the picture stays under maxPx on its longest side.
+ * Returns { canvas, W, H, z, ox, oy, ppf } — (ox, oy) is the picture's top-left in world pixels at z.
+ */
+export async function captureArea(url, max, north, west, south, east, maxPx = 3600, timeout = 20000) {
+	let z = max;
+	for (; z > 10; z--) {
+		const a = project(north, west, z), b = project(south, east, z);
+		if (b[0] - a[0] <= maxPx && b[1] - a[1] <= maxPx) break;
+	}
+	const a = project(north, west, z), b = project(south, east, z);
+	const ox = Math.floor(a[0]), oy = Math.floor(a[1]), W = Math.ceil(b[0] - ox), H = Math.ceil(b[1] - oy);
+	const c = document.createElement('canvas');
+	c.width = W; c.height = H;
+	const x = c.getContext('2d');
+	x.fillStyle = '#c9d2c9'; x.fillRect(0, 0, W, H);
+	const jobs = [];
+	for (let ty = Math.floor(oy / TS); ty <= Math.floor((oy + H) / TS); ty++) {
+		for (let tx = Math.floor(ox / TS); tx <= Math.floor((ox + W) / TS); tx++) {
+			jobs.push(new Promise((ok) => {
+				const im = new Image();
+				im.onload = () => { x.drawImage(im, tx * TS - ox, ty * TS - oy, TS, TS); ok(true); };
+				im.onerror = () => ok(false);
+				im.src = url.replace('{z}', z).replace('{x}', tx).replace('{y}', ty);
+			}));
+		}
+	}
+	const got = await Promise.race([Promise.all(jobs), new Promise((r) => setTimeout(() => r(null), timeout))]);
+	const lat = (north + south) / 2;
+	return { canvas: c, W, H, z, ox, oy, ppf: 1 / ftPerPx(lat, z), loaded: got ? got.filter(Boolean).length : 0, total: jobs.length };
 }
 
 export function streetMap(el, o) {
@@ -196,4 +233,25 @@ export function streetMap(el, o) {
 	};
 	redraw();
 	return api;
+}
+
+/**
+ * Instructions that float on top of a map: a numbered list with a title, which folds into a small
+ * "📋 Show steps" pill (and fades while the map is being dragged) so it never blocks the work.
+ */
+export function floatGuide(title, steps, onToggle, extra) {
+	const list = h('ol', null, ...steps.map((t) => h('li', null, t)));
+	const body = h('div', { class: 'ds-fg-body' }, list, extra || null);
+	const box = h('div', { class: 'ds-fg' });
+	const head = h('button', { type: 'button', class: 'ds-fg-head', 'aria-expanded': 'true', onclick: () => { box.classList.toggle('min'); head.setAttribute('aria-expanded', box.classList.contains('min') ? 'false' : 'true'); onToggle && onToggle(); } }, h('b', null, '📋 ', title), h('span', { class: 'ds-fg-tog' }));
+	put(box, head, body);
+	// small screens: fold away once the map is being used (the bar at the bottom keeps the next step in view)
+	const arm = () => {
+		const host = box.parentElement;
+		if (!host) return requestAnimationFrame(arm);
+		host.addEventListener('pointerdown', (e) => { if (!box.folded && !box.contains(e.target) && host.offsetWidth < 600) { box.folded = true; box.classList.add('min'); } }, true);
+	};
+	requestAnimationFrame(arm);
+	box.setSteps = (t2, s2, ex) => { head.querySelector('b').textContent = '📋 ' + t2; list.innerHTML = ''; s2.forEach((x) => list.append(h('li', null, x))); if (ex !== undefined) { body.innerHTML = ''; put(body, list, ex); } };
+	return box;
 }

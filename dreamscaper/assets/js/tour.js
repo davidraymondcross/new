@@ -2,9 +2,9 @@
  * and explains each one. Offered once per screen (home, editor, AI); customers can skip,
  * switch tours off for good, and turn them back on in How it works or My Account.
  */
-import { h, put, icon } from './util.js?v=2.7.7';
-import { modal } from './capture.js?v=2.7.7';
-import { resetCreditAsk } from './credits.js?v=2.7.7';
+import { h, put, icon } from './util.js?v=2.7.8';
+import { modal } from './capture.js?v=2.7.8';
+import { resetCreditAsk } from './credits.js?v=2.7.8';
 
 let ROOT = null;
 export function initTour(root) { ROOT = root; }

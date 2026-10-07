@@ -11,9 +11,9 @@
  * appear, default custom fields / notes / terms / payment instructions / thank-you / footer, default tax
  * and due terms, and the default reminder plan. The server renders both previews, so they match the real thing.
  */
-import { h, put, icon } from './util.js?v=2.7.7';
-import { api } from './api.js?v=2.7.7';
-import { modal, pickFile } from './capture.js?v=2.7.7';
+import { h, put, icon } from './util.js?v=2.7.8';
+import { api } from './api.js?v=2.7.8';
+import { modal, pickFile } from './capture.js?v=2.7.8';
 
 let C = null;
 const toast = (m, ms) => C && C.toast(m, ms);

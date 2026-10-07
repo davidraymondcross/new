@@ -1,5 +1,5 @@
 /* Expanded tree library, part 2: more ornamentals, street trees and fruit trees. */
-import { fam, sp } from './data-x-helpers.js?v=2.7.7';
+import { fam, sp } from './data-x-helpers.js?v=2.7.8';
 
 export const TREES_X2 = [
 	...fam('Japanese Maple', 'Acer palmatum', 'round', 9, 'z5-8 s:FP fine', 'Graceful small maple for focal points.', [

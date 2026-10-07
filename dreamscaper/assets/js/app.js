@@ -1,42 +1,42 @@
 /* DreamScaper – app shell: gallery, project flow, editor UI, autosave. */
-import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.7';
-import { store } from './store.js?v=2.7.7';
-import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.7';
-import { openAssetMaker } from './assetmaker.js?v=2.7.7';
-import { voiceButton } from './voice.js?v=2.7.7';
-import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.7';
-import { thumb, sprite } from './sprites.js?v=2.7.7';
-import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.7';
-import { Editor } from './editor.js?v=2.7.7';
-import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.7';
-import { sampleYard } from './sample.js?v=2.7.7';
-import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.7';
-import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.7';
-import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.7';
-import { openStudio } from './dsai.js?v=2.7.7';
-import { panelAI } from './aitools.js?v=2.7.7';
-import { shareSheet, printDesign } from './share.js?v=2.7.7';
-import { openPlantId } from './plantid.js?v=2.7.7';
-import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.7';
-import { onRewards } from './api.js?v=2.7.7';
-import { segment } from './aiclient.js?v=2.7.7';
-import { historyPanel } from './history.js?v=2.7.7';
-import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.7';
-import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.7';
-import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.7';
-import { initStorage, openStorage } from './storage.js?v=2.7.7';
-import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.7';
-import { proHome } from './prohome.js?v=2.7.7';
-import { initHire, openFind, openProjects } from './hire.js?v=2.7.7';
-import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.7';
-import { initExplain } from './explain.js?v=2.7.7';
-import { initBilling, confirmReturn } from './billing.js?v=2.7.7';
-import { initMsgSettings } from './msgsettings.js?v=2.7.7';
-import { dreamscapeToPlan } from './takeoff.js?v=2.7.7';
-import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.7';
-import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.7';
-import { openGuide, guideBar } from './guide.js?v=2.7.7';
-import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.7';
+import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.8';
+import { store } from './store.js?v=2.7.8';
+import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.8';
+import { openAssetMaker } from './assetmaker.js?v=2.7.8';
+import { voiceButton } from './voice.js?v=2.7.8';
+import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.8';
+import { thumb, sprite } from './sprites.js?v=2.7.8';
+import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.8';
+import { Editor } from './editor.js?v=2.7.8';
+import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.8';
+import { sampleYard } from './sample.js?v=2.7.8';
+import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.8';
+import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.8';
+import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.8';
+import { openStudio } from './dsai.js?v=2.7.8';
+import { panelAI } from './aitools.js?v=2.7.8';
+import { shareSheet, printDesign } from './share.js?v=2.7.8';
+import { openPlantId } from './plantid.js?v=2.7.8';
+import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.8';
+import { onRewards } from './api.js?v=2.7.8';
+import { segment } from './aiclient.js?v=2.7.8';
+import { historyPanel } from './history.js?v=2.7.8';
+import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.8';
+import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.8';
+import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.8';
+import { initStorage, openStorage } from './storage.js?v=2.7.8';
+import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.8';
+import { proHome } from './prohome.js?v=2.7.8';
+import { initHire, openFind, openProjects } from './hire.js?v=2.7.8';
+import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.8';
+import { initExplain } from './explain.js?v=2.7.8';
+import { initBilling, confirmReturn } from './billing.js?v=2.7.8';
+import { initMsgSettings } from './msgsettings.js?v=2.7.8';
+import { dreamscapeToPlan } from './takeoff.js?v=2.7.8';
+import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.8';
+import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.8';
+import { openGuide, guideBar } from './guide.js?v=2.7.8';
+import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.8';
 
 const CFG = (() => {
 	try { return JSON.parse(document.getElementById('dreamscaper-config').textContent); } catch (e) { return {}; }
@@ -137,6 +137,7 @@ function open() {
 		if (session.user) { syncAfterSignIn(true); handleReturn(); }
 		// contractors get their own home: switch to it once we know who's signed in
 		if (isPro() && app && !app.project && !app.homeownerView && app.root.querySelector('.ds-home2:not(.ds-prohome)') && !busyOverlay()) home();
+		if (app && !app.project && !isPro() && !(session.crm && session.crm.on) && app.root.querySelector('.ds-rolepick')) home();
 		termsNotice();
 		if (pendingRoute) { const r = pendingRoute; pendingRoute = null; setTimeout(r, 50); }
 	});
@@ -167,11 +168,13 @@ function syncProSlot() {
 	if (!slot || !slot.isConnected) return;
 	const c = session.crm || {};
 	slot.innerHTML = '';
-	if (isPro()) slot.append(h('p', { class: 'ds-ph-switch' }, h('button', { class: 'ds-link', onclick: () => { app.homeownerView = false; home(); } }, '🧰 Back to my Contractor Hub')));
-	else if (c.on) slot.append(h('p', { class: 'ds-ph-switch' }, h('button', { class: 'ds-link', onclick: () => openHub() }, c.pro && c.pro.status === 'pending' ? '🧰 Your contractor application is being reviewed' : '🧰 Are you a contractor? Run your business on DreamScaper →')));
+	if (isPro()) return;
+	if (c.on && c.pro && c.pro.status === 'pending') slot.append(h('p', { class: 'ds-ph-switch' }, h('button', { class: 'ds-link', onclick: () => openHub() }, '🧰 Your contractor application is being reviewed')));
 }
 function syncHireTiles() {
 	syncProSlot();
+	const mb = app && app.root && app.root.querySelector('.ds-home2:not(.ds-prohome) .ds-modebar');
+	if (mb) mb.hidden = session.ready && !(session.crm && session.crm.on);
 	const nav = app && app.hireNav;
 	if (!nav || !nav.isConnected) return;
 	const c = session.crm || {};
@@ -224,14 +227,50 @@ function leaveEditor() {
 }
 function openMyDreamscapes(start) { leaveEditor(); app.libPage = null; openBrowser(browserCtx(), start); }
 
+/* ------------------------------------------------- homeowner or contractor? */
+const ROLE_KEY = 'ds_role';
+function getRole() { try { return localStorage.getItem(ROLE_KEY) || ''; } catch (e) { return ''; } }
+function setRole(r) { try { localStorage.setItem(ROLE_KEY, r); } catch (e) { /* private mode: asked again next time */ } }
+/** Switch between the homeowner and contractor apps — at the top of both home screens. */
+function modeBar(cur) {
+	const go = (k) => {
+		setRole(k);
+		if (k === 'homeowner') { app.homeownerView = true; home(); return; }
+		app.homeownerView = false;
+		if (isPro()) home(); else openHub();
+	};
+	const b = (k, emoji, label) => h('button', { type: 'button', class: k === cur ? 'on' : '', 'aria-pressed': String(k === cur), onclick: () => { if (k !== cur) go(k); } }, h('span', { 'aria-hidden': 'true' }, emoji), ' ', label);
+	return h('div', { class: 'ds-modebar', role: 'group', 'aria-label': 'I am a…' }, b('homeowner', '🏡', 'Homeowner'), b('contractor', '🧰', 'Contractor'));
+}
+/** First visit: who is this for? Each gets a very different app. */
+function roleChooser() {
+	const root = app.root;
+	root.innerHTML = '';
+	const pick = (k) => { setRole(k); if (k === 'contractor') { app.homeownerView = false; if (isPro()) home(); else openHub(); } else { app.homeownerView = true; home(); } };
+	const card = (k, emoji, title, sub, points) => h('button', { type: 'button', class: 'ds-role-card', 'data-role': k, onclick: () => pick(k) },
+		h('span', { class: 'ds-role-ic', 'aria-hidden': 'true' }, emoji), h('b', null, title), h('small', null, sub), h('ul', null, ...points.map((t) => h('li', null, t))), h('span', { class: 'ds-btn ds-wide' }, 'Continue →'));
+	root.append(h('main', { class: 'ds-home ds-home2 ds-rolepick' },
+		h('button', { class: 'ds-icon-btn ds-home-x', 'aria-label': 'Close DreamScaper', onclick: requestClose }, icon('close')),
+		h('header', { class: 'ds-hlogo' }, logoArt(), CFG.brand ? h('p', { class: 'ds-hby' }, 'by ' + CFG.brand) : null),
+		h('h1', { class: 'ds-role-q' }, 'Who’s using DreamScaper?'),
+		h('div', { class: 'ds-role-grid' },
+			card('homeowner', '🏡', 'I’m a homeowner', 'Design my own yard', ['See plants and stone on a photo of your yard', 'Plan by season and year', 'Find a local contractor when you’re ready']),
+			card('contractor', '🧰', 'I’m a contractor', 'Run my landscaping business', ['Quotes, customers, jobs and invoices', 'Measure properties and plan routes', 'Landscape plans and designs for customers'])),
+		h('p', { class: 'ds-muted ds-role-note' }, 'You can switch any time with the Homeowner / Contractor switch at the top.'),
+		termsLink()));
+}
+
 async function home() {
 	leaveEditor();
 	app.libPage = null;
 	const root = app.root;
+	if (app.homeownerView == null) app.homeownerView = getRole() === 'homeowner';
 	// two very different apps: contractors land on their business home, everyone else on the design home
 	if (isPro() && !app.homeownerView) {
-		return proHome({ root, header: homeHeader, openHub: (v) => openHub(v), newQuote: () => openHub({ v: 'dash' }).then(() => newQuote()), newProject, myDreamscapes: () => openMyDreamscapes(), assetLibrary: assetLibraryPage, plantId, homeowner: () => { app.homeownerView = true; home(); } });
+		return proHome({ root, header: homeHeader, modeBar: () => modeBar('contractor'), openHub: (v) => openHub(v), newQuote: () => openHub({ v: 'dash' }).then(() => newQuote()), newProject, myDreamscapes: () => openMyDreamscapes(), assetLibrary: assetLibraryPage, plantId, homeowner: () => { setRole('homeowner'); app.homeownerView = true; home(); } });
 	}
+	// contractor features switched off on this site: no question to ask
+	if (!isPro() && !getRole() && (!session.ready || (session.crm && session.crm.on))) return roleChooser();
 	root.innerHTML = '';
 	const grid = h('div', { class: 'ds-grid ds-recent' });
 	const mineCount = h('small', null, 'Your saved designs');
@@ -240,6 +279,7 @@ async function home() {
 		h('span', { class: 'ds-tile-ic', 'aria-hidden': 'true' }, emoji), h('b', null, label), sub ? (typeof sub === 'string' ? h('small', null, sub) : sub) : null);
 	const homeMain = h('main', { class: 'ds-home ds-home2' },
 			h('button', { class: 'ds-icon-btn ds-home-x', 'aria-label': 'Close DreamScaper', onclick: requestClose }, icon('close')),
+			modeBar('homeowner'),
 			h('header', { class: 'ds-hlogo' }, logoArt(), CFG.brand ? h('p', { class: 'ds-hby' }, 'by ' + CFG.brand) : null),
 			h('button', { class: 'ds-start', 'data-act': 'start', onclick: newProject },
 				h('span', { class: 'ds-start-ic' }, icon('plus', 30)),
@@ -1181,7 +1221,7 @@ function swatches(cur, on) {
 function panelPaint(el) {
 	const o = app.editor.opts.paint;
 	const mode = o.restore ? 'restore' : o.erase ? 'erase' : 'paint';
-	el.append(
+	add(el,
 		sect('Brush', h('p', { class: 'ds-muted' }, 'Brush mulch, stone, lawn or pavers right onto the ground. Textures shrink into the distance and pick up real shadows from your photo.')),
 		sect(null, seg([['paint', 'Paint'], ['erase', 'Erase paint'], ['restore', 'Restore photo']], mode, (k) => { o.erase = k === 'erase'; o.restore = k === 'restore'; renderPanel(); })),
 		o.restore ? h('p', { class: 'ds-hint ds-pad-x' }, 'Brush over any spot to bring back the original photo there — undoes erasing and AI changes just in that spot.') : null,

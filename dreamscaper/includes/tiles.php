@@ -5,7 +5,7 @@
  * 512 px fetched for sharp screens), cut from the same imagery as the bird's-eye view: Connecticut's
  * 3-inch state imagery inside CT, the nationwide service from Settings elsewhere (USGS NAIP by default).
  *
- *  ?ds_tile=1&z=19&x=…&y=…   one tile (JPEG) — signed-in users only; cached on disk for 60 days
+ *  ?ds_tile=1&z=19&x=…&y=…   one tile (JPEG) — cached on disk for 60 days; new downloads are rate-limited per visitor
  *  GET /aerial/info          which imagery covers a point (lat/lng, or an address to look up) and how sharp it is
  */
 if ( ! defined( 'ABSPATH' ) ) {
@@ -37,10 +37,6 @@ function dreamscaper_tile_serve( $z, $x, $y ) {
 		status_header( 404 );
 		return;
 	}
-	if ( ! is_user_logged_in() ) {
-		status_header( 403 );
-		return;
-	}
 	// centre of the tile decides which imagery to use
 	$c   = dreamscaper_tile_latlng( $z, $x + 0.5, $y + 0.5 );
 	$src = dreamscaper_aerial_source( $c[0], $c[1] );
@@ -53,7 +49,7 @@ function dreamscaper_tile_serve( $z, $x, $y ) {
 	$dir  = trailingslashit( $up['basedir'] ) . 'dreamscaper-tiles/' . $key . "/$z/$x";
 	$file = "$dir/$y.jpg";
 	if ( ! file_exists( $file ) || filemtime( $file ) < time() - 60 * DAY_IN_SECONDS ) {
-		if ( ! dreamscaper_limit( 'tile', 6000, HOUR_IN_SECONDS ) ) {
+		if ( ! dreamscaper_limit( 'tile', is_user_logged_in() ? 6000 : 1500, HOUR_IN_SECONDS ) ) {
 			status_header( 429 );
 			return;
 		}
@@ -84,7 +80,7 @@ function dreamscaper_tile_serve( $z, $x, $y ) {
 		}
 		file_put_contents( $file, wp_remote_retrieve_body( $res ) );
 	}
-	// cached by this browser only (tiles need a signed-in user, so never by shared caches)
+	// cached by the browser only, so a shared cache never serves around the per-visitor limit
 	if ( function_exists( 'header_remove' ) ) {
 		header_remove( 'Pragma' );
 		header_remove( 'Expires' );
@@ -96,7 +92,7 @@ function dreamscaper_tile_serve( $z, $x, $y ) {
 }
 
 add_action( 'rest_api_init', function () {
-	register_rest_route( 'dreamscaper/v1', '/aerial/info', array( 'methods' => 'GET', 'callback' => 'dreamscaper_rest_aerial_info', 'permission_callback' => function () { return is_user_logged_in(); } ) );
+	register_rest_route( 'dreamscaper/v1', '/aerial/info', array( 'methods' => 'GET', 'callback' => 'dreamscaper_rest_aerial_info', 'permission_callback' => '__return_true' ) );
 } );
 function dreamscaper_rest_aerial_info( WP_REST_Request $r ) {
 	$lat  = (float) $r->get_param( 'lat' );
@@ -104,7 +100,7 @@ function dreamscaper_rest_aerial_info( WP_REST_Request $r ) {
 	$addr = sanitize_text_field( (string) $r->get_param( 'address' ) );
 	// typed by hand (not picked from the suggestions): find it first
 	if ( ( ! $lat || ! $lng ) && '' !== $addr ) {
-		if ( ! dreamscaper_limit( 'geo', 300, HOUR_IN_SECONDS ) ) {
+		if ( ! dreamscaper_limit( 'geo', is_user_logged_in() ? 300 : 60, HOUR_IN_SECONDS ) ) {
 			return new WP_Error( 'dreamscaper', 'Too many address lookups. Please wait a bit.', array( 'status' => 429 ) );
 		}
 		$g = dreamscaper_geocode( $addr );

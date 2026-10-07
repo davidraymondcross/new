@@ -6,13 +6,13 @@
  * the lowest TOTAL cost (fuel + extra driving + paid crew time), each with the reason it was picked.
  * The maths is in routeopt.js; the server looks up addresses, driving distances and nearby places.
  */
-import { h, put, icon } from './util.js?v=2.7.7';
-import { api } from './api.js?v=2.7.7';
-import { modal } from './capture.js?v=2.7.7';
-import { addressField } from './address.js?v=2.7.7';
-import { sectionHead, tip } from './explain.js?v=2.7.7';
-import { streetMap } from './map.js?v=2.7.7';
-import { estimateMatrix, optimize, fuelPlan, rankStations, haversine, ROAD_FACTOR, LEVELS } from './routeopt.js?v=2.7.7';
+import { h, put, icon } from './util.js?v=2.7.8';
+import { api } from './api.js?v=2.7.8';
+import { modal } from './capture.js?v=2.7.8';
+import { addressField } from './address.js?v=2.7.8';
+import { sectionHead, tip } from './explain.js?v=2.7.8';
+import { streetMap } from './map.js?v=2.7.8';
+import { estimateMatrix, optimize, fuelPlan, rankStations, haversine, ROAD_FACTOR, LEVELS } from './routeopt.js?v=2.7.8';
 
 let RT = null;
 export function initRoutes(ctx, tools) { RT = { ctx, tools }; }

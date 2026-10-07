@@ -1,6 +1,6 @@
 /* DreamScaper – How it works (tutorial) and the step-by-step guide in the editor. */
-import { h, icon } from './util.js?v=2.7.7';
-import { modal } from './capture.js?v=2.7.7';
+import { h, icon } from './util.js?v=2.7.8';
+import { modal } from './capture.js?v=2.7.8';
 
 const T = (title, ...body) => ({ title, body });
 const P = (t) => h('p', null, t);

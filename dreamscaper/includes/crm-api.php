@@ -33,6 +33,7 @@ add_action( 'rest_api_init', function () {
 		array( '/crm/followups', 'POST', 'dreamscaper_crm_followups_save' ),
 		array( '/crm/followup/test', 'POST', 'dreamscaper_crm_followup_test' ),
 		array( '/crm/ai/scope', 'POST', 'dreamscaper_crm_ai_scope' ),
+		array( '/crm/ai/quote', 'POST', 'dreamscaper_crm_ai_quote' ),
 		array( '/crm/elevation', 'POST', 'dreamscaper_crm_elevation' ),
 		array( '/crm/schedule', 'GET', 'dreamscaper_crm_schedule' ),
 		array( '/crm/visit', 'POST', 'dreamscaper_crm_visit_save' ),
@@ -862,6 +863,139 @@ function dreamscaper_crm_followup_test( WP_REST_Request $r ) {
  * AI rewrites the customer-facing wording ONLY. Quantities and prices are fixed inputs;
  * the model must echo them exactly. Output is validated against the input numbers.
  */
+/**
+ * AI quote: turns the job description, the property's measurements, the customer's design and request
+ * into WORK ITEMS (beds, sod, patio, walls, plants, removals… with sizes). It never prices anything:
+ * the browser runs the items through the contractor's own price book, exactly like a Landscape plan.
+ * Every item is checked here (known kinds only, sizes clamped to sensible ranges).
+ */
+function dreamscaper_crm_ai_quote( WP_REST_Request $r ) {
+	$p = dreamscaper_crm_pro();
+	if ( is_wp_error( $p ) ) {
+		return $p;
+	}
+	$gate = dreamscaper_pro_gate( $p->user_id, 'ai' );
+	if ( is_wp_error( $gate ) ) {
+		return $gate;
+	}
+	$paused = dreamscaper_pro_costly_err( $p->user_id, 'ai' );
+	if ( $paused ) {
+		return $paused;
+	}
+	if ( ! dreamscaper_opt( 'fal_key' ) ) {
+		return dreamscaper_crm_err( 'AI quoting needs the fal.ai key (Settings → DreamScaper → AI).', 503 );
+	}
+	if ( ! dreamscaper_limit( 'crmai', 60, DAY_IN_SECONDS ) ) {
+		return dreamscaper_crm_err( 'That’s a lot of AI work today. Try again tomorrow.', 429 );
+	}
+	$j    = $r->get_json_params();
+	$desc = mb_substr( sanitize_textarea_field( isset( $j['description'] ) ? $j['description'] : '' ), 0, 3000 );
+	$ctx  = array();
+	foreach ( array_slice( (array) ( isset( $j['measurements'] ) ? $j['measurements'] : array() ), 0, 40 ) as $m ) {
+		$ctx['measured_areas'][] = array( 'name' => sanitize_text_field( isset( $m['name'] ) ? $m['name'] : '' ), 'type' => sanitize_key( isset( $m['kind'] ) ? $m['kind'] : '' ), 'sqft' => round( (float) ( isset( $m['sqft'] ) ? $m['sqft'] : 0 ) ), 'perimeter_ft' => round( (float) ( isset( $m['perim'] ) ? $m['perim'] : 0 ) ) );
+	}
+	foreach ( array_slice( (array) ( isset( $j['assets'] ) ? $j['assets'] : array() ), 0, 60 ) as $a ) {
+		$ctx['design_items'][] = array( 'name' => sanitize_text_field( isset( $a['name'] ) ? $a['name'] : '' ), 'count' => max( 1, (int) ( isset( $a['count'] ) ? $a['count'] : 1 ) ), 'category' => sanitize_key( isset( $a['cat'] ) ? $a['cat'] : '' ) );
+	}
+	foreach ( array( 'services', 'budget', 'lot' ) as $k ) {
+		if ( ! empty( $j[ $k ] ) ) {
+			$ctx[ $k ] = is_array( $j[ $k ] ) ? array_map( 'sanitize_text_field', array_slice( $j[ $k ], 0, 20 ) ) : sanitize_text_field( $j[ $k ] );
+		}
+	}
+	if ( '' === $desc && empty( $ctx['measured_areas'] ) && empty( $ctx['design_items'] ) ) {
+		return dreamscaper_crm_err( 'Describe the job (or measure the property / attach a design) so the AI has something to quote.' );
+	}
+	$kinds  = 'bed (sqft, perimeter_ft, new: true if turf must be removed to make it, cover: mulch|stone, depth_in, edging: steel|aluminum|plastic|stone|brick|natural|none), stone (sqft, depth_in), lawn (sqft, method: sod|seed), patio (sqft, perimeter_ft, material), walkway (length_ft, width_ft, material: pavers|gravel), wall (length_ft, height_ft), edging (length_ft, type), fence (length_ft, height_ft, type: vinyl|wood|aluminum|splitrail|chainlink, gates), grade (sqft), plant (name, cat: trees|evergreens|shrubs|perennials|grasses|annuals|vines, count), boulder (count), light (count, type: Path light|Spot light|Wall light), remove (what: lawn|bed|patio|fence|structure|tree|shrub|plant, sqft or length_ft or count)';
+	$system = 'You are an experienced estimator for a residential landscaping company in ' . dreamscaper_region() . '. You turn a job description and site measurements into a precise list of work items with quantities. You never write prices. Reply with JSON only.';
+	$prompt = "Make the list of work items for this landscaping job.\n\nRules:\n1. Use ONLY these item kinds and fields: {$kinds}. Every item also gets a short 'label' (e.g. 'Front bed').\n2. Use the measured areas for sizes whenever they match the work (a measured lawn → lawn sqft; a measured bed → bed sqft and perimeter). Never change a measured number.\n3. If a size is not measured or written in the description, estimate a typical residential size and add a line to 'assumptions' saying what you assumed.\n4. Include removals only if the description asks for them or a new bed replaces lawn.\n5. Do not invent work the customer didn't ask for. Do not write prices.\n6. Add up to 3 'questions' to confirm on site if anything important is unclear.\n7. Output schema: {\"title\": string, \"items\": [{\"kind\": string, \"label\": string, ...fields}], \"assumptions\": [string], \"questions\": [string]}\n\nJob description:\n" . ( '' !== $desc ? $desc : '(none — use the measurements and design)' ) . "\n\nSite information:\n" . wp_json_encode( $ctx );
+	$out    = dreamscaper_fal( 'fal-ai/any-llm', array( 'model' => dreamscaper_opt( 'vision_model' ), 'system_prompt' => $system, 'prompt' => $prompt, 'max_tokens' => 3000, 'temperature' => 0.2 ), 90 );
+	if ( is_wp_error( $out ) ) {
+		return $out;
+	}
+	$txt = isset( $out['output'] ) ? (string) $out['output'] : '';
+	if ( preg_match( '/\{.*\}/s', $txt, $m ) ) {
+		$txt = $m[0];
+	}
+	$res = json_decode( $txt, true );
+	if ( ! is_array( $res ) || empty( $res['items'] ) || ! is_array( $res['items'] ) ) {
+		return dreamscaper_crm_err( 'The AI answer didn’t come through. Please try again, or add more detail to the description.', 502 );
+	}
+	return array_merge( dreamscaper_ai_quote_clean( $res ), array( 'ok' => true ) );
+}
+/** Keep only known item kinds and fields, with numbers clamped to sensible residential ranges. */
+function dreamscaper_ai_quote_clean( $res ) {
+	$n     = function ( $v, $lo, $hi, $d = 0 ) {
+		return is_numeric( $v ) ? max( $lo, min( $hi, (float) $v ) ) : $d;
+	};
+	$pick  = function ( $v, $list, $d ) {
+		$v = strtolower( trim( (string) $v ) );
+		return in_array( $v, $list, true ) ? $v : $d;
+	};
+	$items = array();
+	foreach ( array_slice( $res['items'], 0, 60 ) as $it ) {
+		if ( ! is_array( $it ) || empty( $it['kind'] ) ) {
+			continue;
+		}
+		$k = sanitize_key( $it['kind'] );
+		$o = array( 'kind' => $k, 'label' => mb_substr( sanitize_text_field( isset( $it['label'] ) ? $it['label'] : '' ), 0, 60 ) );
+		$g = function ( $key ) use ( $it ) { return isset( $it[ $key ] ) ? $it[ $key ] : null; };
+		switch ( $k ) {
+			case 'bed':
+				$o += array( 'sqft' => $n( $g( 'sqft' ), 4, 20000 ), 'perimeter_ft' => $n( $g( 'perimeter_ft' ), 0, 5000 ), 'new' => ! empty( $it['new'] ), 'cover' => $pick( $g( 'cover' ), array( 'mulch', 'stone' ), 'mulch' ), 'depth_in' => $n( $g( 'depth_in' ), 1, 6, 3 ), 'edging' => $pick( $g( 'edging' ), array( 'steel', 'aluminum', 'plastic', 'stone', 'brick', 'natural', 'none' ), 'none' ) );
+				break;
+			case 'stone':
+			case 'grade':
+				$o += array( 'sqft' => $n( $g( 'sqft' ), 4, 40000 ), 'depth_in' => $n( $g( 'depth_in' ), 1, 6, 3 ) );
+				break;
+			case 'lawn':
+				$o += array( 'sqft' => $n( $g( 'sqft' ), 10, 100000 ), 'method' => $pick( $g( 'method' ), array( 'sod', 'seed' ), 'sod' ) );
+				break;
+			case 'patio':
+				$o += array( 'sqft' => $n( $g( 'sqft' ), 10, 5000 ), 'perimeter_ft' => $n( $g( 'perimeter_ft' ), 0, 2000 ), 'material' => mb_substr( sanitize_text_field( (string) $g( 'material' ) ), 0, 40 ) );
+				break;
+			case 'walkway':
+				$o += array( 'length_ft' => $n( $g( 'length_ft' ), 2, 1000 ), 'width_ft' => $n( $g( 'width_ft' ), 2, 12, 4 ), 'material' => $pick( $g( 'material' ), array( 'pavers', 'gravel' ), 'pavers' ) );
+				break;
+			case 'wall':
+				$o += array( 'length_ft' => $n( $g( 'length_ft' ), 2, 1000 ), 'height_ft' => $n( $g( 'height_ft' ), 0.5, 6, 2 ) );
+				break;
+			case 'edging':
+				$o += array( 'length_ft' => $n( $g( 'length_ft' ), 2, 5000 ), 'type' => $pick( $g( 'type' ), array( 'steel', 'aluminum', 'plastic', 'stone', 'brick', 'natural' ), 'steel' ) );
+				break;
+			case 'fence':
+				$o += array( 'length_ft' => $n( $g( 'length_ft' ), 4, 5000 ), 'height_ft' => $n( $g( 'height_ft' ), 3, 8, 6 ), 'type' => $pick( $g( 'type' ), array( 'vinyl', 'wood', 'aluminum', 'splitrail', 'chainlink' ), 'vinyl' ), 'gates' => (int) $n( $g( 'gates' ), 0, 6 ) );
+				break;
+			case 'plant':
+				$o += array( 'name' => mb_substr( sanitize_text_field( (string) $g( 'name' ) ), 0, 60 ), 'cat' => $pick( $g( 'cat' ), array( 'trees', 'evergreens', 'shrubs', 'perennials', 'grasses', 'annuals', 'vines' ), 'shrubs' ), 'count' => (int) $n( $g( 'count' ), 1, 500, 1 ) );
+				if ( '' === $o['name'] ) {
+					continue 2;
+				}
+				break;
+			case 'boulder':
+				$o += array( 'count' => (int) $n( $g( 'count' ), 1, 50, 1 ) );
+				break;
+			case 'light':
+				$o += array( 'count' => (int) $n( $g( 'count' ), 1, 100, 1 ), 'type' => $pick( $g( 'type' ), array( 'path light', 'spot light', 'wall light' ), 'path light' ) );
+				break;
+			case 'remove':
+				$o += array( 'what' => $pick( $g( 'what' ), array( 'lawn', 'bed', 'patio', 'fence', 'structure', 'tree', 'shrub', 'plant' ), 'plant' ), 'sqft' => $n( $g( 'sqft' ), 0, 40000 ), 'length_ft' => $n( $g( 'length_ft' ), 0, 5000 ), 'count' => (int) $n( $g( 'count' ), 0, 200 ) );
+				break;
+			default:
+				continue 2;
+		}
+		$items[] = $o;
+	}
+	$lines = function ( $v ) {
+		return array_values( array_filter( array_map( function ( $x ) { return mb_substr( sanitize_text_field( (string) $x ), 0, 240 ); }, array_slice( (array) $v, 0, 8 ) ) ) );
+	};
+	return array(
+		'title'       => mb_substr( sanitize_text_field( isset( $res['title'] ) ? $res['title'] : '' ), 0, 100 ),
+		'items'       => $items,
+		'assumptions' => $lines( isset( $res['assumptions'] ) ? $res['assumptions'] : array() ),
+		'questions'   => $lines( isset( $res['questions'] ) ? $res['questions'] : array() ),
+	);
+}
+
 function dreamscaper_crm_ai_scope( WP_REST_Request $r ) {
 	$p = dreamscaper_crm_pro();
 	if ( is_wp_error( $p ) ) {

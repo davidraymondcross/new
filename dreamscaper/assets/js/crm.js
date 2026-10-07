@@ -5,31 +5,31 @@
  * text, shortcodes) · Jobs & job costing · Schedule / dispatch · Invoices (Stripe Connect) ·
  * Settings (business, costs & markups, price book, terms, follow-up plan, crew, payments).
  */
-import { h, put, icon } from './util.js?v=2.7.7';
-import { session, api, refreshSession } from './api.js?v=2.7.7';
-import { modal, aerial, pickFile } from './capture.js?v=2.7.7';
-import { addressField, addressGroup } from './address.js?v=2.7.7';
-import { editInvoice as invoiceEditor, invoiceDesigner } from './invoices.js?v=2.7.7';
-import { openPlan } from './siteplan.js?v=2.7.7';
-import { segment } from './aiclient.js?v=2.7.7';
-import { ALL, matchesWords, searchScore } from './library.js?v=2.7.7';
+import { h, put, icon } from './util.js?v=2.7.8';
+import { session, api, refreshSession } from './api.js?v=2.7.8';
+import { modal, aerial, pickFile } from './capture.js?v=2.7.8';
+import { addressField, addressGroup } from './address.js?v=2.7.8';
+import { editInvoice as invoiceEditor, invoiceDesigner } from './invoices.js?v=2.7.8';
+import { openPlan } from './siteplan.js?v=2.7.8';
+import { segment } from './aiclient.js?v=2.7.8';
+import { ALL, matchesWords, searchScore } from './library.js?v=2.7.8';
 import {
 	PRICEBOOK, DEFAULT_COSTS, DEFAULT_FOLLOWUPS, DEFAULT_TERMS, SHORTCODES, KINDS,
-	mergeBook, mergeCosts, planToSections, priceEstimate, buildDocuments, scheduleFollowups, merge, missingCodes,
+	mergeBook, mergeCosts, planToSections, aiItemsToPlan, priceEstimate, buildDocuments, scheduleFollowups, merge, missingCodes,
 	money, fmtArea, fmtFtIn, measure, round2
-} from './takeoff.js?v=2.7.7';
-import { inboxPane, inboxDot } from './inbox.js?v=2.7.7';
-import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.7';
-import { monthGrid, monthRange, monthStart, dayMenu } from './calmonth.js?v=2.7.7';
-import { initCanvass, viewCanvass } from './canvass.js?v=2.7.7';
-import { initPlanWizard, viewPlans } from './planwiz.js?v=2.7.7';
-import { initMeasure, viewMeasure, measurementsPane } from './measure.js?v=2.7.7';
-import { initRoutes, viewRoutes } from './routes.js?v=2.7.7';
-import { initEquipment, viewEquipment } from './equipment.js?v=2.7.7';
-import { trustPane } from './trust.js?v=2.7.7';
-import { billingView, subBanner } from './billing.js?v=2.7.7';
-import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.7';
-import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.7';
+} from './takeoff.js?v=2.7.8';
+import { inboxPane, inboxDot } from './inbox.js?v=2.7.8';
+import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.8';
+import { monthGrid, monthRange, monthStart, dayMenu } from './calmonth.js?v=2.7.8';
+import { initCanvass, viewCanvass } from './canvass.js?v=2.7.8';
+import { initPlanWizard, viewPlans } from './planwiz.js?v=2.7.8';
+import { initMeasure, viewMeasure, measurementsPane } from './measure.js?v=2.7.8';
+import { initRoutes, viewRoutes } from './routes.js?v=2.7.8';
+import { initEquipment, viewEquipment } from './equipment.js?v=2.7.8';
+import { trustPane } from './trust.js?v=2.7.8';
+import { billingView, subBanner } from './billing.js?v=2.7.8';
+import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.8';
+import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.8';
 
 let X = null; // { ctx, body, stack, cur, me }
 const STAGES = [['lead', 'Lead'], ['prospect', 'Prospect'], ['customer', 'Customer'], ['past', 'Past customer'], ['lost', 'Lost']];
@@ -64,7 +64,9 @@ export async function openHub(view = { v: 'dash' }) {
 	const tab = (v, e, l) => h('button', { class: 'ds-hub-tab', 'data-v': v, onclick: () => go({ v }) }, h('span', null, e), h('small', null, l));
 	const inboxTab = tab('inbox', '💬', 'Inbox');
 	inboxTab.append(inboxDot());
-	const nav = h('nav', { class: 'ds-hub-nav', 'aria-label': 'Contractor Hub' }, tab('dash', '📊', 'Dashboard'), inboxTab, tab('customers', '👥', 'Customers'), tab('quotes', '🧾', 'Quotes'), tab('jobs', '🛠️', 'Jobs'), tab('schedule', '📅', 'Calendar'), tab('canvass', '🚪', 'Door-to-door'), tab('plans', '📐', 'Landscape plans'), tab('measure', '📏', 'Measure'), tab('routes', '🗺️', 'Route planner'), tab('equipment', '🔧', 'Equipment'), tab('invoices', '💵', 'Invoices'), tab('settings', '⚙️', 'Settings'), tab('plan', '💳', 'Plan'), tab('help', '❓', 'Help'));
+	// phones: on any page but the dashboard the menu folds into one "☰ Menu" button (tap to open the grid)
+	const fold = h('button', { type: 'button', class: 'ds-hub-fold', 'aria-expanded': 'false', onclick: () => { const open = !nav.classList.contains('open'); nav.classList.toggle('open', open); fold.setAttribute('aria-expanded', String(open)); } }, h('span', null, '☰'), h('b', null, 'Menu'), h('small'));
+	const nav = h('nav', { class: 'ds-hub-nav', 'aria-label': 'Contractor Hub' }, fold, tab('dash', '📊', 'Dashboard'), inboxTab, tab('customers', '👥', 'Customers'), tab('quotes', '🧾', 'Quotes'), tab('jobs', '🛠️', 'Jobs'), tab('schedule', '📅', 'Calendar'), tab('canvass', '🚪', 'Door-to-door'), tab('plans', '📐', 'Landscape plans'), tab('measure', '📏', 'Measure'), tab('routes', '🗺️', 'Route planner'), tab('equipment', '🔧', 'Equipment'), tab('invoices', '💵', 'Invoices'), tab('settings', '⚙️', 'Settings'), tab('plan', '💳', 'Plan'), tab('help', '❓', 'Help'));
 	const bar = h('div', { class: 'ds-cm-bar' },
 		h('button', { class: 'ds-btn ds-ghost ds-sm ds-cm-back', onclick: back, 'aria-label': 'Back' }, '←', h('span', null, ' Back')),
 		h('h1', null, '🧰 Contractor Hub'),
@@ -101,7 +103,11 @@ function render(view) {
 	b.innerHTML = '';
 	const sc = b.closest('.ds-home');
 	if (sc) sc.scrollTop = 0;
-	for (const t of X.nav.children) t.classList.toggle('on', t.dataset.v === view.v || (view.v === 'customer' && t.dataset.v === 'customers') || (view.v === 'quote' && t.dataset.v === 'quotes'));
+	for (const t of X.nav.querySelectorAll('.ds-hub-tab')) t.classList.toggle('on', t.dataset.v === view.v || (view.v === 'customer' && t.dataset.v === 'customers') || (view.v === 'quote' && t.dataset.v === 'quotes'));
+	X.nav.classList.toggle('folded', view.v !== 'dash');
+	X.nav.classList.remove('open');
+	const cur = X.nav.querySelector('.ds-hub-tab.on');
+	X.nav.querySelector('.ds-hub-fold small').textContent = cur ? '· ' + cur.querySelector('small').textContent : '';
 	X.nav.hidden = view.v === 'apply';
 	drawBanner(view);
 	({ dash: viewDash, inbox: viewInbox, plan: viewPlan, help: viewHelp, customers: viewCustomers, customer: viewCustomer, quotes: viewQuotes, quote: viewQuote, jobs: viewJobs, schedule: viewSchedule, canvass: (bb, vv) => viewCanvass(bb, vv, go), plans: (bb, vv) => viewPlans(bb, vv, go), measure: (bb, vv) => viewMeasure(bb, vv, go), routes: (bb, vv) => viewRoutes(bb, vv, go), equipment: (bb, vv) => viewEquipment(bb, vv), invoices: viewInvoices, settings: viewSettings, apply: viewApply }[view.v] || viewDash)(b, view);
@@ -644,9 +650,11 @@ class QuoteBuilder {
 		return card('3. Estimate → two quotes',
 			this.locked ? null : h('div', { class: 'ds-row ds-wrap' },
 				h('button', { class: 'ds-btn ds-sm', onclick: () => this.addSection() }, est.sections.length ? '+ Add another section' : '✍️ Create Quote Manually'),
+				h('button', { class: 'ds-btn ds-sm ds-btn-ai', onclick: () => this.aiQuote() }, '🤖 Quote it with AI'),
 				hasPlan ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => this.buildFromPlan() }, '📐 Use the Landscape plan’s quantities') : null,
 				h('button', { class: 'ds-btn ds-ghost ds-sm', disabled: !est.sections.length, onclick: (e) => this.aiWording(e.currentTarget) }, '✨ Polish wording with AI')),
-			!est.sections.length ? h('p', { class: 'ds-muted' }, 'Tap “Create Quote Manually” to type the work, materials and prices yourself.' + (hasPlan ? ' Or use the measured quantities from this property’s Landscape plan.' : '')) : null,
+			!est.sections.length ? h('p', { class: 'ds-muted' }, 'Tap “Create Quote Manually” to type the work, materials and prices yourself, or “Quote it with AI” to describe the job and let AI list the work — priced with your own price book.' + (hasPlan ? ' Or use the measured quantities from this property’s Landscape plan.' : '')) : null,
+			this.aiNotes ? h('div', { class: 'ds-explain ds-aiq-notes' }, h('p', null, h('b', null, '🤖 Made with AI — check before sending. ')), this.aiNotes.assumptions.length ? h('div', null, h('small', null, 'It assumed:'), h('ul', null, ...this.aiNotes.assumptions.map((x) => h('li', null, x)))) : null, this.aiNotes.questions.length ? h('div', null, h('small', null, 'Confirm on site:'), h('ul', null, ...this.aiNotes.questions.map((x) => h('li', null, x)))) : null) : null,
 			est.sections.length ? tabs : null, est.sections.length ? body : null, est.sections.length ? totals : null,
 			t.minBump ? h('p', { class: 'ds-hint' }, `Your minimum job charge (${money(costs().minJob)}) added ${money(t.minBump)}.`) : null);
 	}
@@ -662,6 +670,43 @@ class QuoteBuilder {
 		const needs = secs.flatMap((s) => s.comps.filter((c) => c.needsPrice).map((c) => c.name));
 		toast(needs.length ? `Built ${secs.length} sections. Add your price for: ${needs.slice(0, 3).join(', ')}${needs.length > 3 ? '…' : ''}` : `Built ${secs.length} sections from the plan. Check the job cost, then the customer proposal.`, 6000);
 		this.draw();
+	}
+	/** AI quote: describe the job; AI lists the work with sizes (using the property's measurements and the
+	 * customer's design), and the contractor's own price book prices it. Nothing is sent to the customer. */
+	aiQuote() {
+		const q = this.q, d = q.design || {}, br = d.brief || {};
+		const ms = ((this.prop && this.prop.data && this.prop.data.measurements) || [])[0];
+		const assets = (d.assets || []).map((a) => ({ name: a.name, count: a.count, cat: a.cat || '' }));
+		const desc = h('textarea', { rows: 5, placeholder: 'e.g. Remove the old shrubs along the front of the house, make a 3 ft deep bed with steel edging, plant 6 boxwoods and 3 hydrangeas, mulch everything. New 12×16 paver patio off the back door.' }, br.description || d.message || '');
+		const useM = h('input', { type: 'checkbox', checked: !!ms }), useD = h('input', { type: 'checkbox', checked: assets.length > 0 });
+		const go = h('button', { class: 'ds-btn ds-wide' }, '🤖 Create the quote with AI');
+		const msg = h('p', { class: 'ds-hint', 'aria-live': 'polite' });
+		const close = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => m.remove() }, icon('close'));
+		const m = modal(X.ctx.root, '🤖 Quote it with AI', [
+			h('ol', { class: 'ds-pw-todo' }, h('li', null, 'Describe the job in your own words — what to remove, build and plant.'), h('li', null, 'Tick what the AI should use for sizes.'), h('li', null, 'Tap “Create the quote”. You check and adjust everything before sending.')),
+			field('What’s the job?', desc),
+			ms ? h('label', { class: 'ds-check' }, useM, ` Use the measurements: ${ms.title || 'measured areas'} (${fmtArea(ms.total)})`) : h('p', { class: 'ds-hint' }, '📏 Tip: measure the property first (Measure tab) and the AI uses the exact square footage.'),
+			assets.length ? h('label', { class: 'ds-check' }, useD, ` Use the customer’s design (${assets.reduce((t, a) => t + (a.count || 1), 0)} plants & features)`) : null,
+			h('p', { class: 'ds-hint' }, 'Prices come from your price book (Settings → Price book and Costs & markups) — the AI only lists the work and sizes.'),
+			msg, go], close, 'ds-modal-wide');
+		go.onclick = () => run(go, async () => {
+			if (desc.value.trim().length < 10 && !(useM.checked && ms) && !(useD.checked && assets.length)) { msg.textContent = 'Describe the job in a sentence or two first.'; return; }
+			if (q.estimate.sections.length && !confirm('Replace the sections already in this estimate with the AI quote?')) return;
+			msg.textContent = 'Working out the job… (about 10–30 seconds)';
+			const r = await api('crm/ai/quote', { body: { description: desc.value, measurements: useM.checked && ms ? ms.sections : [], assets: useD.checked ? assets : [], services: br.services || [], budget: br.budget || '' } });
+			const secs = planToSections(aiItemsToPlan(r.items), book());
+			if (!secs.length) { msg.textContent = 'The AI couldn’t turn that into work items. Add more detail (sizes, what to plant, what to remove) and try again.'; return; }
+			q.estimate = { sections: secs, discount: q.estimate.discount || 0 };
+			if (r.title && (!q.title || q.title === 'Landscape project')) q.title = r.title;
+			q._dirty = true;
+			this.aiNotes = { assumptions: r.assumptions || [], questions: r.questions || [] };
+			this.tab = 'cost';
+			m.remove();
+			this.draw();
+			const needs = secs.flatMap((s) => s.comps.filter((c) => c.needsPrice).map((c) => c.name));
+			toast(`AI built ${secs.length} sections, priced with your price book.${needs.length ? ' Add your price for: ' + needs.slice(0, 3).join(', ') : ' Check quantities, then the proposal.'}`, 7000);
+		}, 'Working…');
+		setTimeout(() => desc.focus(), 50);
 	}
 	addSection() {
 		this.q.estimate.sections.push({ id: 'sec_m' + Date.now().toString(36), title: 'New section', comps: [{ kind: 'material', name: 'Item', qty: 1, unit: 'ea', unitCost: 0 }, { kind: 'labor', name: 'Labor', qty: 1, unit: 'hr', unitCost: 0, rate: true }], scope: ['Describe exactly what you will do'] });

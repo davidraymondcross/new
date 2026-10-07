@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DreamScaper
  * Description: A fun landscape design studio for your visitors. Customers photograph their yard (or use Connecticut aerial imagery), add real plants and garden features, paint mulch and stone, magic-erase what they don't want, watch plants grow year by year, and save named designs. Customer accounts (email, Google, Facebook) keep designs online across devices and unlock Dreamscape AI (FLUX.2 [klein]) plus AI Erase, Smart Select, Make it real, Season & light and plant/weed identification. Share to social media and print. Contractor CRM: Design → Quote estimating, e-signature, follow-ups, scheduling, job costing and invoices. Shortcodes: [dreamscaper], [dreamscaper_quote]
- * Version: 2.7.7
+ * Version: 2.7.8
  * Author: David's Landscaping
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DREAMSCAPER_VERSION', '2.7.7' );
+define( 'DREAMSCAPER_VERSION', '2.7.8' );
 define( 'DREAMSCAPER_URL', plugin_dir_url( __FILE__ ) );
 define( 'DREAMSCAPER_OPT', 'dreamscaper_settings' );
 
@@ -506,23 +506,115 @@ function dreamscaper_material_dir() {
 	return array( trailingslashit( $u['basedir'] ) . 'dreamscaper-materials/', trailingslashit( $u['baseurl'] ) . 'dreamscaper-materials/' );
 }
 
+/** Unpack a .zip, .tar, .tar.gz or .tgz pack into $dir. */
+function dreamscaper_unpack( $file, $dir, $name = '' ) {
+	$name = strtolower( $name ? $name : $file );
+	if ( preg_match( '/\.(tar|tar\.gz|tgz)$/', $name ) ) {
+		if ( ! class_exists( 'PharData' ) ) {
+			return new WP_Error( 'dreamscaper', 'This server can’t open .tar files (PHP Phar is off). Zip the files instead.' );
+		}
+		try {
+			$ext = preg_match( '/\.(tar\.gz|tgz)$/', $name ) ? '.tar.gz' : '.tar';
+			$cp  = $dir . '/pack' . $ext;
+			copy( $file, $cp );
+			$ph = new PharData( $cp );
+			$ph->extractTo( $dir . '/x', null, true );
+			unlink( $cp );
+			return true;
+		} catch ( Exception $e ) {
+			return new WP_Error( 'dreamscaper', $e->getMessage() );
+		}
+	}
+	return unzip_file( $file, $dir );
+}
+
+/**
+ * Texture images that came without a materials.json (e.g. a folder of ambientCG "Ground012.jpg" files):
+ * each becomes a ground material, named from an ambientCG-style meta.json beside it when there is one
+ * (its tags also choose the group, and its size in mm sets the real-world scale), otherwise from the file name.
+ */
+function dreamscaper_pack_loose_materials( $files, $mdir ) {
+	$meta = array();
+	foreach ( $files as $f ) {
+		$mj = dirname( $f ) . '/meta.json';
+		if ( ! isset( $meta[ $mj ] ) ) {
+			$meta[ $mj ] = file_exists( $mj ) ? (array) json_decode( (string) file_get_contents( $mj ), true ) : array();
+		}
+	}
+	$current = file_exists( $mdir . 'materials.json' ) ? json_decode( file_get_contents( $mdir . 'materials.json' ), true ) : array();
+	if ( ! is_array( $current ) ) {
+		$current = array();
+	}
+	$n = 0;
+	foreach ( array_slice( $files, 0, 400 ) as $f ) {
+		$base = pathinfo( $f, PATHINFO_FILENAME );
+		$ext  = strtolower( pathinfo( $f, PATHINFO_EXTENSION ) );
+		$m    = isset( $meta[ dirname( $f ) . '/meta.json' ][ $base ] ) ? (array) $meta[ dirname( $f ) . '/meta.json' ][ $base ] : array();
+		$id   = 'tx-' . trim( preg_replace( '/[^a-z0-9]+/', '-', strtolower( $base ) ), '-' );
+		$tags = isset( $m['tags'] ) ? implode( ' ', array_map( 'sanitize_text_field', (array) $m['tags'] ) ) : strtolower( $base );
+		$size = @getimagesize( $f );
+		if ( ! $size || $size[0] < 64 || filesize( $f ) > 3 * MB_IN_BYTES ) {
+			continue;
+		}
+		if ( ! @copy( $f, $mdir . $id . '.' . $ext ) ) {
+			continue;
+		}
+		$t     = ' ' . $tags . ' ';
+		$group = preg_match( '/ (mulch|bark|leaves|leaf|needles|wood chips) /', $t ) ? 'Mulch'
+			: ( preg_match( '/ (paving|pavers|tiles|bricks) /', $t ) ? 'Pavers'
+			: ( preg_match( '/ (grass|moss|lawn) /', $t ) ? 'Lawn & Groundcover'
+			: ( preg_match( '/ (gravel|pebbles|rubble|rocky|stones) /', $t ) ? 'Stone & Gravel'
+			: ( preg_match( '/ (concrete|asphalt) /', $t ) ? 'Decking & Surfaces' : 'Soil & Sand' ) ) ) );
+		$current[ $id ] = array(
+			'name'   => isset( $m['name'] ) ? sanitize_text_field( $m['name'] ) : ucwords( trim( preg_replace( '/([a-z])(\d)/i', '$1 $2', str_replace( array( '-', '_' ), ' ', $base ) ) ) ),
+			'group'  => $group,
+			'ft'     => ! empty( $m['dimensions'][0] ) ? round( $m['dimensions'][0] / 304.8, 1 ) : 6.5,
+			'avg'    => dreamscaper_avg_color( $f ),
+			'src'    => $id . '.' . $ext,
+			'credit' => isset( $m['name'] ) ? 'ambientCG ' . sanitize_text_field( $m['name'] ) . ' (CC0)' : '',
+			'tags'   => mb_substr( $tags, 0, 300 ),
+		);
+		$n++;
+	}
+	if ( $n ) {
+		file_put_contents( $mdir . 'materials.json', wp_json_encode( (object) $current ) );
+		update_option( 'dreamscaper_materials_ver', time() );
+	}
+	return $n;
+}
+/** Average color of an image as [r, g, b] (shown while the texture loads). */
+function dreamscaper_avg_color( $f ) {
+	$im = function_exists( 'imagecreatefromstring' ) ? @imagecreatefromstring( (string) file_get_contents( $f ) ) : false;
+	if ( ! $im ) {
+		return array( 120, 110, 95 );
+	}
+	$px = imagecreatetruecolor( 1, 1 );
+	imagecopyresampled( $px, $im, 0, 0, 0, 0, 1, 1, imagesx( $im ), imagesy( $im ) );
+	$c = imagecolorat( $px, 0, 0 );
+	imagedestroy( $im );
+	imagedestroy( $px );
+	return array( ( $c >> 16 ) & 255, ( $c >> 8 ) & 255, $c & 255 );
+}
+
 /** Install a library-pack zip (photos/ and/or materials/). Returns a status message. */
-function dreamscaper_install_pack( $zip ) {
+function dreamscaper_install_pack( $zip, $name = '' ) {
 	require_once ABSPATH . 'wp-admin/includes/file.php';
 	WP_Filesystem();
 	$tmp = trailingslashit( get_temp_dir() ) . 'dreamscaper-pack-' . wp_generate_password( 8, false );
 	wp_mkdir_p( $tmp );
-	$res = unzip_file( $zip, $tmp );
+	$res = dreamscaper_unpack( $zip, $tmp, $name );
 	if ( is_wp_error( $res ) ) {
 		$GLOBALS['wp_filesystem']->delete( $tmp, true );
-		return 'Could not open that zip: ' . $res->get_error_message();
+		return 'Could not open that file: ' . $res->get_error_message();
 	}
 	list( $pdir ) = dreamscaper_photo_dir();
 	list( $mdir ) = dreamscaper_material_dir();
 	wp_mkdir_p( $pdir );
 	wp_mkdir_p( $mdir );
-	$np = 0; $nm = 0;
-	$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $tmp, FilesystemIterator::SKIP_DOTS ) );
+	$np    = 0;
+	$nm    = 0;
+	$loose = array();
+	$it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $tmp, FilesystemIterator::SKIP_DOTS ) );
 	foreach ( $it as $f ) {
 		$path = str_replace( '\\', '/', $f->getPathname() );
 		$name = strtolower( basename( $path ) );
@@ -545,7 +637,12 @@ function dreamscaper_install_pack( $zip ) {
 			}
 		} elseif ( preg_match( '#/credits\.json$#', $path ) ) {
 			@copy( $path, $pdir . 'credits-' . substr( md5( $path ), 0, 6 ) . '.json' );
+		} elseif ( ! preg_match( '#/(photos|materials)/#', $path ) && preg_match( '/\.(webp|png|jpe?g)$/', $name ) && @getimagesize( $path ) ) {
+			$loose[] = $path; // a plain folder of texture images (e.g. straight from ambientCG): made into materials below
 		}
+	}
+	if ( $loose ) {
+		$nm += dreamscaper_pack_loose_materials( $loose, $mdir );
 	}
 	$GLOBALS['wp_filesystem']->delete( $tmp, true );
 	$total = dreamscaper_build_manifest();
@@ -559,7 +656,7 @@ add_action( 'admin_post_dreamscaper_pack', function () {
 	check_admin_referer( 'dreamscaper_pack' );
 	$msg = 'No pack received.';
 	if ( ! empty( $_FILES['ds_pack']['tmp_name'] ) && is_uploaded_file( $_FILES['ds_pack']['tmp_name'] ) ) {
-		$msg = dreamscaper_install_pack( $_FILES['ds_pack']['tmp_name'] );
+		$msg = dreamscaper_install_pack( $_FILES['ds_pack']['tmp_name'], sanitize_file_name( wp_unslash( $_FILES['ds_pack']['name'] ) ) );
 	}
 	set_transient( 'dreamscaper_photos_msg', $msg, 60 );
 	wp_safe_redirect( admin_url( 'options-general.php?page=dreamscaper' ) );
@@ -625,11 +722,18 @@ function dreamscaper_photos_admin() {
 	?>
 	<hr>
 	<h2>Library packs</h2>
-	<p>Real-photo library packs (plant and feature cut-outs, photo-scanned ground materials) are installed here, one zip at a time. They load only when a customer uses that item, so your pages stay fast.</p>
+	<p>Real-photo library packs (plant and feature cut-outs, photo-scanned ground materials) are installed here, one file at a time (.zip or .tar). They load only when a customer uses that item, so your pages stay fast.</p>
+	<?php
+	list( $mdir ) = dreamscaper_material_dir();
+	$mcount       = file_exists( $mdir . 'materials.json' ) ? count( (array) json_decode( (string) file_get_contents( $mdir . 'materials.json' ), true ) ) : 0;
+	$pman         = dreamscaper_photo_dir();
+	$pcount       = file_exists( $pman[0] . 'manifest.json' ) ? count( (array) json_decode( (string) file_get_contents( $pman[0] . 'manifest.json' ), true ) ) : 0;
+	?>
+	<p><strong>Installed now:</strong> <?php echo esc_html( sprintf( '%d ground materials (textures) · %d library plants & features with real photos', $mcount, $pcount ) ); ?>. New ones show up in the designer’s Paint panel and library after a page refresh — if you use a page-cache plugin, clear its cache once after installing.</p>
 	<form method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<input type="hidden" name="action" value="dreamscaper_pack">
 		<?php wp_nonce_field( 'dreamscaper_pack' ); ?>
-		<p><input type="file" name="ds_pack" accept=".zip,application/zip"> <?php submit_button( 'Install pack', 'primary', 'submit', false ); ?></p>
+		<p><input type="file" name="ds_pack" accept=".zip,.tar,.tgz,.gz,application/zip,application/x-tar"> <?php submit_button( 'Install pack', 'primary', 'submit', false ); ?></p>
 		<p class="description">If WordPress says the file is too large, ask your host to raise the upload limit to 64 MB, or install packs with an FTP client into <code>wp-content/uploads/dreamscaper-photos</code>.</p>
 	</form>
 	<h2>Library photos</h2>

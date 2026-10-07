@@ -6,10 +6,10 @@
  * Contractors: the reminder-schedule editor (how often and how customers are reminded) and the
  * calendar-sync link for their own schedule.
  */
-import { h, put, icon } from './util.js?v=2.7.7';
-import { api } from './api.js?v=2.7.7';
-import { modal } from './capture.js?v=2.7.7';
-import { sectionHead, tip, lockNote, has, loadCaps, planPrompt, usageBar } from './explain.js?v=2.7.7';
+import { h, put, icon } from './util.js?v=2.7.8';
+import { api } from './api.js?v=2.7.8';
+import { modal } from './capture.js?v=2.7.8';
+import { sectionHead, tip, lockNote, has, loadCaps, planPrompt, usageBar } from './explain.js?v=2.7.8';
 
 let K = null;
 export function initCalendar(ctx) { K = { ctx }; }

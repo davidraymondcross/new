@@ -6,8 +6,8 @@
  * the day's schedule. Tapping a chip opens that appointment. Keyboard: arrow keys move between
  * days, Enter opens the day menu.
  */
-import { h, icon } from './util.js?v=2.7.7';
-import { modal } from './capture.js?v=2.7.7';
+import { h, icon } from './util.js?v=2.7.8';
+import { modal } from './capture.js?v=2.7.8';
 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const ymd = (t) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };

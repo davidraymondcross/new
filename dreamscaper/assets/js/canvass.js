@@ -6,12 +6,12 @@
  * can see at a glance who to follow up with. "Do not come back" and "No soliciting" houses show a
  * red warning if you tap them again. "Wants a quote" with a name and phone becomes a CRM lead.
  */
-import { h, put, icon } from './util.js?v=2.7.7';
-import { addressField } from './address.js?v=2.7.7';
-import { api, session } from './api.js?v=2.7.7';
-import { modal } from './capture.js?v=2.7.7';
-import { streetMap } from './map.js?v=2.7.7';
-import { sectionHead, tip } from './explain.js?v=2.7.7';
+import { h, put, icon } from './util.js?v=2.7.8';
+import { addressField } from './address.js?v=2.7.8';
+import { api, session } from './api.js?v=2.7.8';
+import { modal } from './capture.js?v=2.7.8';
+import { streetMap, floatGuide } from './map.js?v=2.7.8';
+import { sectionHead } from './explain.js?v=2.7.8';
 
 let C = null;
 export function initCanvass(ctx) { C = { ctx }; }
@@ -32,7 +32,6 @@ export async function viewCanvass(b, view, go) {
 	const legend = h('div', { class: 'ds-cv-legend' });
 	const base = (C.ctx.cfg && C.ctx.cfg.api) || '/wp-json/dreamscaper/v1/';
 	put(b, sectionHead('canvass'),
-		tip('canvass', 'Tap a house on the map, tap what happened at the door, then Save. Red pins mean “don’t knock” — you’ll be warned if you tap one.'),
 		h('div', { class: 'ds-row ds-wrap ds-cv-bar' },
 			h('button', { class: 'ds-btn ds-sm', onclick: (e) => locate(e.currentTarget) }, '📍 Where am I'),
 			h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => toggleList() }, '📋 List'),
@@ -44,7 +43,9 @@ export async function viewCanvass(b, view, go) {
 	const st = Object.fromEntries(data.statuses.map((s) => [s.key, s]));
 	const start = data.center || (data.items[0] ? [data.items[0].lat, data.items[0].lng] : null);
 	map = streetMap(mapBox, { center: start || [39.5, -98.35], zoom: start ? 17 : 4, tiles: data.tiles, onTap: (lat, lng) => tapAt(lat, lng), onPin: (p) => openHouse(p.item), onMove: () => {} });
-	if (!start) toast('Tap “Where am I” or zoom into your neighborhood to start.', 5000);
+	const guide = floatGuide('Door-to-door', ['Tap a house on the map.', 'Tap what happened at the door, then Save.', 'Red pins mean “don’t knock” — you’re warned if you tap one.'].concat(start ? [] : ['Start with “📍 Where am I”, or zoom into your neighborhood.']));
+	mapBox.append(guide);
+	if (start && data.items.length > 3) guide.classList.add('min');
 	const pinsFor = (items) => items.filter((i) => !filter.size || filter.has(i.status)).map((i) => ({ lat: i.lat, lng: i.lng, color: (st[i.status] || {}).color, icon: (st[i.status] || {}).icon, ring: i.follow_up && i.follow_up <= ymd(Date.now() + 864e5), label: `${i.address || 'House'} — ${(st[i.status] || {}).label || i.status}`, item: i }));
 	const draw = () => {
 		map.setPins(pinsFor(data.items));

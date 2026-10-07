@@ -6,8 +6,8 @@
  * time, the contractor reads and accepts the rules (confidential, factual only, disputes, Terms of
  * Service). Homeowners never see this; the server refuses it to anyone but approved contractors.
  */
-import { h, put } from './util.js?v=2.7.7';
-import { api, session } from './api.js?v=2.7.7';
+import { h, put } from './util.js?v=2.7.8';
+import { api, session } from './api.js?v=2.7.8';
 
 const RULES = [
 	'Only record what actually happened, tied to your own invoice, appointment or signed quote. No opinions, no names, no comments about the person.',

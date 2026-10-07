@@ -2,7 +2,7 @@
  * the photo with true ground-plane perspective. Materials are generated lazily the
  * first time they're shown or used.
  */
-import { rng, canvas, hsl } from './util.js?v=2.7.7';
+import { rng, canvas, hsl } from './util.js?v=2.7.8';
 
 const S = 256; // tile size in texels
 
@@ -172,7 +172,8 @@ export async function loadMaterialPack(extraUrl) {
 	const urls = [new URL('../materials/materials.json', import.meta.url).href];
 	if (extraUrl) urls.push(extraUrl);
 	let n = 0;
-	for (const url of urls) {
+	for (const u of urls) {
+		const url = new URL(u, location.href).href; // the site may give a relative address
 		try {
 			const r = await fetch(url, { cache: 'no-cache' });
 			if (!r.ok) continue;

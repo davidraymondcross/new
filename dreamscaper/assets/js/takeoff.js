@@ -627,3 +627,46 @@ export const DEFAULT_TERMS = [
 	'Changes to the scope after signing are made by written change order.',
 	'Pricing is valid until the date shown.'
 ].join('\n');
+
+/**
+ * AI quote work items → plan shapes, so they are priced by the same rules as a Landscape plan
+ * (the contractor's price book; the AI never sets a price). Areas become rectangles with the
+ * given area (and perimeter, when known); lengths become straight lines; counts become points.
+ */
+export function aiItemsToPlan(items) {
+	const shapes = [];
+	let n = 0;
+	const rect = (sqft, perim) => {
+		const A = Math.max(1, sqft), half = perim > 0 ? perim / 2 : 0, disc = half * half - 4 * A;
+		const a = half && disc >= 0 ? (half + Math.sqrt(disc)) / 2 : Math.sqrt(A), b = A / a;
+		return [[0, 0], [a, 0], [a, b], [0, b]];
+	};
+	const line = (L) => [[0, 0], [Math.max(1, L), 0]];
+	const add = (kind, pts, closed, props, extra) => shapes.push({ id: 'ai' + ++n, kind, pts, closed, props: { label: '', ...props }, ...(extra || {}) });
+	for (const it of items || []) {
+		const label = it.label || '';
+		switch (it.kind) {
+		case 'bed': add('bed', rect(it.sqft, it.perimeter_ft), true, { label, isNew: !!it.new, cover: it.cover || 'mulch', depth: it.depth_in || 3, edging: it.edging && it.edging !== 'none' ? it.edging : 'none' }); break;
+		case 'stone': add('stone', rect(it.sqft, 0), true, { label, depth: it.depth_in || 3 }); break;
+		case 'grade': add('grade', rect(it.sqft, 0), true, { label }); break;
+		case 'lawn': add('lawn', rect(it.sqft, 0), true, { label, method: it.method || 'sod' }); break;
+		case 'patio': add('patio', rect(it.sqft, it.perimeter_ft), true, { label, material: it.material || '' }); break;
+		case 'walkway': add('walkway', line(it.length_ft), false, { label, width: it.width_ft || 4, material: it.material === 'gravel' ? 'gravel' : '' }); break;
+		case 'wall': add('wall', line(it.length_ft), false, { label, height: it.height_ft || 2 }); break;
+		case 'edging': add('edging', line(it.length_ft), false, { label, type: it.type || 'steel' }); break;
+		case 'fence': add('fence', line(it.length_ft), false, { label, type: it.type || 'vinyl', height: it.height_ft || 6, gates: it.gates || 0 }); break;
+		case 'plant': add('plant', [[0, 0]], false, { name: it.name, cat: it.cat || 'shrubs', count: it.count || 1 }); break;
+		case 'boulder': add('boulder', [[0, 0]], false, { label, count: it.count || 1 }); break;
+		case 'light': add('light', [[0, 0]], false, { type: (it.type || 'path light').replace(/^./, (c) => c.toUpperCase()), count: it.count || 1 }); break;
+		case 'remove': {
+			const w = it.what;
+			if (w === 'tree' || w === 'shrub' || w === 'plant') add('plant', [[0, 0]], false, { name: w === 'tree' ? 'tree' : w === 'shrub' ? 'shrub' : 'plant', cat: w === 'tree' ? 'trees' : w === 'shrub' ? 'shrubs' : 'perennials', count: Math.max(1, it.count || 1) }, { remove: true });
+			else if (w === 'fence') add('fence', line(it.length_ft || 10), false, {}, { remove: true });
+			else add(w === 'structure' ? 'structure' : w, rect(it.sqft || 100, 0), true, {}, { remove: true });
+			break;
+		}
+		default: break;
+		}
+	}
+	return { shapes };
+}

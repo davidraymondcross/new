@@ -1,8 +1,9 @@
 /* DreamScaper – getting a picture of the yard: guided camera, upload, nationwide
  * aerial imagery, and a Google 3D explorer for scouting & saving viewing angles.
  */
-import { h, icon, canvas, canvasToBlob, clamp } from './util.js?v=2.7.7';
-import { addressField } from './address.js?v=2.7.7';
+import { h, icon, canvas, canvasToBlob, clamp } from './util.js?v=2.7.8';
+import { addressField } from './address.js?v=2.7.8';
+import { streetMap, captureArea, floatGuide } from './map.js?v=2.7.8';
 
 const MAX_SIDE = 1600;
 
@@ -91,59 +92,52 @@ export function camera(root, hint) {
 
 export function aerial(root, cfg, toast) {
 	return new Promise((resolve) => {
-		const st = { lat: 0, lng: 0, span: 70, img: null };
-		const addr = h('input', { type: 'text', placeholder: 'Street address, town, state', autocomplete: 'street-address' });
+		const addr = h('input', { type: 'text', placeholder: 'Street address, town, state', autocomplete: 'street-address', 'aria-label': 'Address' });
 		const go = h('button', { class: 'ds-btn' }, 'Find');
-		const img = h('img', { alt: 'Aerial view of the property' });
-		const status = h('p', { class: 'ds-muted' }, 'Any US address · Connecticut has 3-inch state imagery; elsewhere USGS imagery (about 2 ft per pixel)');
-		const pad = h('div', { class: 'ds-pad' },
-			...[['n', '▲', 'North'], ['w', '◀', 'West'], ['e', '▶', 'East'], ['s', '▼', 'South'], ['in', '＋', 'Zoom in'], ['out', '－', 'Zoom out']].map(([m, t, l]) => h('button', { 'aria-label': l, onclick: () => move(m) }, t)));
-		const use = h('button', { class: 'ds-btn ds-wide', disabled: true }, 'Use this view');
-		const view = h('div', { class: 'ds-aerial-view' }, img, h('span', { class: 'ds-cross' }));
-		const close = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => { m.remove(); resolve(null); } }, icon('close'));
-		const field = addressField(addr, { api: cfg.api, onPick: (it) => { if (it.lat) load({ lat: it.lat, lng: it.lng }); else load({ address: it.label }); } });
-		const m = modal(root, 'Bird\'s-eye view', [h('div', { class: 'ds-row' }, field, go), status, view, pad, use], close);
-		view.hidden = true; pad.hidden = true;
-		const load = async (body) => {
-			status.textContent = 'Loading aerial view…';
+		const status = h('p', { class: 'ds-muted ds-aer-status' }, 'Any US address · Connecticut has 3-inch state imagery; elsewhere USGS imagery (about 2 ft per pixel).');
+		const mapBox = h('div', { class: 'ds-ms-map' });
+		const use = h('button', { class: 'ds-btn', disabled: true }, '✓ Use this view');
+		const guide = floatGuide('Frame your yard', ['Drag the map so your yard fills the screen.', 'Zoom with pinch, the mouse wheel or ＋/－.', 'Tap “✓ Use this view”.']);
+		const bar = h('div', { class: 'ds-ms-bar' }, h('p', { class: 'ds-ms-live' }, 'What you see is what you’ll design on.'), h('div', { class: 'ds-ms-btns' }, use));
+		const wrap = h('div', { class: 'ds-ms-mapwrap ds-aer-map', hidden: true }, mapBox, guide, bar);
+		let map = null, info = null;
+		const done = (v) => { if (map) map.destroy(); m.remove(); resolve(v); };
+		const close = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => done(null) }, icon('close'));
+		const field = addressField(addr, { api: cfg.api, onPick: (it) => (it.lat ? show({ lat: it.lat, lng: it.lng }) : show({ address: it.label })) });
+		const m = modal(root, 'Bird\'s-eye view', [h('div', { class: 'ds-row' }, field, go), status, wrap], close, 'ds-modal-wide ds-modal-aer');
+		const show = async (q) => {
+			status.textContent = 'Finding it…';
 			go.disabled = true;
 			try {
-				const r = await fetch(cfg.api + 'aerial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+				const r = await fetch(cfg.api + 'aerial/info?' + new URLSearchParams(q));
 				const j = await r.json();
-				if (!r.ok) throw new Error(j.message || 'Could not load imagery.');
-				Object.assign(st, { lat: j.lat, lng: j.lng, span: j.span, source: j.source || '' });
-				img.src = j.image;
-				await img.decode();
-				view.hidden = false; pad.hidden = false; use.disabled = false;
-				status.textContent = 'Center your yard under the crosshair, then tap “Use this view”.' + (st.source ? ' · ' + st.source : '');
-			} catch (e) {
-				status.textContent = e.message;
-			}
+				if (!r.ok) throw new Error(j.message || 'Could not find that address.');
+				if (!j.ok) throw new Error('There are no aerial photos for this address. Take or upload a photo instead.');
+				info = j;
+				wrap.hidden = false;
+				if (map) map.setView([j.lat, j.lng], 20);
+				else map = streetMap(mapBox, { center: [j.lat, j.lng], zoom: 20, minZoom: 14, tiles: { url: j.tiles, attr: j.source, max: j.max || 21 } });
+				use.disabled = false;
+				status.textContent = j.source;
+			} catch (e) { status.textContent = e.message; }
 			go.disabled = false;
 		};
-		const move = (k) => {
-			if (!st.lat) return;
-			const d = st.span * 0.35;
-			let { lat, lng, span } = st;
-			if (k === 'n') lat += d / 111320;
-			if (k === 's') lat -= d / 111320;
-			if (k === 'e') lng += d / (111320 * Math.cos((lat * Math.PI) / 180));
-			if (k === 'w') lng -= d / (111320 * Math.cos((lat * Math.PI) / 180));
-			if (k === 'in') span = Math.max(25, span * 0.7);
-			if (k === 'out') span = Math.min(250, span / 0.7);
-			load({ lat, lng, span });
-		};
-		go.onclick = () => { if (addr.value.trim().length > 5) load({ address: addr.value.trim() }); };
+		go.onclick = () => { if (addr.value.trim().length > 5) show({ address: addr.value.trim() }); };
 		addr.addEventListener('keydown', (e) => { if (e.key === 'Enter') go.click(); });
 		use.onclick = async () => {
-			const c = canvas(img.naturalWidth, img.naturalHeight);
-			c.getContext('2d').drawImage(img, 0, 0);
-			m.remove();
-			const ppf = c.width / (st.span * 3.28084);
-			resolve(finish(c, 'aerial', { ppf, where: { lat: st.lat, lng: st.lng } }));
+			if (!map || !info) return;
+			use.disabled = true;
+			use.textContent = 'Saving…';
+			const bb = map.bounds();
+			const cap = await captureArea(info.tiles, Math.min(info.max || 21, 21), bb.north, bb.west, bb.south, bb.east, 2048);
+			if (cap.loaded < cap.total * 0.6) { use.disabled = false; use.textContent = '✓ Use this view'; return toast && toast('The aerial pictures didn’t finish loading — try again.'); }
+			const c = canvas(cap.W, cap.H);
+			c.getContext('2d').drawImage(cap.canvas, 0, 0);
+			const where = { lat: map.center[0], lng: map.center[1] };
+			done(finish(c, 'aerial', { ppf: cap.ppf, where }));
 		};
 		setTimeout(() => addr.focus(), 50);
-		void toast; void clamp;
+		void clamp;
 	});
 }
 

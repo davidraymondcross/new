@@ -1,7 +1,7 @@
 /* DreamScaper – browser side of the AI calls (the server holds the keys). */
-import { canvas } from './util.js?v=2.7.7';
-import { api, session } from './api.js?v=2.7.7';
-import { aiSize } from './aiprompt.js?v=2.7.7';
+import { canvas } from './util.js?v=2.7.8';
+import { api, session } from './api.js?v=2.7.8';
+import { aiSize } from './aiprompt.js?v=2.7.8';
 
 /** Any drawable → JPEG data URI, longest side ≤ max. */
 export function toJpeg(src, max = 1536, q = 0.9) {

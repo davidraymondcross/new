@@ -4,7 +4,7 @@ Tags: landscape design, garden planner, yard design, visualizer
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.7.7
+Stable tag: 2.7.8
 License: GPLv2 or later
 
 A fun, full-screen yard design studio for your website visitors.
@@ -65,6 +65,16 @@ The live camera needs the page to load over https. If the camera isn't available
 to the phone's photo picker.
 
 == Changelog ==
+
+= 2.7.8 =
+* First visit asks "Who's using DreamScaper?" — homeowner or contractor — and opens the right app. The choice is remembered, and a Homeowner / Contractor switch now sits at the top of both home screens (instead of a link at the bottom).
+* Landscape plans: the bird's-eye step is now a live aerial map — drag and zoom freely, never any blank space. "Use this view" keeps a wide margin of map around what's on screen, and tracing happens on a map that keeps showing the neighboring imagery past the picture's edges, so the property line is never cut off. Moving to a new view keeps what you already traced.
+* Instructions float on the map (step title, what to tap, and a live "👉 what to do now" line), fade while you drag, fold into a small "Show" pill, and fold automatically on phones once you start. Undo / Clear / Next part — and on the scale step, the tape measurement box — sit in a bar on the map, so nobody scrolls to read directions. The map frames the property clear of the instructions and buttons.
+* The same live map and floating instructions are used for Measure property, the door-to-door map and the homeowner's bird's-eye view (which no longer uses arrow buttons on a fixed picture).
+* Contractor Hub menu: big buttons (about twice the size) in two rows on a computer with Settings always in view; 5 across on tablets; a 3-across grid on phones, folding into one "☰ Menu" button on inner pages.
+* Quotes: "🤖 Quote it with AI" next to "Create Quote Manually". Describe the job; the AI lists the work and sizes (using the property's measurements and the customer's design), and your own price book prices it — the AI never sets a price. It shows what it assumed and what to confirm on site.
+* Library packs: the installer now takes .tar files and plain folders of texture images (e.g. straight from ambientCG, using its meta.json for names, groups and real-world size), and Settings shows how many materials and photos are installed. Pack addresses work relative or absolute.
+* Fixed: the word "null" under the Paint panel's buttons.
 
 = 2.7.7 =
 * Measure property now works on a real map: drag anywhere, zoom out with the mouse wheel, pinch or －, and the aerial photos keep loading — no edge of a picture and no blank white space. "Go to another address" jumps the map, and "🗺️ Google Maps" opens the same spot in Google for reference.
@@ -145,6 +155,9 @@ to the phone's photo picker.
 * Fixes: email "Open your Contractor Hub" links no longer land on Home; the welcome tour no longer appears twice.
 
 == Upgrade Notice ==
+
+= 2.7.8 =
+Aerial map tiles are now available to visitors who aren't signed in (the homeowner bird's-eye view), limited per visitor; cached tiles are reused. Textures: install dreamscaper-textures-ambientcg-1.zip (or the original .tar) in Settings → DreamScaper → Library packs, then refresh — clear any page cache once.
 
 = 2.7.7 =
 Measuring now uses map tiles served by your own site (from the same public aerial imagery as before, cached under uploads/dreamscaper-tiles for 60 days). Nothing to set up. Older saved measurements keep their pictures.

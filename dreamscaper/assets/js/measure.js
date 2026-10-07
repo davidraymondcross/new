@@ -14,14 +14,14 @@
  * provider set in Settings) served as map tiles by this site — they may legally be traced and kept.
  * "Open in Google Maps" shows the same spot in Google for reference.
  */
-import { h, put, icon, stateSelect } from './util.js?v=2.7.7';
-import { api, apiBase } from './api.js?v=2.7.7';
-import { modal } from './capture.js?v=2.7.7';
-import { addressField, addressGroup, addressDetails, parseAddress } from './address.js?v=2.7.7';
-import { fmtArea, fmtFtIn } from './takeoff.js?v=2.7.7';
-import { sectionHead, tip } from './explain.js?v=2.7.7';
-import { streetMap } from './map.js?v=2.7.7';
-import { addressProblem } from './planwiz.js?v=2.7.7';
+import { h, put, icon, stateSelect } from './util.js?v=2.7.8';
+import { api, apiBase } from './api.js?v=2.7.8';
+import { modal } from './capture.js?v=2.7.8';
+import { addressField, addressGroup, addressDetails, parseAddress } from './address.js?v=2.7.8';
+import { fmtArea, fmtFtIn } from './takeoff.js?v=2.7.8';
+import { sectionHead, tip } from './explain.js?v=2.7.8';
+import { streetMap, floatGuide } from './map.js?v=2.7.8';
+import { addressProblem } from './planwiz.js?v=2.7.8';
 
 let M = null;
 export function initMeasure(ctx) { M = { ctx }; }
@@ -158,14 +158,11 @@ function stepMeasure(st, body, show) {
 		jump.value = ''; jump.blur();
 	} });
 	const addrLine = h('b', null, st.address);
-	const how = h('div', { class: 'ds-ms-how', hidden: !!st.sections.length },
-		h('b', null, 'How to measure'),
-		h('ol', null,
-			h('li', null, 'Drag to move the map; pinch, scroll or ＋/－ to zoom.'),
-			h('li', null, 'Tap each corner around the edge of the area.'),
-			h('li', null, 'Tap the yellow “Start” dot to close it, then name it.')),
-		h('button', { class: 'ds-btn ds-sm', onclick: () => { how.hidden = true; } }, 'Got it'));
-	const helpB = h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { how.hidden = !how.hidden; } }, '❓ How to');
+	const how = floatGuide('How to measure', [
+		'Drag to move the map; pinch, scroll or ＋/－ to zoom.',
+		'Tap each corner around the edge of the area.',
+		'Tap the yellow “Start” dot to close it, then name it.']);
+	if (st.sections.length) how.classList.add('min');
 	const undoB = h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { st.draft.pop(); changed(); } }, '↶ Undo');
 	const clearB = h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { st.draft = []; changed(); } }, '✕ Clear shape');
 	const closeB = h('button', { class: 'ds-btn ds-sm', hidden: true, onclick: () => closeShape() }, '⬤ Close shape');
@@ -173,7 +170,7 @@ function stepMeasure(st, body, show) {
 	const bar = h('div', { class: 'ds-ms-bar' }, live, h('div', { class: 'ds-ms-btns' }, undoB, clearB, closeB, finishB));
 	const wrap = h('div', { class: 'ds-ms-mapwrap' }, mapBox, how, bar);
 	put(body,
-		h('div', { class: 'ds-ms-top' }, h('p', { class: 'ds-ms-addr' }, '📍 ', addrLine, st.client ? h('span', { class: 'ds-muted' }, ` · ${st.client.name}`) : null), h('div', { class: 'ds-ms-jump' }, jf, gmaps, helpB)),
+		h('div', { class: 'ds-ms-top' }, h('p', { class: 'ds-ms-addr' }, '📍 ', addrLine, st.client ? h('span', { class: 'ds-muted' }, ` · ${st.client.name}`) : null), h('div', { class: 'ds-ms-jump' }, jf, gmaps)),
 		status, wrap, list);
 	let map = null;
 	const draw = (x, mp) => {
@@ -197,7 +194,7 @@ function stepMeasure(st, body, show) {
 		}
 	};
 	const onTap = (lat, lng, sx, sy) => {
-		how.hidden = true;
+		if (wrap.offsetWidth < 600) how.classList.add('min');
 		const d = st.draft;
 		if (d.length >= 3) {
 			const s0 = map.project(d[0][0], d[0][1]);
