@@ -4,12 +4,12 @@
  * 3) we suggest what it is (no AI: colours + shape) and they confirm the name,
  *    size and category  4) saved as a small transparent WebP in "My Library".
  */
-import { h, icon, canvas, clamp, uid, canvasToBlob, debounce } from './util.js?v=2.7.6';
-import { ALL, byId, CATEGORIES, fmtFt, matchesWords, COLOR_SWATCH } from './library.js?v=2.7.6';
-import { thumb } from './sprites.js?v=2.7.6';
-import { prepareCutout, defaultBox, segment, paintHint, renderCutout, analyse, guessCategory } from './cutout.js?v=2.7.6';
-import { encodeCutout } from './photo.js?v=2.7.6';
-import { voiceButton, clean } from './voice.js?v=2.7.6';
+import { h, icon, canvas, clamp, uid, canvasToBlob, debounce } from './util.js?v=2.7.7';
+import { ALL, byId, CATEGORIES, fmtFt, matchesWords, COLOR_SWATCH } from './library.js?v=2.7.7';
+import { thumb } from './sprites.js?v=2.7.7';
+import { prepareCutout, defaultBox, segment, paintHint, renderCutout, analyse, guessCategory } from './cutout.js?v=2.7.7';
+import { encodeCutout } from './photo.js?v=2.7.7';
+import { voiceButton, clean } from './voice.js?v=2.7.7';
 
 const CAT_DEFAULT_H = { trees: 20, evergreens: 12, shrubs: 4, perennials: 2, grasses: 3, annuals: 1.2, vines: 8, features: 3 };
 const FEATURE_GROUPS = ['Stone', 'Seating', 'Fire', 'Water', 'Lighting', 'Planters', 'Structures', 'Fences & Walls', 'Decor', 'Outdoor Living', 'My photos'];

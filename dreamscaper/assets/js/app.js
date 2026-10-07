@@ -1,42 +1,42 @@
 /* DreamScaper – app shell: gallery, project flow, editor UI, autosave. */
-import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.6';
-import { store } from './store.js?v=2.7.6';
-import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.6';
-import { openAssetMaker } from './assetmaker.js?v=2.7.6';
-import { voiceButton } from './voice.js?v=2.7.6';
-import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.6';
-import { thumb, sprite } from './sprites.js?v=2.7.6';
-import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.6';
-import { Editor } from './editor.js?v=2.7.6';
-import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.6';
-import { sampleYard } from './sample.js?v=2.7.6';
-import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.6';
-import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.6';
-import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.6';
-import { openStudio } from './dsai.js?v=2.7.6';
-import { panelAI } from './aitools.js?v=2.7.6';
-import { shareSheet, printDesign } from './share.js?v=2.7.6';
-import { openPlantId } from './plantid.js?v=2.7.6';
-import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.6';
-import { onRewards } from './api.js?v=2.7.6';
-import { segment } from './aiclient.js?v=2.7.6';
-import { historyPanel } from './history.js?v=2.7.6';
-import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.6';
-import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.6';
-import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.6';
-import { initStorage, openStorage } from './storage.js?v=2.7.6';
-import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.6';
-import { proHome } from './prohome.js?v=2.7.6';
-import { initHire, openFind, openProjects } from './hire.js?v=2.7.6';
-import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.6';
-import { initExplain } from './explain.js?v=2.7.6';
-import { initBilling, confirmReturn } from './billing.js?v=2.7.6';
-import { initMsgSettings } from './msgsettings.js?v=2.7.6';
-import { dreamscapeToPlan } from './takeoff.js?v=2.7.6';
-import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.6';
-import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.6';
-import { openGuide, guideBar } from './guide.js?v=2.7.6';
-import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.6';
+import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.7';
+import { store } from './store.js?v=2.7.7';
+import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.7';
+import { openAssetMaker } from './assetmaker.js?v=2.7.7';
+import { voiceButton } from './voice.js?v=2.7.7';
+import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.7';
+import { thumb, sprite } from './sprites.js?v=2.7.7';
+import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.7';
+import { Editor } from './editor.js?v=2.7.7';
+import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.7';
+import { sampleYard } from './sample.js?v=2.7.7';
+import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.7';
+import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.7';
+import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.7';
+import { openStudio } from './dsai.js?v=2.7.7';
+import { panelAI } from './aitools.js?v=2.7.7';
+import { shareSheet, printDesign } from './share.js?v=2.7.7';
+import { openPlantId } from './plantid.js?v=2.7.7';
+import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.7';
+import { onRewards } from './api.js?v=2.7.7';
+import { segment } from './aiclient.js?v=2.7.7';
+import { historyPanel } from './history.js?v=2.7.7';
+import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.7';
+import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.7';
+import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.7';
+import { initStorage, openStorage } from './storage.js?v=2.7.7';
+import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.7';
+import { proHome } from './prohome.js?v=2.7.7';
+import { initHire, openFind, openProjects } from './hire.js?v=2.7.7';
+import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.7';
+import { initExplain } from './explain.js?v=2.7.7';
+import { initBilling, confirmReturn } from './billing.js?v=2.7.7';
+import { initMsgSettings } from './msgsettings.js?v=2.7.7';
+import { dreamscapeToPlan } from './takeoff.js?v=2.7.7';
+import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.7';
+import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.7';
+import { openGuide, guideBar } from './guide.js?v=2.7.7';
+import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.7';
 
 const CFG = (() => {
 	try { return JSON.parse(document.getElementById('dreamscaper-config').textContent); } catch (e) { return {}; }
@@ -1477,7 +1477,7 @@ async function syncAfterSignIn(quiet) {
 /* ================================================== Plant ID & How it works */
 
 function pidButton() {
-	return h('button', { class: 'ds-pid-btn', onclick: plantId, title: 'Plant ID — identify any plant from a photo, any time' }, '🌿', h('span', null, ' Plant ID'));
+	return h('button', { class: 'ds-pid-btn', onclick: plantId, title: 'Plant ID — identify any plant from a photo, any time', 'aria-label': 'Plant ID' }, '🌿', h('span', { class: 'ds-pid-txt' }, ' Plant ID'));
 }
 function helpButton(topic) {
 	return h('button', { class: 'ds-icon-btn ds-help', onclick: () => guide(topic || (app.tool === 'ai' ? 'tools' : app.tool === 'plants' ? 'plants' : app.tool === 'paint' || app.tool === 'bed' ? 'ground' : app.tool === 'eraser' ? 'erase' : app.tool === 'scale' ? 'scale' : 'flow')), title: 'How DreamScaper works', 'aria-label': 'How DreamScaper works' }, '?');
@@ -1486,7 +1486,16 @@ function helpButton(topic) {
 function moreMenu(items) {
 	const wrap = h('div', { class: 'ds-more' });
 	const menu = h('div', { class: 'ds-more-menu', hidden: true, role: 'menu' }, ...items.map(([ic, label, fn]) => h('button', { role: 'menuitem', onclick: () => { menu.hidden = true; fn(); } }, icon(ic, 18), ' ', label)));
-	const btn = h('button', { class: 'ds-icon-btn', 'aria-label': 'More', 'aria-haspopup': 'true', title: 'More', onclick: (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; } }, icon('menu', 20));
+	const btn = h('button', { class: 'ds-icon-btn', 'aria-label': 'More', 'aria-haspopup': 'true', title: 'More', onclick: (e) => {
+		e.stopPropagation();
+		menu.hidden = !menu.hidden;
+		if (menu.hidden) return;
+		// open toward whichever side has room, so it never runs off a phone screen
+		menu.style.transform = '';
+		const r = menu.getBoundingClientRect(), vw = app.root.getBoundingClientRect().width || innerWidth;
+		const dx = r.left < 8 ? 8 - r.left : r.right > vw - 8 ? vw - 8 - r.right : 0;
+		if (dx) menu.style.transform = `translateX(${Math.round(dx)}px)`;
+	} }, icon('menu', 20));
 	app.root.addEventListener('pointerdown', (e) => { if (!wrap.contains(e.composedPath()[0])) menu.hidden = true; });
 	wrap.append(btn, menu);
 	return wrap;

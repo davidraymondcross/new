@@ -5,7 +5,7 @@
  * edges, trims to the subject and analyses colours and shape so we can suggest
  * what it is.
  */
-import { canvas, clamp } from './util.js?v=2.7.6';
+import { canvas, clamp } from './util.js?v=2.7.7';
 
 const WORK = 360; // segmentation resolution (long side) – fast on phones
 

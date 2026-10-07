@@ -4,7 +4,7 @@ Tags: landscape design, garden planner, yard design, visualizer
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.7.6
+Stable tag: 2.7.7
 License: GPLv2 or later
 
 A fun, full-screen yard design studio for your website visitors.
@@ -65,6 +65,14 @@ The live camera needs the page to load over https. If the camera isn't available
 to the phone's photo picker.
 
 == Changelog ==
+
+= 2.7.7 =
+* Measure property now works on a real map: drag anywhere, zoom out with the mouse wheel, pinch or －, and the aerial photos keep loading — no edge of a picture and no blank white space. "Go to another address" jumps the map, and "🗺️ Google Maps" opens the same spot in Google for reference.
+* The how-to and the Undo / Clear shape / Close shape / Finish bar sit on the map itself, so the whole tool fits on one screen on a phone or a computer.
+* After each closed shape: "➕ Save & measure another area" or "✓ Save & finish".
+* Finish gives four clear choices: "➕ Create a new contact" (a guided form with the address, town, state and ZIP already filled in), "👤 Attach to existing contact" (a two-step wizard: pick the contact, then which of their properties), "💾 Save to this device" and "🖨️ Print".
+* Every choice uses one report: the map with each area highlighted and labelled, a table of every area (type, size, perimeter, roof pitch and squares), the total, your notes, a scale bar and north arrow. It's saved on the customer page under 📏 Measurements (with a 💾 Download button), downloaded as a single picture, or printed on one letter page.
+* Phones and tablets: every screen was checked at 360, 390 and 768 pixels wide. Fixed: the close (✕) button was pushed off the top bar on phones; the editor's ⋯ menu could open off-screen; tab rows (Settings sections, customer tabs) dropped to the bottom of the page on phones; pop-up messages now appear at the bottom on phones instead of over the guide; two-column forms fold to one column on narrow screens.
 
 = 2.7.6 =
 * Addresses autocomplete everywhere: new and edited customers (picking an address fills the street, town, state and ZIP), billing address, extra properties, calendar job locations, door-to-door houses, the homeowner's project address, the contractor application, sign-up and profile, and the website quote form. ZIPs are filled even when the suggestion didn't include one.
@@ -137,6 +145,9 @@ to the phone's photo picker.
 * Fixes: email "Open your Contractor Hub" links no longer land on Home; the welcome tour no longer appears twice.
 
 == Upgrade Notice ==
+
+= 2.7.7 =
+Measuring now uses map tiles served by your own site (from the same public aerial imagery as before, cached under uploads/dreamscaper-tiles for 60 days). Nothing to set up. Older saved measurements keep their pictures.
 
 = 2.7.6 =
 The invoices table gets a new column (added automatically). Existing invoices keep working and keep the old overdue reminders; invoices created or saved in the new editor follow the new reminder plans. Check Settings → 🧾 Invoice design to add your logo and set your default reminder plan.

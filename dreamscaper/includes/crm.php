@@ -880,6 +880,7 @@ require_once __DIR__ . '/measure.php';
 require_once __DIR__ . '/routes.php';
 require_once __DIR__ . '/invoices.php';
 require_once __DIR__ . '/equipment.php';
+require_once __DIR__ . '/tiles.php';
 require_once __DIR__ . '/crm-api.php';
 require_once __DIR__ . '/crm-portal.php';
 require_once __DIR__ . '/crm-pay.php';

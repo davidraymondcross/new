@@ -10,17 +10,17 @@
  * USGS elsewhere) or a survey, corrected by one tape measurement; photos record what can't be seen
  * from above. The geometry and the plan generator live in plangen.js; photo checks in photocheck.js.
  */
-import { h, put, icon, stateSelect } from './util.js?v=2.7.6';
-import { api, session } from './api.js?v=2.7.6';
-import { modal } from './capture.js?v=2.7.6';
-import { addressField, addressGroup } from './address.js?v=2.7.6';
-import { segment, toJpeg, aiReady } from './aiclient.js?v=2.7.6';
-import { traceMask } from './siteplan.js?v=2.7.6';
-import { PLANTS } from './library.js?v=2.7.6';
-import { parseFtIn, fmtFtIn, fmtArea } from './takeoff.js?v=2.7.6';
-import { sectionHead, tip } from './explain.js?v=2.7.6';
-import { frame, validateTrace, checkScale, shotPlan, STYLES, styleById, pickPlants, generatePlan, checkDesign, accuracy, area as polyArea, dist, centroid, inside } from './plangen.js?v=2.7.6';
-import { readExif, analyze, checkPhoto, worst, compass } from './photocheck.js?v=2.7.6';
+import { h, put, icon, stateSelect } from './util.js?v=2.7.7';
+import { api, session } from './api.js?v=2.7.7';
+import { modal } from './capture.js?v=2.7.7';
+import { addressField, addressGroup } from './address.js?v=2.7.7';
+import { segment, toJpeg, aiReady } from './aiclient.js?v=2.7.7';
+import { traceMask } from './siteplan.js?v=2.7.7';
+import { PLANTS } from './library.js?v=2.7.7';
+import { parseFtIn, fmtFtIn, fmtArea } from './takeoff.js?v=2.7.7';
+import { sectionHead, tip } from './explain.js?v=2.7.7';
+import { frame, validateTrace, checkScale, shotPlan, STYLES, styleById, pickPlants, generatePlan, checkDesign, accuracy, area as polyArea, dist, centroid, inside } from './plangen.js?v=2.7.7';
+import { readExif, analyze, checkPhoto, worst, compass } from './photocheck.js?v=2.7.7';
 
 let W = null;
 /** ctx: the hub context; tools: { editPlan(plan, prop, title) → Promise<plan|null> } */

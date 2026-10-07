@@ -5,31 +5,31 @@
  * text, shortcodes) · Jobs & job costing · Schedule / dispatch · Invoices (Stripe Connect) ·
  * Settings (business, costs & markups, price book, terms, follow-up plan, crew, payments).
  */
-import { h, put, icon } from './util.js?v=2.7.6';
-import { session, api, refreshSession } from './api.js?v=2.7.6';
-import { modal, aerial, pickFile } from './capture.js?v=2.7.6';
-import { addressField, addressGroup } from './address.js?v=2.7.6';
-import { editInvoice as invoiceEditor, invoiceDesigner } from './invoices.js?v=2.7.6';
-import { openPlan } from './siteplan.js?v=2.7.6';
-import { segment } from './aiclient.js?v=2.7.6';
-import { ALL, matchesWords, searchScore } from './library.js?v=2.7.6';
+import { h, put, icon } from './util.js?v=2.7.7';
+import { session, api, refreshSession } from './api.js?v=2.7.7';
+import { modal, aerial, pickFile } from './capture.js?v=2.7.7';
+import { addressField, addressGroup } from './address.js?v=2.7.7';
+import { editInvoice as invoiceEditor, invoiceDesigner } from './invoices.js?v=2.7.7';
+import { openPlan } from './siteplan.js?v=2.7.7';
+import { segment } from './aiclient.js?v=2.7.7';
+import { ALL, matchesWords, searchScore } from './library.js?v=2.7.7';
 import {
 	PRICEBOOK, DEFAULT_COSTS, DEFAULT_FOLLOWUPS, DEFAULT_TERMS, SHORTCODES, KINDS,
 	mergeBook, mergeCosts, planToSections, priceEstimate, buildDocuments, scheduleFollowups, merge, missingCodes,
 	money, fmtArea, fmtFtIn, measure, round2
-} from './takeoff.js?v=2.7.6';
-import { inboxPane, inboxDot } from './inbox.js?v=2.7.6';
-import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.6';
-import { monthGrid, monthRange, monthStart, dayMenu } from './calmonth.js?v=2.7.6';
-import { initCanvass, viewCanvass } from './canvass.js?v=2.7.6';
-import { initPlanWizard, viewPlans } from './planwiz.js?v=2.7.6';
-import { initMeasure, viewMeasure, measurementsPane } from './measure.js?v=2.7.6';
-import { initRoutes, viewRoutes } from './routes.js?v=2.7.6';
-import { initEquipment, viewEquipment } from './equipment.js?v=2.7.6';
-import { trustPane } from './trust.js?v=2.7.6';
-import { billingView, subBanner } from './billing.js?v=2.7.6';
-import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.6';
-import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.6';
+} from './takeoff.js?v=2.7.7';
+import { inboxPane, inboxDot } from './inbox.js?v=2.7.7';
+import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.7';
+import { monthGrid, monthRange, monthStart, dayMenu } from './calmonth.js?v=2.7.7';
+import { initCanvass, viewCanvass } from './canvass.js?v=2.7.7';
+import { initPlanWizard, viewPlans } from './planwiz.js?v=2.7.7';
+import { initMeasure, viewMeasure, measurementsPane } from './measure.js?v=2.7.7';
+import { initRoutes, viewRoutes } from './routes.js?v=2.7.7';
+import { initEquipment, viewEquipment } from './equipment.js?v=2.7.7';
+import { trustPane } from './trust.js?v=2.7.7';
+import { billingView, subBanner } from './billing.js?v=2.7.7';
+import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.7';
+import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.7';
 
 let X = null; // { ctx, body, stack, cur, me }
 const STAGES = [['lead', 'Lead'], ['prospect', 'Prospect'], ['customer', 'Customer'], ['past', 'Past customer'], ['lost', 'Lost']];

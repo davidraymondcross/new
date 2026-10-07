@@ -6,10 +6,10 @@
  * due now or soon. Everything is editable: rename tasks, change intervals, add your own tasks and your
  * own fields (fleet number, warranty end, assigned crew…). Reminders arrive by email, text or both.
  */
-import { h, put, icon } from './util.js?v=2.7.6';
-import { api } from './api.js?v=2.7.6';
-import { modal } from './capture.js?v=2.7.6';
-import { sectionHead, tip } from './explain.js?v=2.7.6';
+import { h, put, icon } from './util.js?v=2.7.7';
+import { api } from './api.js?v=2.7.7';
+import { modal } from './capture.js?v=2.7.7';
+import { sectionHead, tip } from './explain.js?v=2.7.7';
 
 let E = null;
 export function initEquipment(ctx) { E = { ctx }; }

@@ -55,7 +55,10 @@ function dreamscaper_rest_measurement_save( WP_REST_Request $r ) {
 			'name'    => isset( $nc['name'] ) ? $nc['name'] : '',
 			'phone'   => isset( $nc['phone'] ) ? $nc['phone'] : '',
 			'email'   => isset( $nc['email'] ) ? $nc['email'] : '',
-			'address' => $address,
+			'address' => isset( $nc['street'] ) && '' !== $nc['street'] ? $nc['street'] : $address,
+			'town'    => isset( $nc['town'] ) ? $nc['town'] : '',
+			'state'   => isset( $nc['state'] ) ? $nc['state'] : '',
+			'zip'     => isset( $nc['zip'] ) ? $nc['zip'] : '',
 			'stage'   => 'lead',
 			'source'  => 'other',
 		) ) );
@@ -107,7 +110,7 @@ function dreamscaper_rest_measurement_save( WP_REST_Request $r ) {
 			'perim'   => round( max( 0, (float) ( isset( $s['perim'] ) ? $s['perim'] : 0 ) ), 1 ),
 			'pitch'   => $pitch,
 			'surface' => round( $surface, 1 ),
-			'pts'     => array_slice( array_map( function ( $q ) { return array( round( (float) $q[0], 2 ), round( (float) $q[1], 2 ) ); }, array_filter( (array) ( isset( $s['pts'] ) ? $s['pts'] : array() ), 'is_array' ) ), 0, 400 ),
+			'pts'     => array_slice( array_map( function ( $q ) { return array( round( (float) $q[0], 7 ), round( (float) $q[1], 7 ) ); }, array_filter( (array) ( isset( $s['pts'] ) ? $s['pts'] : array() ), 'is_array' ) ), 0, 400 ),
 		);
 		$total += $surface;
 	}

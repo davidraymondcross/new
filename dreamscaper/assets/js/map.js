@@ -7,7 +7,7 @@
  *   const map = streetMap(el, { center: [lat, lng], zoom: 17, tiles: { url, attr, max }, onTap, onMove })
  *   map.setPins([{ id, lat, lng, color, icon, label, ring }]); map.setView([lat, lng], zoom); map.bounds();
  */
-import { h } from './util.js?v=2.7.6';
+import { h } from './util.js?v=2.7.7';
 
 const TS = 256;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -24,13 +24,15 @@ function unproject(x, y, z) {
 
 export function streetMap(el, o) {
 	const tiles = o.tiles || { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '© OpenStreetMap contributors', max: 19 };
-	const maxZ = tiles.max || 19, minZ = 3;
+	const maxZ = tiles.max || 19, minZ = o.minZoom || 3;
 	let center = o.center || [39.5, -98.35], zoom = clamp(o.zoom || 4, minZ, maxZ + 1);
 	const tileLayer = h('div', { class: 'ds-map-tiles' });
 	const pinLayer = h('div', { class: 'ds-map-pins' });
+	// optional drawing layer (o.draw(ctx2d, api) runs after every move / zoom / redraw)
+	const cv = o.draw ? h('canvas', { class: 'ds-map-draw' }) : null;
 	const me = h('div', { class: 'ds-map-me', hidden: true, 'aria-hidden': 'true' });
 	const box = h('div', { class: 'ds-map', tabindex: 0, role: 'application', 'aria-label': 'Map. Drag to move, scroll or pinch to zoom, tap a house to mark it. Arrow keys move, plus and minus zoom.' },
-		tileLayer, pinLayer, me,
+		tileLayer, cv, pinLayer, me,
 		h('div', { class: 'ds-map-zoom' },
 			h('button', { type: 'button', 'aria-label': 'Zoom in', onclick: () => zoomAt(zoom + 1) }, '+'),
 			h('button', { type: 'button', 'aria-label': 'Zoom out', onclick: () => zoomAt(zoom - 1) }, '−')),
@@ -67,6 +69,14 @@ export function streetMap(el, o) {
 		}
 		for (const [key, im] of imgs) if (!want.has(key)) { im.remove(); imgs.delete(key); }
 		drawPins();
+		if (cv) {
+			const dpr = window.devicePixelRatio || 1;
+			if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.width = W + 'px'; cv.style.height = H + 'px'; }
+			const x = cv.getContext('2d');
+			x.setTransform(dpr, 0, 0, dpr, 0, 0);
+			x.clearRect(0, 0, W, H);
+			o.draw(x, api);
+		}
 	}
 	const redraw = () => { if (!raf) raf = requestAnimationFrame(draw); };
 	/** Screen position (px inside the map) of a lat/lng. */
@@ -134,7 +144,7 @@ export function streetMap(el, o) {
 		if (drag && !drag.moved && e.type === 'pointerup' && o.onTap) {
 			const r = box.getBoundingClientRect();
 			const [lat, lng] = toLatLng(e.clientX - r.left, e.clientY - r.top);
-			o.onTap(lat, lng);
+			o.onTap(lat, lng, e.clientX - r.left, e.clientY - r.top);
 		}
 		drag = null;
 	};
@@ -146,7 +156,7 @@ export function streetMap(el, o) {
 		const dy = clamp(e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY, -240, 240);
 		zoomAt(zoom - dy * (e.ctrlKey ? 0.01 : 0.003), e.clientX - r.left, e.clientY - r.top);
 	}, { passive: false });
-	box.addEventListener('dblclick', (e) => { const r = box.getBoundingClientRect(); zoomAt(zoom + 1, e.clientX - r.left, e.clientY - r.top); });
+	if (!o.noDblZoom) box.addEventListener('dblclick', (e) => { const r = box.getBoundingClientRect(); zoomAt(zoom + 1, e.clientX - r.left, e.clientY - r.top); });
 	box.addEventListener('keydown', (e) => {
 		const step = 80, c = centerPx(zoom);
 		const mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
@@ -162,6 +172,11 @@ export function streetMap(el, o) {
 		el: box,
 		setView(c, z) { center = c; if (z != null) zoom = clamp(z, minZ, maxZ + 1); moved(); },
 		setPins(list) { pins = list || []; drawPins(); },
+		/** Screen position (px inside the map) of a point, and back. */
+		project: (lat, lng) => toScreen(lat, lng),
+		unproject: (x, y) => toLatLng(x, y),
+		redraw,
+		get size() { return [W, H]; },
 		bounds() { const [n, w] = toLatLng(0, 0), [s, e] = toLatLng(W, H); return { south: s, west: w, north: n, east: e }; },
 		get zoom() { return zoom; },
 		get center() { return center; },

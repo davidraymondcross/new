@@ -5,12 +5,12 @@
  *  many-at-once selection,
  *  Layers window, Design versions, Compare and Presentation mode.
  */
-import { h, put, icon, canvas, canvasToBlob, blobToBitmap, uid } from './util.js?v=2.7.6';
-import { modal } from './capture.js?v=2.7.6';
-import { ZONES, opName } from './editor.js?v=2.7.6';
-import { ADJUST, PRESETS, planTransform, renderTransform, mapView } from './photoedit.js?v=2.7.6';
-import { fmtFtIn } from './takeoff.js?v=2.7.6';
-import { matById, swatch } from './textures.js?v=2.7.6';
+import { h, put, icon, canvas, canvasToBlob, blobToBitmap, uid } from './util.js?v=2.7.7';
+import { modal } from './capture.js?v=2.7.7';
+import { ZONES, opName } from './editor.js?v=2.7.7';
+import { ADJUST, PRESETS, planTransform, renderTransform, mapView } from './photoedit.js?v=2.7.7';
+import { fmtFtIn } from './takeoff.js?v=2.7.7';
+import { matById, swatch } from './textures.js?v=2.7.7';
 
 const deg = (v) => `${Math.round(v)}°`;
 const pct = (v) => `${Math.round(v)}%`;

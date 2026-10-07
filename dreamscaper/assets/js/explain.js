@@ -7,9 +7,9 @@
  * tip(key, text)     a one-time tip the first time someone opens an area (remembered per device)
  * capabilityMap()    the whole product on one page: every area, one line each, and whether you have it
  */
-import { h, put, icon } from './util.js?v=2.7.6';
-import { api, session } from './api.js?v=2.7.6';
-import { modal } from './capture.js?v=2.7.6';
+import { h, put, icon } from './util.js?v=2.7.7';
+import { api, session } from './api.js?v=2.7.7';
+import { modal } from './capture.js?v=2.7.7';
 
 let ROOT = null, GO_PLANS = null;
 export function initExplain(root, goPlans) { ROOT = root; GO_PLANS = goPlans || null; }

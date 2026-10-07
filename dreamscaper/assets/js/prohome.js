@@ -7,8 +7,8 @@
  * yard. Homeowners never see any of this — the contractor tools are only offered to them as a
  * small "Are you a contractor?" link, and the server refuses contractor actions from anyone else.
  */
-import { h, put, icon } from './util.js?v=2.7.6';
-import { api, session } from './api.js?v=2.7.6';
+import { h, put, icon } from './util.js?v=2.7.7';
+import { api, session } from './api.js?v=2.7.7';
 
 const hm = (t) => new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 const money = (v) => '$' + Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });

@@ -223,7 +223,7 @@
 	.ds-top { flex-wrap: wrap; row-gap: 4px; padding: 6px 6px 4px; }
 	.ds-top .ds-logo-sm, .ds-top .ds-spacer { display: none; }
 	.ds-name { width: auto !important; flex: 1 1 80px !important; min-width: 0; }
-	.ds-tabs { order: 10; flex: 1 1 100%; }
+	.ds-top .ds-tabs { order: 10; flex: 1 1 100%; }
 	.ds-status { font-size: 0; padding: 0 4px; }
 	.ds-status::before { margin: 0; }
 	.ds-icon-btn { width: 34px; height: 34px; }
@@ -843,7 +843,7 @@
 
 /* "more" menu */
 .ds-more { position: relative; }
-.ds-more-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; background: var(--panel); border: 1px solid var(--line2); border-radius: 14px; box-shadow: var(--shadow); padding: 6px; display: flex; flex-direction: column; }
+.ds-more-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 220px; max-width: calc(100vw - 16px); background: var(--panel); border: 1px solid var(--line2); border-radius: 14px; box-shadow: var(--shadow); padding: 6px; display: flex; flex-direction: column; }
 .ds-more-menu[hidden] { display: none; }
 .ds-more-menu button { display: flex; align-items: center; gap: 8px; border: 0; background: none; color: var(--text); padding: 12px; border-radius: 10px; text-align: left; font-size: 15px; min-height: 46px; }
 .ds-more-menu button:hover { background: rgba(255,255,255,.06); }
@@ -1900,14 +1900,55 @@
 .ds-pw-bar.away { visibility: hidden; }
 
 /* measure property features */
-.ds-ms { display: flex; flex-direction: column; gap: 12px; }
-.ds-ms-live p { margin: 0; font-weight: 600; color: var(--gold); }
-.ds-ms-tools { position: sticky; bottom: 0; background: var(--panel); border: 1px solid var(--line2); border-radius: 14px; padding: 8px 10px; z-index: 3; }
-.ds-ms-sw { width: 14px; height: 14px; border-radius: 4px; background: var(--c); flex: none; }
+.ds-ms { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.ds-ms-top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.ds-ms-addr { margin: 0; overflow-wrap: anywhere; }
+.ds-ms-jump { display: flex; gap: 8px; align-items: center; flex: 1 1 300px; min-width: 0; max-width: 520px; }
+.ds-ms-jump .ds-ac-wrap { flex: 1; min-width: 0; }
+.ds-ms-jump input { width: 100%; }
+.ds-ms-how { position: absolute; left: 10px; top: 10px; z-index: 4; max-width: min(340px, calc(100% - 76px)); background: rgba(16,30,22,.94); color: var(--text); border: 1px solid var(--line2); border-radius: 12px; padding: 10px 12px; box-shadow: var(--shadow); font-size: 14px; }
+.ds-ms-how ol { margin: 4px 0 8px; padding-left: 18px; display: grid; gap: 2px; }
+.ds-ms-status { margin: 0; font-size: 13px; color: var(--muted); }
+.ds-ms-status.warn { color: var(--gold); }
+.ds-ms-mapwrap { position: relative; height: clamp(340px, calc(100dvh - 140px), 820px); border-radius: 14px; overflow: hidden; border: 1px solid var(--line2); background: #dfe6e0; flex: none; }
+.ds-ms-map { position: absolute; inset: 0; }
+.ds-ms-map .ds-map { cursor: crosshair; }
+.ds-ms-map .ds-map-attr { bottom: auto; top: 0; right: auto; left: 0; border-radius: 0 0 6px 0; }
+.ds-ms-bar { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 3; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; background: rgba(16,30,22,.94); border: 1px solid var(--line2); border-radius: 14px; padding: 8px 10px; box-shadow: var(--shadow); }
+.ds-ms-live { margin: 0; flex: 1 1 220px; font-weight: 600; color: var(--gold); font-size: 14px; }
+.ds-ms-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.ds-ms-btns .ds-btn { min-height: 40px; }
+.ds-ms-sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; background: var(--c); flex: none; vertical-align: -2px; margin-right: 6px; }
+.ds-ms-row { flex-wrap: wrap; }
+.ds-ms-row .ds-grow { min-width: 160px; }
 .ds-ms-total { font-size: 18px; margin: 4px 0 0; }
+.ds-ms-sum { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .ds-ms-shot { width: 100%; height: auto; border-radius: 12px; display: block; }
-.ds-ms-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.ds-ms-shotbox { min-height: 60px; }
+.ds-ms-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 10px; }
+.ds-ms-choice { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px; min-height: 76px; border-radius: 14px; border: 1px solid var(--line2); background: var(--bg2); color: var(--text); font: inherit; cursor: pointer; width: 100%; }
+.ds-ms-choice:hover, .ds-ms-choice:focus-visible { border-color: var(--accent); background: var(--panel2, var(--bg2)); }
+.ds-ms-choice b { display: block; font-size: 17px; margin-bottom: 2px; }
+.ds-ms-choice small { display: block; color: var(--muted); line-height: 1.35; }
+.ds-ms-ic { font-size: 26px; line-height: 1; flex: none; }
+.ds-ms-choice:disabled { opacity: .6; cursor: progress; }
+.ds-ms-next { display: flex; flex-wrap: wrap; gap: 8px; }
+.ds-ms-next .ds-btn { flex: 1 1 200px; }
+.ds-ms-props { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.ds-ms-props .ds-chip { text-align: left; white-space: normal; }
+.ds-modal-ms { width: min(520px, 100%); }
+.ds-modal-ms .ds-chips { gap: 6px; }
+.ds-ms-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; }
 .ds-ms-cards ul { margin: 0; padding-left: 18px; }
+@media (max-width: 560px) {
+	.ds-ms-mapwrap { height: clamp(340px, calc(100dvh - 210px), 760px); }
+	.ds-ms-how { left: 6px; top: 6px; font-size: 13px; }
+	.ds-ms-bar { left: 4px; right: 4px; bottom: 4px; padding: 6px; }
+	.ds-ms-btns { width: 100%; }
+	.ds-ms-btns .ds-btn { flex: 1 1 auto; padding-left: 8px; padding-right: 8px; }
+	.ds-ms-live { font-size: 13px; }
+	.ds-ms-jump { flex-basis: 100%; max-width: none; }
+}
 
 /* route planner */
 .ds-rt-stops { display: flex; flex-direction: column; gap: 8px; }
@@ -2015,3 +2056,25 @@
 .ds-eq-meter input.ds-eq-meterin { flex: 0 0 140px; width: 140px; }
 .ds-eq-every input[type=number] { flex: 0 0 84px; }
 .ds-eq-every input[type=date] { flex: 0 0 150px; }
+.ds-map-draw { position: absolute; left: 0; top: 0; pointer-events: none; }
+
+/* ===================================================================== 2.7.7: phones */
+/* the top bar always keeps its close button on screen */
+.ds-home-top { min-width: 0; }
+.ds-home-top .ds-brand { min-width: 0; overflow: hidden; flex: 0 1 auto; }
+.ds-home-top .ds-brand .ds-wordmark { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-home-top > :not(.ds-brand) { flex-shrink: 0; }
+@media (max-width: 430px) {
+	.ds-home-top { gap: 6px; padding: 8px 10px; }
+	.ds-pid-txt { display: none; }
+	.ds-pid-btn { padding: 6px 9px; }
+}
+@media (max-width: 360px) {
+	.ds-home-top .ds-brand .ds-wordmark { display: none; }
+}
+/* phones: messages pop up at the bottom (above the tool bar), not over the guide and top buttons */
+@media (max-width: 760px) {
+	.ds-toast:not(.ds-toast-page) { top: auto; bottom: calc(86px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); }
+	.ds-toast:not(.ds-toast-page).on { transform: translate(-50%, 0); }
+}
+.ds-form-grid { grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); }
