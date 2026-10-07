@@ -1,6 +1,6 @@
 /* DreamScaper – How it works (tutorial) and the step-by-step guide in the editor. */
-import { h, icon } from './util.js?v=2.7.3';
-import { modal } from './capture.js?v=2.7.3';
+import { h, icon } from './util.js?v=2.7.4';
+import { modal } from './capture.js?v=2.7.4';
 
 const T = (title, ...body) => ({ title, body });
 const P = (t) => h('p', null, t);
@@ -24,7 +24,7 @@ function topics(brand) {
 			TIP('Everything saves automatically. Signed in, your designs are also saved to your account so you can open them on any phone or computer.')),
 		photo: T('Getting a great photo',
 			UL('Stand back far enough to fit the whole area, house included.', 'Hold your phone sideways at chest/eye height and keep it level.', 'Shoot on a bright, overcast day or with the sun behind you.', 'Take a photo from each side you care about — every view is saved in the same Dreamscape.'),
-			P('Bird’s-eye view shows your property from above using Connecticut’s aerial photos — perfect for planning bed sizes and spacing. Start typing your address and pick it from the list.')),
+			P('Bird’s-eye view shows your property from above using aerial photos (Connecticut’s are the sharpest) — perfect for planning bed sizes and spacing. Start typing your address and pick it from the list.')),
 		scale: T('Scale & perspective (why it matters)',
 			P('So a 6-foot shrub looks 6 feet tall in your photo, DreamScaper needs to know where eye level is.'),
 			UL('Drag the blue line to the height of the camera — where the house’s horizontal lines stop slanting.', 'Drag the yellow 6-ft person next to your door or fence. If they look right, every plant is to scale.'),

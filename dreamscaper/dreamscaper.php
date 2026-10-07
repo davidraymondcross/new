@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DreamScaper
  * Description: A fun landscape design studio for your visitors. Customers photograph their yard (or use Connecticut aerial imagery), add real plants and garden features, paint mulch and stone, magic-erase what they don't want, watch plants grow year by year, and save named designs. Customer accounts (email, Google, Facebook) keep designs online across devices and unlock Dreamscape AI (FLUX.2 [klein]) plus AI Erase, Smart Select, Make it real, Season & light and plant/weed identification. Share to social media and print. Contractor CRM: Design → Quote estimating, e-signature, follow-ups, scheduling, job costing and invoices. Shortcodes: [dreamscaper], [dreamscaper_quote]
- * Version: 2.7.3
+ * Version: 2.7.4
  * Author: David's Landscaping
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DREAMSCAPER_VERSION', '2.7.3' );
+define( 'DREAMSCAPER_VERSION', '2.7.4' );
 define( 'DREAMSCAPER_URL', plugin_dir_url( __FILE__ ) );
 define( 'DREAMSCAPER_OPT', 'dreamscaper_settings' );
 
@@ -92,6 +92,9 @@ function dreamscaper_defaults() {
 		'pay_instant'        => 0,
 		// door-to-door map imagery (XYZ tile URL); blank = OpenStreetMap (fine for light use)
 		'map_tiles'          => '',
+		'aerial_service'     => 'https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage',
+		'aerial_label'       => 'USGS NAIP imagery (public domain, about 2 ft per pixel)',
+		'aerial_res'         => 2,
 		'map_tiles_attr'     => '',
 		'map_tiles_max'      => 20,
 	);
@@ -186,6 +189,9 @@ function dreamscaper_sanitize( $in ) {
 		'fee_instant_pct'    => max( 0, min( 15, round( (float) ( isset( $in['fee_instant_pct'] ) ? $in['fee_instant_pct'] : $d['fee_instant_pct'] ), 3 ) ) ),
 		'pay_ach'            => empty( $in['pay_ach'] ) ? 0 : 1,
 		'pay_instant'        => empty( $in['pay_instant'] ) ? 0 : 1,
+		'aerial_service'     => preg_match( '#^https://[^\s]+/(ImageServer/exportImage|MapServer/export)$#', isset( $in['aerial_service'] ) ? trim( $in['aerial_service'] ) : '' ) ? esc_url_raw( trim( $in['aerial_service'] ), array( 'https' ) ) : '',
+		'aerial_label'       => sanitize_text_field( isset( $in['aerial_label'] ) ? $in['aerial_label'] : '' ),
+		'aerial_res'         => max( 0.1, min( 10, (float) ( isset( $in['aerial_res'] ) ? $in['aerial_res'] : 2 ) ) ),
 		'map_tiles'          => preg_match( '#^https://[^\s]+\{z\}[^\s]*\{x\}[^\s]*\{y\}#', isset( $in['map_tiles'] ) ? trim( $in['map_tiles'] ) : '' ) ? esc_url_raw( trim( $in['map_tiles'] ), array( 'https' ) ) : '',
 		'map_tiles_attr'     => sanitize_text_field( isset( $in['map_tiles_attr'] ) ? $in['map_tiles_attr'] : '' ),
 		'map_tiles_max'      => max( 15, min( 22, (int) ( isset( $in['map_tiles_max'] ) ? $in['map_tiles_max'] : 20 ) ) ),
@@ -376,6 +382,15 @@ function dreamscaper_settings_page() {
 				$row( 'map_tiles', 'Map tile address (optional)', 'Like <code>https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=YOUR_KEY</code>. Must contain {z}, {x} and {y}.' );
 				$row( 'map_tiles_attr', 'Map credit line', 'Shown on the map, as your provider requires (e.g. “© MapTiler © OpenStreetMap contributors”).' );
 				$row( 'map_tiles_max', 'Deepest zoom level', 'Usually 19–20.', 'number' );
+				?>
+			</table>
+			<h3>Bird’s-eye imagery outside Connecticut</h3>
+			<p>Connecticut addresses always use the state’s 3-inch imagery. Everywhere else uses this ArcGIS image service. The default is USGS NAIP (public domain, nationwide, about 2 ft per pixel — good for property lines, the house and the driveway; small features are measured with a tape in the Landscape Plan wizard). For sharper imagery, paste another ArcGIS <code>…/ImageServer/exportImage</code> or <code>…/MapServer/export</code> address whose terms allow measuring and tracing, and set its resolution. Leave it empty to turn bird’s-eye imagery off outside Connecticut.</p>
+			<table class="form-table">
+				<?php
+				$row( 'aerial_service', 'Image service address', 'Default: <code>https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer/exportImage</code>' );
+				$row( 'aerial_label', 'Imagery credit line', 'Shown with the image.' );
+				$row( 'aerial_res', 'Imagery resolution (feet per pixel)', 'NAIP is about 2. Used to tell contractors how precise traced edges are.', 'number' );
 				?>
 			</table>
 			<h3>Contractor payments (Stripe Connect)</h3>
@@ -883,7 +898,27 @@ function dreamscaper_rest_geocode( WP_REST_Request $r ) {
 	return $g;
 }
 
-/** Connecticut statewide 3-inch orthoimagery (CT ECO, 2023, no use restrictions). */
+/** Is this point inside Connecticut's 3-inch imagery? (rough state box; the image is checked for blanks on the client) */
+function dreamscaper_in_ct( $lat, $lng ) {
+	return $lat >= 40.95 && $lat <= 42.06 && $lng >= -73.73 && $lng <= -71.78;
+}
+/**
+ * Where bird's-eye imagery comes from for a point: Connecticut's 3-inch state imagery (CT ECO 2023),
+ * otherwise the nationwide service in Settings (USGS NAIP by default — public domain, about 2 ft per pixel).
+ * Returns [ exportImage URL, label, native resolution in feet per pixel ].
+ */
+function dreamscaper_aerial_source( $lat, $lng, $force = '' ) {
+	if ( 'national' !== $force && dreamscaper_in_ct( $lat, $lng ) ) {
+		return array( 'https://cteco.uconn.edu/ctraster/rest/services/images/Ortho_2023/ImageServer/exportImage', 'Connecticut 3-inch imagery (CT ECO, 2023)', 0.25 );
+	}
+	$url = trim( (string) dreamscaper_opt( 'aerial_service' ) );
+	if ( '' === $url ) {
+		return null;
+	}
+	return array( $url, (string) dreamscaper_opt( 'aerial_label' ), max( 0.1, (float) dreamscaper_opt( 'aerial_res' ) ) );
+}
+
+/** To-scale bird's-eye image around a point or address (span = metres across, north up). */
 function dreamscaper_rest_aerial( WP_REST_Request $r ) {
 	if ( ! dreamscaper_limit( 'air', 150, HOUR_IN_SECONDS ) ) {
 		return new WP_Error( 'dreamscaper', 'Too many map requests. Please wait a bit.', array( 'status' => 429 ) );
@@ -891,44 +926,55 @@ function dreamscaper_rest_aerial( WP_REST_Request $r ) {
 	$lat  = (float) $r->get_param( 'lat' );
 	$lng  = (float) $r->get_param( 'lng' );
 	$span = (float) $r->get_param( 'span' );
-	$span = $span ? min( 250, max( 25, $span ) ) : 70;
+	$span = $span ? min( 400, max( 25, $span ) ) : 70;
 	$addr = sanitize_text_field( (string) $r->get_param( 'address' ) );
 	if ( $addr ) {
-		if ( ! preg_match( '/\b(CT|Connecticut)\b/i', $addr ) ) {
-			$addr .= ', CT';
-		}
 		$g = dreamscaper_geocode( $addr );
+		if ( ! $g && ! preg_match( '/\b[A-Z]{2}\b|\d{5}/', $addr ) && dreamscaper_state_abbr( dreamscaper_opt( 'home_region' ) ) ) {
+			$g = dreamscaper_geocode( $addr . ', ' . dreamscaper_state_abbr( dreamscaper_opt( 'home_region' ) ) );
+		}
 		if ( ! $g ) {
-			return new WP_Error( 'dreamscaper', 'We couldn\'t find that address. Try including the town.', array( 'status' => 404 ) );
+			return new WP_Error( 'dreamscaper', 'We couldn\'t find that address. Include the street number, town and state.', array( 'status' => 404 ) );
 		}
 		$lat = $g['lat'];
 		$lng = $g['lng'];
 	}
-	if ( $lat < 40.95 || $lat > 42.06 || $lng < -73.73 || $lng > -71.78 ) {
-		return new WP_Error( 'dreamscaper', 'Bird\'s-eye view covers Connecticut addresses. Try taking or uploading a photo instead.', array( 'status' => 400 ) );
+	if ( ! $lat || ! $lng ) {
+		return new WP_Error( 'dreamscaper', 'Type the address first.', array( 'status' => 400 ) );
 	}
+	$src = dreamscaper_aerial_source( $lat, $lng, sanitize_key( (string) $r->get_param( 'src' ) ) );
+	if ( ! $src ) {
+		return new WP_Error( 'dreamscaper', 'Bird\'s-eye imagery isn\'t available for this address. Try taking or uploading a photo instead.', array( 'status' => 400 ) );
+	}
+	// bigger areas get a bigger picture so the detail per foot stays useful
+	$size = $span > 160 ? 2048 : ( $span > 90 ? 1600 : 1280 );
 	$dlat = ( $span / 2 ) / 111320;
 	$dlng = ( $span / 2 ) / ( 111320 * cos( deg2rad( $lat ) ) );
 	$url  = add_query_arg( array(
 		'bbox'        => implode( ',', array( $lng - $dlng, $lat - $dlat, $lng + $dlng, $lat + $dlat ) ),
 		'bboxSR'      => 4326,
 		'imageSR'     => 3857,
-		'size'        => '1280,1280',
+		'size'        => $size . ',' . $size,
 		'format'      => 'jpg',
 		'bandIds'     => '0,1,2',
 		'compression' => 88,
 		'f'           => 'image',
-	), 'https://cteco.uconn.edu/ctraster/rest/services/images/Ortho_2023/ImageServer/exportImage' );
-	$img = wp_remote_get( $url, array( 'timeout' => 25 ) );
+	), $src[0] );
+	$img = wp_remote_get( $url, array( 'timeout' => 30 ) );
 	$ct  = wp_remote_retrieve_header( $img, 'content-type' );
 	if ( is_wp_error( $img ) || 200 !== wp_remote_retrieve_response_code( $img ) || false === strpos( (string) $ct, 'image' ) ) {
-		return new WP_Error( 'dreamscaper', 'The state imagery server is busy. Please try again in a moment.', array( 'status' => 502 ) );
+		return new WP_Error( 'dreamscaper', 'The imagery server is busy. Please try again in a moment.', array( 'status' => 502 ) );
 	}
 	return array(
-		'lat'   => $lat,
-		'lng'   => $lng,
-		'span'  => $span,
-		'image' => 'data:image/jpeg;base64,' . base64_encode( wp_remote_retrieve_body( $img ) ),
+		'lat'    => $lat,
+		'lng'    => $lng,
+		'span'   => $span,
+		'size'   => $size,
+		'ppf'    => $size / ( $span * 3.28084 ),
+		'res'    => (float) $src[2],
+		'source' => $src[1],
+		'ct'     => false !== strpos( $src[0], 'cteco' ),
+		'image'  => 'data:image/jpeg;base64,' . base64_encode( wp_remote_retrieve_body( $img ) ),
 	);
 }
 

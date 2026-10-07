@@ -4,7 +4,7 @@ Tags: landscape design, garden planner, yard design, visualizer
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.7.3
+Stable tag: 2.7.4
 License: GPLv2 or later
 
 A fun, full-screen yard design studio for your website visitors.
@@ -66,6 +66,13 @@ to the phone's photo picker.
 
 == Changelog ==
 
+= 2.7.4 =
+* Landscape plans (Contractor Hub → 📐 Landscape plans, next to Door-to-door): a step-by-step wizard that turns an address into a measured 2D landscape plan. Every step says exactly what to do, checks what you give it and says what's wrong and how to fix it, and saves as you go (start in the office, finish on site).
+* 1 Customer & property — the address must be complete (house number, town, state) and found on the map. 2 What to plan — front, back and side yards; new, renovation or refresh; walkway/patio and privacy screen. 3 Bird's-eye base map — to-scale imagery for any US address (Connecticut 3-inch state imagery; USGS NAIP elsewhere), framed so the whole property fits; or upload a survey / plot plan and set its scale from a dimensioned line; or type the lot and house sizes from a tape. 4 Trace the property — street, property line (from a survey/GIS map, fences, or a best guess), house roof, front door, driveway, other structures and trees to keep; AI can find the house and driveway; drag any corner to fix it. Mistakes are caught: crossed outlines, a house outside the lot or bigger than the lot, a tiny lot, the street point on the house, a property running off the picture. 5 Check the scale — one tape measurement of something flat (driveway width is ideal); within 3% it's confirmed, up to 10% the whole plan is corrected, more than that is rejected as measuring two different things. 6 Site photos — a diagram for every photo shows where to stand and which way to face (front, both front corners, back, both back corners, each side yard); each photo is checked for size, upright vs sideways, blur, darkness, duplicates, ultra-wide lens, GPS location (taken at a different address) and compass direction (facing the wrong way), plus an optional AI check that it's the right view. Angles you can't reach are skipped with a reason and noted on the plan. 7 Site details — USDA zone (looked up from the ZIP), sun per area, window-sill height (foundation plants stay below it), deer, natives, drainage, slope, irrigation, 811, maintenance, budget, keep/remove and wishes. 8 Style — Traditional, Modern, Cottage, Native & pollinator, Drought-tolerant, Japanese, Formal, Low maintenance, Woodland & shade; each card says how many library plants fit this site, and the wizard suggests one. 9 Designs — for any area, load one of your Dreamscapes, or start one on the bird's-eye view (exact sizes) or on that area's photo, and come straight back; Dreamscapes of a different address or with nothing to measure are rejected. 10 Generate & review — a checklist of anything still missing, the expected accuracy (e.g. ±1 ft), then the plan: the measured base map, foundation beds sized to the plants, plants spaced at mature width and kept below window sills, a focal tree, a front walk from the door to the driveway, a back patio, a privacy screen, stone strips in narrow side yards and site notes — opened in the 2D editor to adjust, saved on the property, and one tap from a quote.
+* Quotes no longer draw or generate plans. Step 3 of a quote shows the property's plan and opens Landscape plans to create or update it; customer properties do the same.
+* Bird's-eye view now works for any US address (homeowners too), sharpest in Connecticut. New settings: the image service, its credit line and its resolution.
+* Dreamscapes remember where they are and how they were shot, so they line up with the property in a plan.
+
 = 2.7.3 =
 * Two different apps. Approved contractors now land on their own Contractor Hub home (greeting, new requests, replies waiting, today's appointments, unpaid invoices, and big buttons for every part of the business), with the design studio one tap away and "Use DreamScaper as a homeowner" for their own yard. Homeowners no longer see any contractor tools — just one small "Are you a contractor?" link.
 * Calendar month view: see the whole month with each day's bookings and booked hours; tap a day for what you can do — new job day, schedule a signed job, appointment, estimate / site visit, maintenance, follow-up, door-to-door session, open the map, or block time off. Month / List switch is remembered.
@@ -109,6 +116,9 @@ to the phone's photo picker.
 * Fixes: email "Open your Contractor Hub" links no longer land on Home; the welcome tour no longer appears twice.
 
 == Upgrade Notice ==
+
+= 2.7.4 =
+Adds Landscape plans to the Contractor Hub. Bird's-eye imagery outside Connecticut uses USGS NAIP by default (public domain, about 2 ft per pixel); change or turn it off in Settings → DreamScaper → Bird's-eye imagery outside Connecticut. Plans made in the wizard count toward each plan's monthly landscape plans, as before.
 
 = 2.7.3 =
 New tables are created automatically. In Stripe → Developers → Webhooks, add the events checkout.session.async_payment_succeeded and checkout.session.async_payment_failed (needed for bank payments) to your existing DreamScaper endpoint. Bank (ACH) payments are on by default; Instant Payouts are off until you enable them in Settings → DreamScaper — they need Instant Payouts and Account Debits enabled on your Stripe Connect platform, so test them in Stripe test mode first. Check the processing rates and the home region, then read the new Terms of Service page (WP Admin → DreamScaper Terms) and adjust it with your attorney.

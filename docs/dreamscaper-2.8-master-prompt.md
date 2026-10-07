@@ -217,6 +217,8 @@ A day planner that answers: *what order should we go in, when do we stop for lun
 
 # PART E — PROPERTY MEASURE WIZARD
 
+**Status (2.7.4):** the Landscape Plan wizard (`assets/js/planwiz.js`, `plangen.js`, `photocheck.js`, `includes/planwiz.php`; Contractor Hub → Landscape plans) already does most of this: nationwide to-scale imagery (CT 3-inch, USGS NAIP elsewhere), guided tracing with AI help, a tape-measure scale check, guided and checked site photos, site conditions, style choice, Dreamscapes per area and a generated plan. Build Part E **on top of it** (lawn-area measuring for maintenance quotes, saving from a calendar visit) rather than as a second wizard.
+
 A guided tool for measuring lawn, beds, roof, driveway or any area from aerial imagery — the job Go iLawn, RealGreen Measurement Assistant and LawnPro's AI measure do — inside DreamScaper and wired to the customer record.
 
 ## E1. Entry points

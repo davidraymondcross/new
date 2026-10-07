@@ -4,8 +4,8 @@
  * plant's size at any age, and re-coloured for the season (fall colour, winter
  * dormancy, flowers only in bloom months), so it still grows and changes over time.
  */
-import { canvas, clamp, rng } from './util.js?v=2.7.3';
-import { SEASON_MONTHS } from './library.js?v=2.7.3';
+import { canvas, clamp, rng } from './util.js?v=2.7.4';
+import { SEASON_MONTHS } from './library.js?v=2.7.4';
 
 const listeners = new Set();
 /** Called whenever a photo finishes loading, so views can redraw. */

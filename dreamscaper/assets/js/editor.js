@@ -1,11 +1,11 @@
 /* DreamScaper – canvas editor engine: scene rendering, perspective, tools, history. */
-import { canvas, clamp, uid, smoothPath } from './util.js?v=2.7.3';
-import { byId, sizeAt } from './library.js?v=2.7.3';
-import { sprite } from './sprites.js?v=2.7.3';
-import { fillGround } from './textures.js?v=2.7.3';
-import { magicSelect, inpaint, dilate, maskBBox, maskCount } from './eraser.js?v=2.7.3';
-import { groundPoint, polyArea, fmtFtIn, sampleSmooth } from './takeoff.js?v=2.7.3';
-import { applyAdjust, hasAdjust } from './photoedit.js?v=2.7.3';
+import { canvas, clamp, uid, smoothPath } from './util.js?v=2.7.4';
+import { byId, sizeAt } from './library.js?v=2.7.4';
+import { sprite } from './sprites.js?v=2.7.4';
+import { fillGround } from './textures.js?v=2.7.4';
+import { magicSelect, inpaint, dilate, maskBBox, maskCount } from './eraser.js?v=2.7.4';
+import { groundPoint, polyArea, fmtFtIn, sampleSmooth } from './takeoff.js?v=2.7.4';
+import { applyAdjust, hasAdjust } from './photoedit.js?v=2.7.4';
 
 const EDGING = {
 	none: null,

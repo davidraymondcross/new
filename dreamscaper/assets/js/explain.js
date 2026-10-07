@@ -7,9 +7,9 @@
  * tip(key, text)     a one-time tip the first time someone opens an area (remembered per device)
  * capabilityMap()    the whole product on one page: every area, one line each, and whether you have it
  */
-import { h, put, icon } from './util.js?v=2.7.3';
-import { api, session } from './api.js?v=2.7.3';
-import { modal } from './capture.js?v=2.7.3';
+import { h, put, icon } from './util.js?v=2.7.4';
+import { api, session } from './api.js?v=2.7.4';
+import { modal } from './capture.js?v=2.7.4';
 
 let ROOT = null, GO_PLANS = null;
 export function initExplain(root, goPlans) { ROOT = root; GO_PLANS = goPlans || null; }
@@ -76,6 +76,9 @@ export const HELP = {
 	canvass: { t: 'Door-to-door', p: 'A map for knocking on doors: mark every house you visit, so you follow up with the interested ones and never knock twice on a door that said no.',
 		can: ['Tap a house to record what happened: flyer left, talked, interested, wants a quote, call back, not interested, do not come back, no soliciting…', 'Add their name, phone, notes and a follow-up date', 'See every house coloured by result; filter by result', 'Get a list of follow-ups that are due', 'Turn an interested homeowner into a lead in one tap', 'Use “Where am I” to follow your position as you walk', 'Export everything to a spreadsheet'],
 		links: 'Leads you create here appear in Customers. Door-to-door sessions can be booked on your Calendar. Only you can see these houses.' },
+	plans: { t: 'Landscape plans', p: 'A step-by-step wizard that turns an address into a measured 2D landscape plan: bird’s-eye base map, traced property, tape-checked scale, guided site photos, site conditions, your chosen style and your Dreamscapes.',
+		can: ['Start a plan for any customer and address in the USA', 'Trace the property line, house and driveway on to-scale aerial imagery (AI can find the house and driveway for you)', 'Check the scale against one tape measurement — the whole plan is corrected automatically', 'Take guided site photos: a diagram shows exactly where to stand and which way to face, and every photo is checked (blur, light, wrong place, wrong direction, duplicates, wrong lens)', 'Record sun, window heights, deer, drainage and more so plants fit the site', 'Pick a style — or load a Dreamscape for any area', 'Generate the plan, review it in the 2D editor, and build a quote from it', 'Leave and come back: every step is saved'],
+		links: 'Plans are saved on the customer’s property. Quotes use the plan for measured quantities. New plans count toward your plan’s monthly landscape plans.', f: 'plans_month' },
 	snippets: { t: 'Quick replies', p: 'Answers you send often, ready to drop into any conversation in one tap.',
 		can: ['Save replies like “I can come Thursday between 9 and 11 — does that work?”', 'Use merge details like the customer’s first name'], f: 'snippets' }
 };
@@ -190,7 +193,7 @@ export function planPrompt(e, toast) {
 /** Every area, one line each, and whether this account has it. */
 export function capabilityMap(isPro) {
 	const homeowner = ['find', 'request', 'projects', 'calendar', 'inbox'];
-	const pro = ['dash', 'hubinbox', 'customers', 'quotes', 'jobs', 'schedule', 'canvass', 'invoices', 'messages', 'reminders', 'intake', 'social', 'snippets', 'plan'];
+	const pro = ['dash', 'hubinbox', 'customers', 'quotes', 'jobs', 'schedule', 'canvass', 'plans', 'invoices', 'messages', 'reminders', 'intake', 'social', 'snippets', 'plan'];
 	const row = (k) => {
 		const x = HELP[k];
 		const feat = x.f && CAPS && CAPS.features ? CAPS.features[x.f] : null;

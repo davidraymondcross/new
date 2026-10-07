@@ -7,8 +7,8 @@
  * yard. Homeowners never see any of this — the contractor tools are only offered to them as a
  * small "Are you a contractor?" link, and the server refuses contractor actions from anyone else.
  */
-import { h, put, icon } from './util.js?v=2.7.3';
-import { api, session } from './api.js?v=2.7.3';
+import { h, put, icon } from './util.js?v=2.7.4';
+import { api, session } from './api.js?v=2.7.4';
 
 const hm = (t) => new Date(t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 const money = (v) => '$' + Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -35,6 +35,7 @@ export function proHome(ctx) {
 		h('nav', { class: 'ds-tiles ds-ph-tiles', 'aria-label': 'Run your business' },
 			tile('📅', 'Calendar', 'Month view · tap a day to book', () => ctx.openHub({ v: 'schedule', mode: 'month' })),
 			tile('🚪', 'Door-to-door', 'Map every house you knock', () => ctx.openHub({ v: 'canvass' })),
+			tile('📐', 'Landscape plans', 'Step-by-step measured 2D plans', () => ctx.openHub({ v: 'plans' })),
 			tile('👥', 'Customers', 'People, properties & history', () => ctx.openHub({ v: 'customers' })),
 			tile('🧾', 'Quotes & requests', reqN ? `${reqN} new request${reqN > 1 ? 's' : ''}` : 'Estimates & proposals', () => ctx.openHub({ v: 'quotes' }), reqN ? ' ds-tile-hot' : ''),
 			tile('🛠️', 'Jobs', 'Signed work & job costing', () => ctx.openHub({ v: 'jobs' })),

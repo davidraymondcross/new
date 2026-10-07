@@ -1,13 +1,13 @@
 /* DreamScaper – 2D Landscape Plan: a dimensionally accurate site plan.
  *
- * Everything is stored in FEET. The aerial photo (CT ECO, known pixels-per-foot), a scanned
+ * Everything is stored in FEET. The aerial photo (CT ECO / USGS, known pixels-per-foot), a scanned
  * survey or a blank grid is only a backdrop; the geometry on top is what gets measured.
  * Type exact lengths (32' 6"), set rectangle sizes, snap to a grid and square corners.
  * AI Measure (SAM 3) can trace lawn, beds, patios… from the aerial; the traced outlines are
  * ordinary editable shapes measured with the same math.
  */
-import { h, put, icon } from './util.js?v=2.7.3';
-import { GEOM, KINDS, outline, measure, polyArea, pathLength, centroid, fmtFtIn, parseFtIn, fmtArea, sampleSmooth } from './takeoff.js?v=2.7.3';
+import { h, put, icon } from './util.js?v=2.7.4';
+import { GEOM, KINDS, outline, measure, polyArea, pathLength, centroid, fmtFtIn, parseFtIn, fmtArea, sampleSmooth } from './takeoff.js?v=2.7.4';
 
 const TOOLS = [
 	['select', '👆', 'Select & edit'],
@@ -143,7 +143,7 @@ class Plan {
 			h('div', { class: 'ds-modal-body' },
 				first ? h('p', { class: 'ds-hint' }, 'The backdrop is just a guide. Your plan is measured in real feet from the shapes you draw on it.') : null,
 				h('div', { class: 'ds-sp-bgopts' },
-					o.aerial ? opt('🛰️', 'Aerial photo (to scale)', 'Connecticut 3-inch imagery — already measured', async () => { const shot = await o.aerial(); if (shot && shot.bitmap && shot.ppf) this.setBg(shot.bitmap.toDataURL('image/jpeg', 0.9), shot.ppf, shot.bitmap.width, shot.bitmap.height, 'aerial'); }) : null,
+					o.aerial ? opt('🛰️', 'Aerial photo (to scale)', 'Already measured (CT 3-inch; USGS elsewhere)', async () => { const shot = await o.aerial(); if (shot && shot.bitmap && shot.ppf) this.setBg(shot.bitmap.toDataURL('image/jpeg', 0.9), shot.ppf, shot.bitmap.width, shot.bitmap.height, 'aerial'); }) : null,
 					o.pickImage ? opt('📄', 'Survey / plot plan / photo', 'Upload a picture, then set the scale', async () => { const shot = await o.pickImage(); if (shot && shot.bitmap) { this.setBg(shot.bitmap.toDataURL('image/jpeg', 0.9), 0, shot.bitmap.width, shot.bitmap.height, 'image'); this.setTool('scale'); } }) : null,
 					opt('▦', 'Blank grid', 'Draw from your own tape measurements', async () => { this.push(); this.plan.bg = null; this.img = null; this.draw(); }),
 					this.plan.bg ? opt('🗑️', 'Remove backdrop', 'Keep the shapes', async () => { this.push(); this.plan.bg = null; this.img = null; this.draw(); }) : null))));

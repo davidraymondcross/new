@@ -1,42 +1,42 @@
 /* DreamScaper – app shell: gallery, project flow, editor UI, autosave. */
-import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.3';
-import { store } from './store.js?v=2.7.3';
-import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.3';
-import { openAssetMaker } from './assetmaker.js?v=2.7.3';
-import { voiceButton } from './voice.js?v=2.7.3';
-import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.3';
-import { thumb, sprite } from './sprites.js?v=2.7.3';
-import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.3';
-import { Editor } from './editor.js?v=2.7.3';
-import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.3';
-import { sampleYard } from './sample.js?v=2.7.3';
-import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.3';
-import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.3';
-import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.3';
-import { openStudio } from './dsai.js?v=2.7.3';
-import { panelAI } from './aitools.js?v=2.7.3';
-import { shareSheet, printDesign } from './share.js?v=2.7.3';
-import { openPlantId } from './plantid.js?v=2.7.3';
-import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.3';
-import { onRewards } from './api.js?v=2.7.3';
-import { segment } from './aiclient.js?v=2.7.3';
-import { historyPanel } from './history.js?v=2.7.3';
-import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.3';
-import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.3';
-import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.3';
-import { initStorage, openStorage } from './storage.js?v=2.7.3';
-import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.3';
-import { proHome } from './prohome.js?v=2.7.3';
-import { initHire, openFind, openProjects } from './hire.js?v=2.7.3';
-import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.3';
-import { initExplain } from './explain.js?v=2.7.3';
-import { initBilling, confirmReturn } from './billing.js?v=2.7.3';
-import { initMsgSettings } from './msgsettings.js?v=2.7.3';
-import { dreamscapeToPlan } from './takeoff.js?v=2.7.3';
-import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.3';
-import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.3';
-import { openGuide, guideBar } from './guide.js?v=2.7.3';
-import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.3';
+import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.4';
+import { store } from './store.js?v=2.7.4';
+import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.4';
+import { openAssetMaker } from './assetmaker.js?v=2.7.4';
+import { voiceButton } from './voice.js?v=2.7.4';
+import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.4';
+import { thumb, sprite } from './sprites.js?v=2.7.4';
+import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.4';
+import { Editor } from './editor.js?v=2.7.4';
+import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.4';
+import { sampleYard } from './sample.js?v=2.7.4';
+import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.4';
+import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.4';
+import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.4';
+import { openStudio } from './dsai.js?v=2.7.4';
+import { panelAI } from './aitools.js?v=2.7.4';
+import { shareSheet, printDesign } from './share.js?v=2.7.4';
+import { openPlantId } from './plantid.js?v=2.7.4';
+import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.4';
+import { onRewards } from './api.js?v=2.7.4';
+import { segment } from './aiclient.js?v=2.7.4';
+import { historyPanel } from './history.js?v=2.7.4';
+import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.4';
+import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.4';
+import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.4';
+import { initStorage, openStorage } from './storage.js?v=2.7.4';
+import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.4';
+import { proHome } from './prohome.js?v=2.7.4';
+import { initHire, openFind, openProjects } from './hire.js?v=2.7.4';
+import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.4';
+import { initExplain } from './explain.js?v=2.7.4';
+import { initBilling, confirmReturn } from './billing.js?v=2.7.4';
+import { initMsgSettings } from './msgsettings.js?v=2.7.4';
+import { dreamscapeToPlan } from './takeoff.js?v=2.7.4';
+import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.4';
+import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.4';
+import { openGuide, guideBar } from './guide.js?v=2.7.4';
+import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.4';
 
 const CFG = (() => {
 	try { return JSON.parse(document.getElementById('dreamscaper-config').textContent); } catch (e) { return {}; }
@@ -343,6 +343,7 @@ function hubCtx() {
 		leave: () => { leaveEditor(); app.libPage = null; },
 		requireSignIn,
 		pickDesign,
+		designFor,
 		message: (uid) => openInbox({ with: uid }),
 		messagePro: (pid) => openInbox({ pro: pid }),
 		openThread: (id) => openInbox({ id }),
@@ -361,15 +362,28 @@ async function pickDesign(onPick, onCancel) {
 	const grid = h('div', { class: 'ds-grid ds-pick' }, ...list.map((p) => h('button', { class: 'ds-card', onclick: async () => {
 		m.remove();
 		await openProject(p.id);
-		const bar = h('div', { class: 'ds-pickbar', role: 'status' },
-			h('span', null, h('b', null, 'Pick the view to send'), h('small', null, ' Switch views, season or year first if you like.')),
-			h('button', { class: 'ds-btn ds-sm', onclick: async (e) => { e.currentTarget.disabled = true; const payload = await designPayload(); bar.remove(); onPick(payload); } }, icon('check', 16), ' Use this view'),
-			h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { bar.remove(); if (onCancel) onCancel(); } }, 'Cancel'));
-		app.ui.stageWrap.append(bar);
+		pickBar('Pick the view to send', ' Switch views, season or year first if you like.', 'Use this view', onPick, onCancel);
 	} },
 	h('div', { class: 'ds-card-img' }, p.thumb ? h('img', { src: p.thumb, alt: '' }) : icon('image', 30)),
 	h('div', { class: 'ds-card-body' }, h('b', null, p.name), h('small', null, `${p.views.length} view${p.views.length > 1 ? 's' : ''}`)))));
 	const m = modal(app.root, 'Which Dreamscape?', [h('p', { class: 'ds-hint' }, 'It opens so you can choose the view to send. Bird’s-eye (aerial) views are measured to scale; photo views give estimated sizes.'), grid], close, 'ds-modal-wide');
+}
+
+/** A bar over the open design: "Use this" → onPick(designPayload()), "Cancel" → onCancel(). */
+function pickBar(title, sub, label, onPick, onCancel) {
+	const bar = h('div', { class: 'ds-pickbar', role: 'status' },
+		h('span', null, h('b', null, title), h('small', null, sub)),
+		h('button', { class: 'ds-btn ds-sm', onclick: async (e) => { e.currentTarget.disabled = true; const payload = await designPayload(); bar.remove(); onPick(payload); } }, icon('check', 16), ' ' + label),
+		h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { bar.remove(); if (onCancel) onCancel(); } }, 'Cancel'));
+	app.ui.stageWrap.append(bar);
+}
+/**
+ * Start a new Dreamscape from a picture the wizard already has (the bird's-eye view or a guided photo),
+ * then come back with it: the editor shows "Use this design in the plan".
+ */
+async function designFor(name, shot, onPick, onCancel) {
+	await createProject(name, shot, { id: uid(), angles: [] });
+	pickBar('Designing for the Landscape Plan', ' Draw beds with the Beds tool and place plants, then tap the button.', 'Use this design in the plan', onPick, onCancel);
 }
 
 /** Everything a contractor needs from the open design: pictures, plant list and measured shapes. */
@@ -383,7 +397,9 @@ async function designPayload() {
 	return {
 		title: app.project.name, after: jpeg(ed.composite(1600)), before: changed && bm ? jpeg(bgFit(bm)) : '',
 		assets, ground: [...new Set(v.ops.filter((o) => !o.erase).map((o) => (MATERIALS.find((m) => m.id === o.mat) || {}).name).filter(Boolean))],
-		season: app.project.season || 'summer', years: app.project.years || 0, ai: /AI/i.test(v.label || '') || !!v.ai, plan
+		season: app.project.season || 'summer', years: app.project.years || 0, ai: /AI/i.test(v.label || '') || !!v.ai, plan,
+		// where the view is and how it was shot, so the Landscape Plan wizard can line it up with the property
+		geo: { kind: v.kind, where: v.where || null, ppf: v.ppf || 0, W: v.W, H: v.H, cam: v.cam || null }
 	};
 }
 
@@ -483,7 +499,7 @@ function sourceButtons(onPick, withAI) {
 	const opts = [
 		['camera', 'camera', 'Take a photo', 'Use your phone camera with framing guides'],
 		['upload', 'upload', 'Upload a photo', 'Pick a photo of your yard you already have'],
-		['aerial', 'map', 'Bird\'s-eye view', 'Find your house on aerial imagery (Connecticut for now — more states coming)'],
+		['aerial', 'map', 'Bird\'s-eye view', 'Find your house on aerial imagery (any US address; sharpest in Connecticut)'],
 		['sample', 'leaf', 'Sample yard', 'Play with a ready-made front yard']
 	];
 	if (CFG.mapsKey) opts.splice(2, 0, ['3d', 'globe', 'Explore in 3D', 'Fly around your home in Google 3D, save your favorite angles, then snap a photo from that spot']);
@@ -623,7 +639,7 @@ async function createProject(name, shot, draft) {
 	const p = { id: draft.id || uid(), name, created: Date.now(), updated: Date.now(), views: [v], active: 0, angles: draft.angles || [], season: 'summer', years: 0, night: false, sun: -1, thumb: null };
 	await store.putProject(p);
 	if (session.user) api('c/event', { body: { type: 'design', ref: p.id } }).catch(() => {});
-	openProject(p.id, shot.bitmap);
+	await openProject(p.id, shot.bitmap);
 }
 
 /* ================================================================== editor */

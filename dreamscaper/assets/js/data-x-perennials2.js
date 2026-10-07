@@ -1,5 +1,5 @@
 /* Expanded perennial library, part 2: shade plants, groundcovers, bulbs, ferns, natives. */
-import { fam, sp } from './data-x-helpers.js?v=2.7.3';
+import { fam, sp } from './data-x-helpers.js?v=2.7.4';
 
 export const PERENNIALS_X2 = [
 	...fam('Hellebore', 'Helleborus', 'hosta', 2, 'ev z4-9 s:PS lf:dark bl:white w:Feb-Apr fk:cup d', 'Evergreen winter-blooming rose for shade; deer proof.', [

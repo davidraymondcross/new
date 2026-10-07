@@ -5,8 +5,8 @@
  * nouns over adjectives, under ~120 words, references named "image 2/3/4", and an
  * explicit list of what must stay the same so the house and camera angle survive.
  */
-import { stateName } from './util.js?v=2.7.3';
-import { session } from './api.js?v=2.7.3';
+import { stateName } from './util.js?v=2.7.4';
+import { session } from './api.js?v=2.7.4';
 
 /** Where the plants have to grow: the person's state, else the site's home region, else the US. */
 const region = () => stateName(session.user && session.user.state) || session.region || 'the United States';

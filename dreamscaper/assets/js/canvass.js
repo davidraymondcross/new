@@ -6,11 +6,11 @@
  * can see at a glance who to follow up with. "Do not come back" and "No soliciting" houses show a
  * red warning if you tap them again. "Wants a quote" with a name and phone becomes a CRM lead.
  */
-import { h, put, icon } from './util.js?v=2.7.3';
-import { api, session } from './api.js?v=2.7.3';
-import { modal } from './capture.js?v=2.7.3';
-import { streetMap } from './map.js?v=2.7.3';
-import { sectionHead, tip } from './explain.js?v=2.7.3';
+import { h, put, icon } from './util.js?v=2.7.4';
+import { api, session } from './api.js?v=2.7.4';
+import { modal } from './capture.js?v=2.7.4';
+import { streetMap } from './map.js?v=2.7.4';
+import { sectionHead, tip } from './explain.js?v=2.7.4';
 
 let C = null;
 export function initCanvass(ctx) { C = { ctx }; }

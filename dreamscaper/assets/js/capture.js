@@ -1,8 +1,8 @@
-/* DreamScaper – getting a picture of the yard: guided camera, upload, Connecticut
+/* DreamScaper – getting a picture of the yard: guided camera, upload, nationwide
  * aerial imagery, and a Google 3D explorer for scouting & saving viewing angles.
  */
-import { h, icon, canvas, canvasToBlob, clamp } from './util.js?v=2.7.3';
-import { addressField } from './address.js?v=2.7.3';
+import { h, icon, canvas, canvasToBlob, clamp } from './util.js?v=2.7.4';
+import { addressField } from './address.js?v=2.7.4';
 
 const MAX_SIDE = 1600;
 
@@ -87,21 +87,21 @@ export function camera(root, hint) {
 	});
 }
 
-/* ------------------------------------------------------------- CT aerials */
+/* ------------------------------------------- aerials (CT 3-inch, USGS elsewhere) */
 
 export function aerial(root, cfg, toast) {
 	return new Promise((resolve) => {
 		const st = { lat: 0, lng: 0, span: 70, img: null };
-		const addr = h('input', { type: 'text', placeholder: 'Street address, town, CT', autocomplete: 'street-address' });
+		const addr = h('input', { type: 'text', placeholder: 'Street address, town, state', autocomplete: 'street-address' });
 		const go = h('button', { class: 'ds-btn' }, 'Find');
 		const img = h('img', { alt: 'Aerial view of the property' });
-		const status = h('p', { class: 'ds-muted' }, 'Connecticut addresses · 3-inch state imagery (CT ECO, spring 2023)');
+		const status = h('p', { class: 'ds-muted' }, 'Any US address · Connecticut has 3-inch state imagery; elsewhere USGS imagery (about 2 ft per pixel)');
 		const pad = h('div', { class: 'ds-pad' },
 			...[['n', '▲', 'North'], ['w', '◀', 'West'], ['e', '▶', 'East'], ['s', '▼', 'South'], ['in', '＋', 'Zoom in'], ['out', '－', 'Zoom out']].map(([m, t, l]) => h('button', { 'aria-label': l, onclick: () => move(m) }, t)));
 		const use = h('button', { class: 'ds-btn ds-wide', disabled: true }, 'Use this view');
 		const view = h('div', { class: 'ds-aerial-view' }, img, h('span', { class: 'ds-cross' }));
 		const close = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => { m.remove(); resolve(null); } }, icon('close'));
-		const field = addressField(addr, { api: cfg.api, ct: true, onPick: (it) => { if (it.lat) load({ lat: it.lat, lng: it.lng }); else load({ address: it.label }); } });
+		const field = addressField(addr, { api: cfg.api, onPick: (it) => { if (it.lat) load({ lat: it.lat, lng: it.lng }); else load({ address: it.label }); } });
 		const m = modal(root, 'Bird\'s-eye view', [h('div', { class: 'ds-row' }, field, go), status, view, pad, use], close);
 		view.hidden = true; pad.hidden = true;
 		const load = async (body) => {
@@ -111,11 +111,11 @@ export function aerial(root, cfg, toast) {
 				const r = await fetch(cfg.api + 'aerial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 				const j = await r.json();
 				if (!r.ok) throw new Error(j.message || 'Could not load imagery.');
-				Object.assign(st, { lat: j.lat, lng: j.lng, span: j.span });
+				Object.assign(st, { lat: j.lat, lng: j.lng, span: j.span, source: j.source || '' });
 				img.src = j.image;
 				await img.decode();
 				view.hidden = false; pad.hidden = false; use.disabled = false;
-				status.textContent = 'Center your yard under the crosshair, then tap “Use this view”.';
+				status.textContent = 'Center your yard under the crosshair, then tap “Use this view”.' + (st.source ? ' · ' + st.source : '');
 			} catch (e) {
 				status.textContent = e.message;
 			}

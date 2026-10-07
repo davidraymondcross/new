@@ -4,11 +4,11 @@
  * shows how many are in it. The wizard asks one thing per screen, says why it asks, saves a draft
  * to your account as you go, and shows how complete the brief is (and what's still missing).
  */
-import { h, put, icon, debounce } from './util.js?v=2.7.3';
-import { session, api } from './api.js?v=2.7.3';
-import { modal } from './capture.js?v=2.7.3';
-import { voiceButton } from './voice.js?v=2.7.3';
-import { HELP, openHelp } from './explain.js?v=2.7.3';
+import { h, put, icon, debounce } from './util.js?v=2.7.4';
+import { session, api } from './api.js?v=2.7.4';
+import { modal } from './capture.js?v=2.7.4';
+import { voiceButton } from './voice.js?v=2.7.4';
+import { HELP, openHelp } from './explain.js?v=2.7.4';
 
 let R = null; // { ctx }
 const toast = (m, ms) => R && R.ctx.toast(m, ms);

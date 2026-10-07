@@ -5,25 +5,26 @@
  * text, shortcodes) · Jobs & job costing · Schedule / dispatch · Invoices (Stripe Connect) ·
  * Settings (business, costs & markups, price book, terms, follow-up plan, crew, payments).
  */
-import { h, put, icon } from './util.js?v=2.7.3';
-import { session, api, refreshSession } from './api.js?v=2.7.3';
-import { modal, aerial, pickFile } from './capture.js?v=2.7.3';
-import { openPlan } from './siteplan.js?v=2.7.3';
-import { segment } from './aiclient.js?v=2.7.3';
-import { ALL, matchesWords, searchScore } from './library.js?v=2.7.3';
+import { h, put, icon } from './util.js?v=2.7.4';
+import { session, api, refreshSession } from './api.js?v=2.7.4';
+import { modal, aerial, pickFile } from './capture.js?v=2.7.4';
+import { openPlan } from './siteplan.js?v=2.7.4';
+import { segment } from './aiclient.js?v=2.7.4';
+import { ALL, matchesWords, searchScore } from './library.js?v=2.7.4';
 import {
 	PRICEBOOK, DEFAULT_COSTS, DEFAULT_FOLLOWUPS, DEFAULT_TERMS, SHORTCODES, KINDS,
 	mergeBook, mergeCosts, planToSections, priceEstimate, buildDocuments, scheduleFollowups, merge, missingCodes,
 	money, fmtArea, fmtFtIn, measure, round2
-} from './takeoff.js?v=2.7.3';
-import { inboxPane, inboxDot } from './inbox.js?v=2.7.3';
-import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.3';
-import { monthGrid, monthRange, monthStart, dayMenu } from './calmonth.js?v=2.7.3';
-import { initCanvass, viewCanvass } from './canvass.js?v=2.7.3';
-import { trustPane } from './trust.js?v=2.7.3';
-import { billingView, subBanner } from './billing.js?v=2.7.3';
-import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.3';
-import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.3';
+} from './takeoff.js?v=2.7.4';
+import { inboxPane, inboxDot } from './inbox.js?v=2.7.4';
+import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.4';
+import { monthGrid, monthRange, monthStart, dayMenu } from './calmonth.js?v=2.7.4';
+import { initCanvass, viewCanvass } from './canvass.js?v=2.7.4';
+import { initPlanWizard, viewPlans } from './planwiz.js?v=2.7.4';
+import { trustPane } from './trust.js?v=2.7.4';
+import { billingView, subBanner } from './billing.js?v=2.7.4';
+import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.4';
+import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.4';
 
 let X = null; // { ctx, body, stack, cur, me }
 const STAGES = [['lead', 'Lead'], ['prospect', 'Prospect'], ['customer', 'Customer'], ['past', 'Past customer'], ['lost', 'Lost']];
@@ -45,7 +46,7 @@ async function run(btn, fn, label) { busy(btn, true, label); try { return await 
 
 /* --------------------------------------------------------------- framing */
 
-export function initHub(ctx) { X = { ctx, body: null, stack: [], cur: null, me: null, draft: null }; setPlansRoute(() => openHub({ v: 'plan' })); initCanvass(ctx); }
+export function initHub(ctx) { X = { ctx, body: null, stack: [], cur: null, me: null, draft: null }; setPlansRoute(() => openHub({ v: 'plan' })); initCanvass(ctx); initPlanWizard(ctx, { editPlan }); }
 export const isPro = () => !!(session.crm && session.crm.pro && session.crm.pro.status === 'approved');
 
 /** Open the Contractor Hub. view: { v: 'dash'|'inbox'|'customers'|'customer'|'quotes'|'quote'|'jobs'|'schedule'|'invoices'|'settings'|'plan'|'help'|'apply', ... } */
@@ -58,7 +59,7 @@ export async function openHub(view = { v: 'dash' }) {
 	const tab = (v, e, l) => h('button', { class: 'ds-hub-tab', 'data-v': v, onclick: () => go({ v }) }, h('span', null, e), h('small', null, l));
 	const inboxTab = tab('inbox', '💬', 'Inbox');
 	inboxTab.append(inboxDot());
-	const nav = h('nav', { class: 'ds-hub-nav', 'aria-label': 'Contractor Hub' }, tab('dash', '📊', 'Dashboard'), inboxTab, tab('customers', '👥', 'Customers'), tab('quotes', '🧾', 'Quotes'), tab('jobs', '🛠️', 'Jobs'), tab('schedule', '📅', 'Calendar'), tab('canvass', '🚪', 'Door-to-door'), tab('invoices', '💵', 'Invoices'), tab('settings', '⚙️', 'Settings'), tab('plan', '💳', 'Plan'), tab('help', '❓', 'Help'));
+	const nav = h('nav', { class: 'ds-hub-nav', 'aria-label': 'Contractor Hub' }, tab('dash', '📊', 'Dashboard'), inboxTab, tab('customers', '👥', 'Customers'), tab('quotes', '🧾', 'Quotes'), tab('jobs', '🛠️', 'Jobs'), tab('schedule', '📅', 'Calendar'), tab('canvass', '🚪', 'Door-to-door'), tab('plans', '📐', 'Landscape plans'), tab('invoices', '💵', 'Invoices'), tab('settings', '⚙️', 'Settings'), tab('plan', '💳', 'Plan'), tab('help', '❓', 'Help'));
 	const bar = h('div', { class: 'ds-cm-bar' },
 		h('button', { class: 'ds-btn ds-ghost ds-sm ds-cm-back', onclick: back, 'aria-label': 'Back' }, '←', h('span', null, ' Back')),
 		h('h1', null, '🧰 Contractor Hub'),
@@ -98,7 +99,7 @@ function render(view) {
 	for (const t of X.nav.children) t.classList.toggle('on', t.dataset.v === view.v || (view.v === 'customer' && t.dataset.v === 'customers') || (view.v === 'quote' && t.dataset.v === 'quotes'));
 	X.nav.hidden = view.v === 'apply';
 	drawBanner(view);
-	({ dash: viewDash, inbox: viewInbox, plan: viewPlan, help: viewHelp, customers: viewCustomers, customer: viewCustomer, quotes: viewQuotes, quote: viewQuote, jobs: viewJobs, schedule: viewSchedule, canvass: (bb, vv) => viewCanvass(bb, vv, go), invoices: viewInvoices, settings: viewSettings, apply: viewApply }[view.v] || viewDash)(b, view);
+	({ dash: viewDash, inbox: viewInbox, plan: viewPlan, help: viewHelp, customers: viewCustomers, customer: viewCustomer, quotes: viewQuotes, quote: viewQuote, jobs: viewJobs, schedule: viewSchedule, canvass: (bb, vv) => viewCanvass(bb, vv, go), plans: (bb, vv) => viewPlans(bb, vv, go), invoices: viewInvoices, settings: viewSettings, apply: viewApply }[view.v] || viewDash)(b, view);
 }
 async function loadMe(force) {
 	if (!X.me || force) X.me = await api('crm/me');
@@ -331,7 +332,8 @@ function propertyCard(c, p) {
 		photos.length || p.aerial ? h('div', { class: 'ds-prop-photos' }, p.aerial ? h('a', { href: p.aerial, target: '_blank', rel: 'noopener' }, h('img', { src: p.aerial, alt: 'Aerial', loading: 'lazy' }), h('small', null, 'Aerial')) : null, ...photos.map((x) => h('a', { href: x.url, target: '_blank', rel: 'noopener' }, h('img', { src: x.url, alt: x.step, loading: 'lazy' }), h('small', null, x.step)))) : h('p', { class: 'ds-muted' }, 'No photos yet.'),
 		h('p', { class: 'ds-hint' }, shapes ? `2D plan: ${shapes} shape${shapes > 1 ? 's' : ''}` : 'No 2D plan yet.', slope ? ' · ' + slope : '', d.notes ? ' · ' + d.notes : ''),
 		h('div', { class: 'ds-row ds-wrap' },
-			h('button', { class: 'ds-btn ds-sm', onclick: async () => { const np = await editPlan(plan, p, c.name); if (np) { await api('crm/property', { body: { id: p.id, client_id: c.id, plan: np } }).catch((e) => toast(e.message)); render(X.cur); } } }, '📐 ' + (shapes ? 'Open 2D plan' : 'Draw 2D plan')),
+			h('button', { class: 'ds-btn ds-sm', onclick: () => go({ v: 'plans', wizard: true, prop_id: p.id, client_id: c.id }) }, '📐 ' + (shapes ? 'Plan wizard' : 'Create a landscape plan')),
+			shapes ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: async () => { const np = await editPlan(plan, p, c.name); if (np) { await api('crm/property', { body: { id: p.id, client_id: c.id, plan: np } }).catch((e) => toast(e.message)); render(X.cur); } } }, 'Open 2D plan') : null,
 			h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: async () => { const s = await pickFile(); if (!s || !s.bitmap) return; const step = prompt('What is this photo of? (front, back, left side, right side, structure, existing landscape)', 'front') || 'other'; await api('crm/property', { body: { id: p.id, client_id: c.id, photos: [...photos, { step, url: s.bitmap.toDataURL('image/jpeg', 0.85) }] } }).catch((e) => toast(e.message)); render(X.cur); } }, icon('camera', 16), ' Add photo'),
 			p.lat ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: (e) => run(e.currentTarget, async () => { const r = await api('crm/elevation', { body: { lat: p.lat, lng: p.lng } }); await api('crm/property', { body: { id: p.id, client_id: c.id, data: { ...d, slope: r } } }); toast(`Slope across the lot: about ${r.slope}% (${r.class}).`, 5000); render(X.cur); }, 'Checking…') }, '⛰️ Check slope') : null,
 			h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: async () => { const n = prompt('Property notes (soil, sun, drainage, access…)', d.notes || ''); if (n == null) return; await api('crm/property', { body: { id: p.id, client_id: c.id, data: { ...d, notes: n } } }).catch((e) => toast(e.message)); render(X.cur); } }, '📝 Notes')));
@@ -590,16 +592,18 @@ class QuoteBuilder {
 	planCard() {
 		const q = this.q, prop = this.prop;
 		const plan = prop && prop.plan && prop.plan.shapes ? prop.plan : { shapes: [] };
-		const dplan = q.design && q.design.plan && q.design.plan.shapes && q.design.plan.shapes.length ? q.design.plan : null;
 		const rows = summarizePlan(plan);
-		return card('3. 2D plan & measurements',
+		const meta = plan.meta || null;
+		// plans are made in Contractor Hub → Landscape plans (the wizard); the quote only uses them
+		const toWizard = () => { X.draft.q = this.q; go({ v: 'plans', wizard: true, prop_id: prop.id, client_id: this.client.id, fromQuote: q.id || 'new', quoteDesign: q.design && q.design.plan ? q.design : null }); };
+		return card('3. Landscape plan & measurements',
 			!prop ? h('p', { class: 'ds-muted' }, 'Choose a customer with a property address first.') : null,
-			rows.length ? h('ul', { class: 'ds-plan-sum' }, ...rows.map((r) => h('li', null, r))) : prop ? h('p', { class: 'ds-muted' }, 'No plan yet. Draw beds, patios, walls and plants on the aerial (Connecticut) or from your tape measurements.') : null,
+			rows.length ? h('ul', { class: 'ds-plan-sum' }, ...rows.map((r) => h('li', null, r))) : prop ? h('p', { class: 'ds-muted' }, 'No landscape plan for this property yet. Make one in Landscape plans — the wizard guides you through measuring the property and generates the plan, then come back here to price it.') : null,
+			meta ? h('p', { class: 'ds-hint' }, `📐 Made with the Landscape Plan wizard · ${meta.style ? meta.style + ' style · ' : ''}sizes about ±${meta.accuracy} ft`) : null,
 			plan.estimated ? h('p', { class: 'ds-warn' }, '⚠️ Some shapes came from a ground-level photo, so sizes are estimates. Check them on site or on the aerial.') : null,
 			prop && !this.locked ? h('div', { class: 'ds-row ds-wrap' },
-				h('button', { class: 'ds-btn ds-sm', onclick: () => this.openPlan() }, '📐 ' + (plan.shapes.length ? 'Edit 2D plan' : 'Draw 2D plan')),
-				dplan ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => this.importDesignPlan(dplan) }, `⤵️ Add ${dplan.shapes.length} shapes from the design`) : null,
-				q.design && (q.design.assets || []).length && !plan.shapes.some((s) => s.kind === 'plant') ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => this.importAssets() }, `🌿 Add the design’s ${q.design.assets.reduce((a, x) => a + (x.cat === 'features' ? 0 : x.count), 0)} plants`) : null) : null);
+				h('button', { class: 'ds-btn ds-sm', onclick: toWizard }, '📐 ' + (plan.shapes.length ? 'Open in Landscape plans' : 'Create the plan in Landscape plans')),
+				plan.shapes.length ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => this.openPlan() }, 'Adjust the plan') : null) : null);
 	}
 	async savePlan(plan) {
 		const r = await api('crm/property', { body: { id: this.prop.id, client_id: this.client.id, plan } });
@@ -611,25 +615,6 @@ class QuoteBuilder {
 		const np = await editPlan(this.prop.plan, this.prop, this.q.title || this.client.name);
 		if (!np) return;
 		try { await this.savePlan(np); toast('Plan saved. Tap “Build estimate from plan” to update the numbers.', 4500); } catch (e) { toast(e.message); }
-		this.draw();
-	}
-	async importDesignPlan(dp) {
-		const plan = this.prop.plan && this.prop.plan.shapes ? JSON.parse(JSON.stringify(this.prop.plan)) : { shapes: [] };
-		const off = plan.shapes.length ? 0 : 0;
-		for (const s of dp.shapes) plan.shapes.push({ ...JSON.parse(JSON.stringify(s)), id: 'i' + Math.random().toString(36).slice(2, 8), pts: s.pts.map((p) => [p[0] + off, p[1]]) });
-		if (dp.estimated) plan.estimated = true;
-		try { await this.savePlan(plan); toast('Added. Open the plan to check positions and sizes.'); } catch (e) { toast(e.message); }
-		this.draw();
-	}
-	async importAssets() {
-		const plan = this.prop.plan && this.prop.plan.shapes ? JSON.parse(JSON.stringify(this.prop.plan)) : { shapes: [] };
-		let x = 2;
-		for (const a of this.q.design.assets) {
-			if (a.cat === 'features') { plan.shapes.push({ id: 'a' + Math.random().toString(36).slice(2, 8), kind: 'feature', pts: [[x, -6]], props: { name: a.name, count: a.count, cost: 0 } }); }
-			else plan.shapes.push({ id: 'a' + Math.random().toString(36).slice(2, 8), kind: 'plant', pts: [[x, -3]], props: { id: a.id, name: a.name, sci: a.sci || '', cat: a.cat, count: a.count, w: a.w || 3 } });
-			x += 4;
-		}
-		try { await this.savePlan(plan); toast('Plants added above the plan. Drag them into place if you want a planting layout.', 5000); } catch (e) { toast(e.message); }
 		this.draw();
 	}
 
