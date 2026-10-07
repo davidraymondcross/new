@@ -7,9 +7,9 @@
  * tip(key, text)     a one-time tip the first time someone opens an area (remembered per device)
  * capabilityMap()    the whole product on one page: every area, one line each, and whether you have it
  */
-import { h, put, icon } from './util.js?v=2.7.2';
-import { api, session } from './api.js?v=2.7.2';
-import { modal } from './capture.js?v=2.7.2';
+import { h, put, icon } from './util.js?v=2.7.3';
+import { api, session } from './api.js?v=2.7.3';
+import { modal } from './capture.js?v=2.7.3';
 
 let ROOT = null, GO_PLANS = null;
 export function initExplain(root, goPlans) { ROOT = root; GO_PLANS = goPlans || null; }
@@ -49,8 +49,8 @@ export const HELP = {
 	jobs: { t: 'Jobs', p: 'Signed work, from scheduling to done, with actual costs so you know what you made.',
 		can: ['See signed jobs and their status', 'Record actual materials, labor and other costs', 'Add finished photos and show them on your profile', 'Mark jobs done (the customer is told, and asked for a review on your timing)'],
 		links: 'Job days come from your Schedule; money comes from Invoices.' },
-	schedule: { t: 'Schedule', p: 'Your calendar of site visits, consultations and job days — shared automatically with each customer’s calendar.',
-		can: ['Book appointments of any type', 'Move or cancel them (the customer’s calendar and reminders update themselves)', 'See who confirmed and who asked to reschedule', 'Send crew sheets and “On our way” texts', 'Sync your schedule to Google, Apple or Outlook'],
+	schedule: { t: 'Calendar', p: 'Your month at a glance: job days, appointments, estimate visits, door-to-door sessions and time off — shared automatically with each customer’s calendar.',
+		can: ['Tap any day to book a job day, an appointment, an estimate visit, a door-to-door session or time off', 'Switch between the month grid and a day-by-day list', 'Set your working hours (default 7 AM–5 PM) in Settings → Crew & hours', 'Book appointments of any type', 'Move or cancel them (the customer’s calendar and reminders update themselves)', 'See who confirmed and who asked to reschedule', 'Send crew sheets and “On our way” texts', 'Sync your schedule to Google, Apple or Outlook'],
 		links: 'Reminders go out on your schedule — set it in Settings → Reminders.' },
 	invoices: { t: 'Invoices', p: 'Bill customers and get paid online by card, Apple Pay or Google Pay.',
 		can: ['Create deposit, progress, final and recurring invoices', 'Send them by email', 'See what’s paid and what’s owed', 'Overdue reminders on your own timing'],
@@ -73,6 +73,9 @@ export const HELP = {
 	social: { t: 'Social links & gallery', p: 'Show homeowners you’re real: your social pages and your best work on your contractor page.',
 		can: ['Add your Google Business Profile, Facebook, Instagram, Houzz, YouTube, Nextdoor, TikTok and LinkedIn', 'Paste a link or just your @name', 'Switch each link on or off — it changes everywhere at once', 'Test each link before homeowners see it', 'Curate a gallery of finished work'],
 		links: 'Switched-on links appear on your contractor page, your Find a Contractor card (top 3), and your proposals and invoices. Every plan includes every network.', f: 'gallery' },
+	canvass: { t: 'Door-to-door', p: 'A map for knocking on doors: mark every house you visit, so you follow up with the interested ones and never knock twice on a door that said no.',
+		can: ['Tap a house to record what happened: flyer left, talked, interested, wants a quote, call back, not interested, do not come back, no soliciting…', 'Add their name, phone, notes and a follow-up date', 'See every house coloured by result; filter by result', 'Get a list of follow-ups that are due', 'Turn an interested homeowner into a lead in one tap', 'Use “Where am I” to follow your position as you walk', 'Export everything to a spreadsheet'],
+		links: 'Leads you create here appear in Customers. Door-to-door sessions can be booked on your Calendar. Only you can see these houses.' },
 	snippets: { t: 'Quick replies', p: 'Answers you send often, ready to drop into any conversation in one tap.',
 		can: ['Save replies like “I can come Thursday between 9 and 11 — does that work?”', 'Use merge details like the customer’s first name'], f: 'snippets' }
 };
@@ -187,7 +190,7 @@ export function planPrompt(e, toast) {
 /** Every area, one line each, and whether this account has it. */
 export function capabilityMap(isPro) {
 	const homeowner = ['find', 'request', 'projects', 'calendar', 'inbox'];
-	const pro = ['dash', 'hubinbox', 'customers', 'quotes', 'jobs', 'schedule', 'invoices', 'messages', 'reminders', 'intake', 'social', 'snippets', 'plan'];
+	const pro = ['dash', 'hubinbox', 'customers', 'quotes', 'jobs', 'schedule', 'canvass', 'invoices', 'messages', 'reminders', 'intake', 'social', 'snippets', 'plan'];
 	const row = (k) => {
 		const x = HELP[k];
 		const feat = x.f && CAPS && CAPS.features ? CAPS.features[x.f] : null;

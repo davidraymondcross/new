@@ -438,7 +438,7 @@ function dreamscaper_rest_req_send( WP_REST_Request $r ) {
 			$design['plan'] = $plan;
 		}
 	}
-	$f = array( 'name' => $prof['name'], 'email' => $prof['email'], 'phone' => $phone, 'address' => $mine ? $mine->address : $prof['address'], 'town' => $prof['town'], 'state' => 'CT', 'zip' => $prof['zip'], 'message' => $brief['description'] );
+	$f = array( 'name' => $prof['name'], 'email' => $prof['email'], 'phone' => $phone, 'address' => $mine ? $mine->address : $prof['address'], 'town' => $prof['town'], 'state' => $prof['state'], 'zip' => $prof['zip'], 'message' => $brief['description'] );
 	$sent = array();
 	$skip = array();
 	$Q    = dreamscaper_t( 'quotes' );

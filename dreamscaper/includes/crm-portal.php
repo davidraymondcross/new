@@ -42,7 +42,7 @@ function dreamscaper_crm_pros( WP_REST_Request $r ) {
 		$ck = 'dscp_near_' . md5( strtolower( $near ) );
 		$g  = get_transient( $ck );
 		if ( false === $g && dreamscaper_limit( 'near', 60, HOUR_IN_SECONDS ) ) {
-			$g = dreamscaper_geocode( preg_match( '/^\d{5}$/', $near ) ? $near : $near . ( preg_match( '/,\s*[A-Z]{2}\b/', $near ) ? '' : ', CT' ) );
+			$g = dreamscaper_geocode( preg_match( '/^\d{5}$/', $near ) ? $near : $near . ( preg_match( '/,\s*[A-Z]{2}\b/', $near ) || ! get_user_meta( get_current_user_id(), 'dscp_state', true ) ? '' : ', ' . get_user_meta( get_current_user_id(), 'dscp_state', true ) ) );
 			set_transient( $ck, $g ? $g : 0, WEEK_IN_SECONDS );
 		}
 		if ( $g ) {
@@ -199,7 +199,7 @@ function dreamscaper_crm_new_lead( $pro_id, $f, $source, $user_id = 0, $design =
 		) );
 		$quote = (int) $wpdb->insert_id;
 	}
-	$label = array( 'website' => 'website form', 'dreamscaper' => 'DreamScaper', 'text' => 'text message', 'phone' => 'phone call', 'referral' => 'referral', 'social' => 'social media', 'contractor' => 'contractor referral' );
+	$label = array( 'door' => 'door-to-door', 'website' => 'website form', 'dreamscaper' => 'DreamScaper', 'text' => 'text message', 'phone' => 'phone call', 'referral' => 'referral', 'social' => 'social media', 'contractor' => 'contractor referral' );
 	dreamscaper_crm_log( $pro_id, $client, $quote, 'lead', 'New ' . ( $design ? 'quote request' : 'lead' ) . ' from ' . ( isset( $label[ $source ] ) ? $label[ $source ] : $source ) . ( ! empty( $f['message'] ) ? ': ' . $f['message'] : '' ), (int) $user_id );
 	return array( 'client' => $client, 'prop' => $prop, 'quote' => $quote );
 }
@@ -220,7 +220,7 @@ function dreamscaper_crm_lead( WP_REST_Request $r ) {
 	if ( ! $p || 'approved' !== $p->status ) {
 		return dreamscaper_crm_err( 'Contractor not found.', 404 );
 	}
-	$f = array( 'name' => dreamscaper_crm_txt( $j, 'name', 120 ), 'email' => sanitize_email( isset( $j['email'] ) ? $j['email'] : '' ), 'phone' => dreamscaper_crm_txt( $j, 'phone', 30 ), 'address' => dreamscaper_crm_txt( $j, 'address', 200 ), 'town' => dreamscaper_crm_txt( $j, 'town', 80 ), 'state' => 'CT', 'message' => dreamscaper_crm_area( $j, 'message', 2000 ) );
+	$f = array( 'name' => dreamscaper_crm_txt( $j, 'name', 120 ), 'email' => sanitize_email( isset( $j['email'] ) ? $j['email'] : '' ), 'phone' => dreamscaper_crm_txt( $j, 'phone', 30 ), 'address' => dreamscaper_crm_txt( $j, 'address', 200 ), 'town' => dreamscaper_crm_txt( $j, 'town', 80 ), 'state' => dreamscaper_state_abbr( dreamscaper_crm_txt( $j, 'state', 30 ) ) ? dreamscaper_state_abbr( dreamscaper_crm_txt( $j, 'state', 30 ) ) : dreamscaper_state_abbr( get_user_meta( get_current_user_id(), 'dscp_state', true ) ), 'message' => dreamscaper_crm_area( $j, 'message', 2000 ) );
 	if ( strlen( $f['name'] ) < 2 || ( ! is_email( $f['email'] ) && strlen( preg_replace( '/\D/', '', $f['phone'] ) ) < 10 ) ) {
 		return dreamscaper_crm_err( 'Please add your name and an email or phone number.' );
 	}
@@ -254,7 +254,7 @@ function dreamscaper_crm_request( WP_REST_Request $r ) {
 		return dreamscaper_crm_err( 'You’ve sent a lot of requests today. Try again tomorrow.', 429 );
 	}
 	$prof = dreamscaper_profile( $uid );
-	$f    = array( 'name' => $prof['name'], 'email' => $prof['email'], 'phone' => dreamscaper_crm_txt( $j, 'phone', 30 ) ? dreamscaper_crm_txt( $j, 'phone', 30 ) : $prof['phone'], 'address' => $prof['address'], 'town' => $prof['town'], 'state' => 'CT', 'zip' => $prof['zip'], 'message' => dreamscaper_crm_area( $j, 'message', 2000 ) );
+	$f    = array( 'name' => $prof['name'], 'email' => $prof['email'], 'phone' => dreamscaper_crm_txt( $j, 'phone', 30 ) ? dreamscaper_crm_txt( $j, 'phone', 30 ) : $prof['phone'], 'address' => $prof['address'], 'town' => $prof['town'], 'state' => $prof['state'], 'zip' => $prof['zip'], 'message' => dreamscaper_crm_area( $j, 'message', 2000 ) );
 	if ( strlen( preg_replace( '/\D/', '', $f['phone'] ) ) < 10 ) {
 		return dreamscaper_crm_err( 'Please add a phone number so the contractor can reach you.' );
 	}

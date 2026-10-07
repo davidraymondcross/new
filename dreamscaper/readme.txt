@@ -4,7 +4,7 @@ Tags: landscape design, garden planner, yard design, visualizer
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.7.2
+Stable tag: 2.7.3
 License: GPLv2 or later
 
 A fun, full-screen yard design studio for your website visitors.
@@ -52,7 +52,7 @@ combining/minification (they are ES modules) and exclude /wp-json/dreamscaper/* 
 = Contractor CRM (optional) =
 5. Settings → DreamScaper → Contractors: leave “Turn on the Contractor Hub…” ticked. Approve contractors under Settings → DreamScaper Contractors.
 6. Text messages: add your Twilio Account SID, Auth Token and number (or Messaging Service), register for A2P 10DLC, and point the number's incoming-message webhook at the URL shown on the settings page.
-7. Payments: in Stripe turn on Connect (Express) and add checkout.session.completed and account.updated to your webhook. Contractors connect their own account from Contractor Hub → Settings → Get paid online.
+7. Payments: in Stripe turn on Connect (Express) and add checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed and account.updated to your webhook. Contractors connect their own account from Contractor Hub → Settings → Get paid online.
 8. WP-Cron sends follow-ups every 5 minutes. On low-traffic sites, set up a real cron job that calls wp-cron.php so follow-ups go out on time.
 
 == Frequently Asked Questions ==
@@ -65,6 +65,19 @@ The live camera needs the page to load over https. If the camera isn't available
 to the phone's photo picker.
 
 == Changelog ==
+
+= 2.7.3 =
+* Two different apps. Approved contractors now land on their own Contractor Hub home (greeting, new requests, replies waiting, today's appointments, unpaid invoices, and big buttons for every part of the business), with the design studio one tap away and "Use DreamScaper as a homeowner" for their own yard. Homeowners no longer see any contractor tools — just one small "Are you a contractor?" link.
+* Calendar month view: see the whole month with each day's bookings and booked hours; tap a day for what you can do — new job day, schedule a signed job, appointment, estimate / site visit, maintenance, follow-up, door-to-door session, open the map, or block time off. Month / List switch is remembered.
+* Working hours: 7 AM–5 PM by default, changeable in Settings → Crew & hours. Used for new job days, the day menu ("about 6 of your 10 working hours free") and later the route planner.
+* Door-to-door map (Contractor Hub → Door-to-door): tap any house — its address is looked up — and mark Flyer left, Not home, Talked with them, Interested, Wants a quote, Call back, Not interested, Already a customer, Uses another company, Vacant / for sale, Can't reach the door, Do not come back or No soliciting sign, plus extras (dog, gate, HOA…), contact details, a follow-up date and notes. Every house is a coloured pin; "Do not knock" houses warn you before you knock again; each visit is kept in the house's history. Follow-ups due, filters, list view, "where am I", directions, CSV export, and "Wants a quote" turns straight into a lead.
+* Payments: customers can pay invoices by card or by bank account (ACH). Platform processing rates (editable in Settings → DreamScaper): cards 3.5% + $0.30, ACH bank payments 1.5%, Instant Payouts 2.5%. Bank payments show "Bank payment clearing" until they settle; a failed bank payment reopens the invoice and tells both sides.
+* Instant Payouts (off until you switch it on): contractors with an eligible debit card can cash out their Stripe balance in minutes for a 2.5% fee.
+* USA-wide: no more Connecticut-only assumptions. Sign-up, profiles, contractor applications and customer records have a state; AI advice, plant tips and invasive-plant notes use the person's region; address search is nationwide; sales tax defaults to 0 outside CT. (The to-scale aerial imagery still covers Connecticut only, and says so.)
+* Terms of Service page (created automatically, editable in WP Admin → DreamScaper Terms). "By continuing to use this website, you agree to our Terms of Service" is shown until acknowledged and again when the terms change; sign-up and the contractor application require ticking "I agree". Every acceptance is stored with the terms version.
+* Contractor notes on each customer (contractors only): short, factual records tied to a real invoice, appointment or signed quote — unpaid 60+ days, paid 30+ days late, payment reversed, cancelled within 24 hours, no-show, cancelled after materials were ordered. Other contractors who are dealing with the same customer see a summary (what and when, never who); records expire after 24 months, every view is logged, DreamScaper suggests records from overdue invoices and clears them when paid, and nothing is shared until the contractor confirms. Contractors accept the rules before first use. Customers can ask for their data (included in WordPress's Export Personal Data) and dispute a record (Settings → DreamScaper Records).
+* Private employee notes: each crew member has a 🔒 private section (role, start date, pay, reliability / quality / safety ratings, notes) that only the business owner sees.
+* Fix: the Terms notice could never appear because the session didn't pass the terms through.
 
 = 2.7.2 =
 * Beds: tap around a bed and a big, labelled Start point appears; move near it and it snaps and says "Close loop" — tap it to close the shape. Back 1 point (or Backspace) and Clear while drawing.
@@ -96,6 +109,9 @@ to the phone's photo picker.
 * Fixes: email "Open your Contractor Hub" links no longer land on Home; the welcome tour no longer appears twice.
 
 == Upgrade Notice ==
+
+= 2.7.3 =
+New tables are created automatically. In Stripe → Developers → Webhooks, add the events checkout.session.async_payment_succeeded and checkout.session.async_payment_failed (needed for bank payments) to your existing DreamScaper endpoint. Bank (ACH) payments are on by default; Instant Payouts are off until you enable them in Settings → DreamScaper — they need Instant Payouts and Account Debits enabled on your Stripe Connect platform, so test them in Stripe test mode first. Check the processing rates and the home region, then read the new Terms of Service page (WP Admin → DreamScaper Terms) and adjust it with your attorney.
 
 = 2.7.1 =
 New four-tier pricing and a staged non-payment policy. If you saved plan settings in 2.7.0, open Settings → DreamScaper Plans, check the new prices and allowances, save, and click "Create these plans in Stripe" (or paste new price IDs) — the 2.7.0 plan settings are not carried over. In Stripe → Billing → Revenue recovery, set Smart Retries to 2 weeks, "mark the subscription as unpaid" when retries fail, and turn off Stripe's own failed-payment emails.

@@ -71,7 +71,11 @@ function dreamscaper_ai_list( $v, $max_items = 8, $max = 120 ) {
 	}
 	return $out;
 }
-const DREAMSCAPER_AI_ROLE = 'You are a senior residential landscape designer in Connecticut (USDA zones 5b–7a) with 20 years of installation experience. You give specific, practical, buildable advice using plants that thrive in New England. You only describe things you can actually see in the photo; when you are not sure, you say so instead of guessing. You always reply with valid JSON only — no markdown, no extra text.';
+/** The designer persona, set in the person's own region (their state, or the site's home region). */
+function dreamscaper_ai_role() {
+	return str_replace( '{region}', dreamscaper_region(), DREAMSCAPER_AI_ROLE );
+}
+const DREAMSCAPER_AI_ROLE = 'You are a senior residential landscape designer in {region} with 20 years of installation experience. You give specific, practical, buildable advice using plants that thrive in that climate (consider its USDA hardiness zones). You only describe things you can actually see in the photo; when you are not sure, you say so instead of guessing. You always reply with valid JSON only — no markdown, no extra text.';
 
 /** Ask DreamScaper: turn a homeowner's words into one precise FLUX edit instruction. */
 function dreamscaper_ai_ask( WP_REST_Request $r ) {
@@ -90,7 +94,7 @@ function dreamscaper_ai_ask( WP_REST_Request $r ) {
 		. "4. 'scope' is 'small' if it changes one area or element, 'full' if it redesigns the whole landscape.\n"
 		. "5. 'explain' is 1–2 friendly sentences for the homeowner about what will change and why it will look good.\n"
 		. "Return: {\"instruction\": string (under 90 words), \"scope\": \"small\"|\"full\", \"explain\": string, \"note\": string}";
-	$out = dreamscaper_vlm( DREAMSCAPER_AI_ROLE, $prompt, array( isset( $j['image'] ) ? $j['image'] : '' ), 600 );
+	$out = dreamscaper_vlm( dreamscaper_ai_role(), $prompt, array( isset( $j['image'] ) ? $j['image'] : '' ), 600 );
 	if ( is_wp_error( $out ) ) {
 		return $out;
 	}
@@ -105,7 +109,7 @@ function dreamscaper_ai_ask( WP_REST_Request $r ) {
 function dreamscaper_ai_analyze( WP_REST_Request $r ) {
 	$j    = $r->get_json_params();
 	$cats = array( 'curb_appeal' => 'Curb appeal', 'privacy' => 'Privacy', 'planting' => 'Planting', 'hardscape' => 'Hardscape', 'lighting' => 'Lighting', 'drainage' => 'Drainage', 'erosion' => 'Erosion', 'underused' => 'Underused area', 'maintenance' => 'Maintenance' );
-	$prompt = "Analyze the landscape in the attached photo of a home in Connecticut and list the best improvement opportunities.\n"
+	$prompt = "Analyze the landscape in the attached photo of a home in " . dreamscaper_region() . " and list the best improvement opportunities.\n"
 		. "Consider each category: " . implode( ', ', array_keys( $cats ) ) . ".\n"
 		. "Rules:\n"
 		. "1. Only include an item if you can see evidence for it in the photo; say what you saw in 'seen' (e.g. 'bare soil on the slope left of the driveway').\n"
@@ -114,7 +118,7 @@ function dreamscaper_ai_analyze( WP_REST_Request $r ) {
 		. "4. 'priority' 1 (do first) – 3 (nice to have). Give 4–8 items, best first.\n"
 		. "5. 'summary': 2 friendly sentences about the yard's current state and biggest opportunity.\n"
 		. "Return: {\"summary\": string, \"items\": [{\"cat\": one of the categories, \"title\": string (max 8 words), \"seen\": string, \"why\": string (one sentence), \"idea\": string, \"priority\": 1|2|3}]}";
-	$out = dreamscaper_vlm( DREAMSCAPER_AI_ROLE, $prompt, array( isset( $j['image'] ) ? $j['image'] : '' ), 1600 );
+	$out = dreamscaper_vlm( dreamscaper_ai_role(), $prompt, array( isset( $j['image'] ) ? $j['image'] : '' ), 1600 );
 	if ( is_wp_error( $out ) ) {
 		return $out;
 	}
@@ -144,7 +148,7 @@ function dreamscaper_ai_explain( WP_REST_Request $r ) {
 		. "2. For each point: what changed, and the design reason (e.g. framing the entry, layering heights, year-round interest, softening the foundation, repetition, color echo, low maintenance, privacy, drainage).\n"
 		. "3. Mention care tips or things to confirm with a contractor in 'notes' (sun, spacing, mature size, deer).\n"
 		. "Return: {\"summary\": string (2 sentences), \"points\": [{\"title\": string (max 6 words), \"why\": string (1–2 sentences)}] (3–6 points), \"notes\": [string] (0–3)}";
-	$out = dreamscaper_vlm( DREAMSCAPER_AI_ROLE, $prompt, array( isset( $j['before'] ) ? $j['before'] : '', isset( $j['after'] ) ? $j['after'] : '' ), 1200 );
+	$out = dreamscaper_vlm( dreamscaper_ai_role(), $prompt, array( isset( $j['before'] ) ? $j['before'] : '', isset( $j['after'] ) ? $j['after'] : '' ), 1200 );
 	if ( is_wp_error( $out ) ) {
 		return $out;
 	}
@@ -174,10 +178,10 @@ function dreamscaper_ai_style( WP_REST_Request $r ) {
 		. "Identify the landscape style they are drawn to. Rules:\n"
 		. "1. Base it on what the pictures and saved items have in common; ignore one-off details.\n"
 		. "2. 'style' is a short name (max 4 words), e.g. 'Relaxed cottage', 'Clean modern', 'New England traditional'.\n"
-		. "3. 'plants' must be plants that grow well in Connecticut and match the look.\n"
+		. "3. 'plants' must be plants that grow well in " . dreamscaper_region() . " and match the look.\n"
 		. "4. 'prompt' is ONE instruction for an image-editing AI to restyle a different home's yard in this look, under 80 words: plants, materials, bed shapes, colors, mood. It must say to keep the house, driveway and camera angle the same.\n"
 		. "Return: {\"style\": string, \"summary\": string (2 sentences), \"characteristics\": [string] (3–6), \"plants\": [string] (4–8), \"materials\": [string] (0–4), \"colors\": [string] (2–5), \"prompt\": string}";
-	$out = dreamscaper_vlm( DREAMSCAPER_AI_ROLE, $prompt, isset( $j['images'] ) ? (array) $j['images'] : array(), 1200 );
+	$out = dreamscaper_vlm( dreamscaper_ai_role(), $prompt, isset( $j['images'] ) ? (array) $j['images'] : array(), 1200 );
 	if ( is_wp_error( $out ) ) {
 		return $out;
 	}

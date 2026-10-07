@@ -5,6 +5,12 @@
  * nouns over adjectives, under ~120 words, references named "image 2/3/4", and an
  * explicit list of what must stay the same so the house and camera angle survive.
  */
+import { stateName } from './util.js?v=2.7.3';
+import { session } from './api.js?v=2.7.3';
+
+/** Where the plants have to grow: the person's state, else the site's home region, else the US. */
+const region = () => stateName(session.user && session.user.state) || session.region || 'the United States';
+
 
 /* ------------------------------------------------------------------ ideas
  * id, emoji, label, group, phrase (opt => text), options [[id,label,text]], hint */
@@ -216,8 +222,8 @@ export function buildPrompt(s) {
 
 	const parts = [];
 	parts.push(`${lead}: ${changes.join('; ')}.`);
-	if (style.length) parts.push(`Style: ${style.join(', ')}; plants that grow in Connecticut.`);
-	else parts.push('Use plants that grow in Connecticut.');
+	if (style.length) parts.push(`Style: ${style.join(', ')}; plants that grow in ${region()}.`);
+	else parts.push(`Use plants that grow in ${region()}.`);
 	if (when) parts.push(`Show it ${when}.`);
 	if (free.length) parts.push(`You may ${free.join(', ')}.`);
 	parts.push(`${KEEP}${keep.length ? '; ' + keep.join('; ') : ''}${amount === 'subtle' ? '; change as little as possible' : ''}.`);
@@ -286,12 +292,12 @@ export const STYLES = [
 	['formal', 'Formal', 'formal landscape: symmetry, clipped boxwood hedges and spheres, straight paths, matching planters'],
 	['rustic', 'Rustic', 'rustic landscape: fieldstone walls and steps, split-rail fence, informal native shrubs and perennials'],
 	['lowmaint', 'Low-maintenance', 'low-maintenance landscape: few tough shrubs and grasses, generous mulch or stone, clean edges, no fussy annuals'],
-	['native', 'Native', 'native Connecticut plants: switchgrass, little bluestem, coneflower, black-eyed Susan, bayberry, winterberry, serviceberry'],
+	['native', 'Native', 'native plants of the local region (for example in the Northeast: switchgrass, little bluestem, coneflower, black-eyed Susan, bayberry, winterberry, serviceberry)'],
 	['pollinator', 'Pollinator', 'pollinator garden: bee balm, milkweed, coneflower, asters, mountain mint and catmint in colorful layered drifts'],
 	['luxury', 'Luxury', 'luxury estate landscape: specimen Japanese maples, layered evergreens, bluestone walkways, landscape lighting, lush perennial borders']
 ];
 export function stylePrompt(id, aerial) {
 	const st = STYLES.find((x) => x[0] === id) || STYLES[0];
-	return `Redesign the landscaping in this ${aerial ? 'top-down aerial photo' : 'photo'} of a home in a ${st[1].toLowerCase()} style — ${st[2]} — using plants that grow in Connecticut. ${KEEP}. Realistic professional landscape photograph, natural daylight, true-to-scale plants.`;
+	return `Redesign the landscaping in this ${aerial ? 'top-down aerial photo' : 'photo'} of a home in a ${st[1].toLowerCase()} style — ${st[2]} — using plants that grow in ${region()}. ${KEEP}. Realistic professional landscape photograph, natural daylight, true-to-scale plants.`;
 }
 export const KEEP_TEXT = KEEP;

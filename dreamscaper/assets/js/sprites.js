@@ -2,10 +2,10 @@
  * Everything is painted in code (no image files), seeded so each plant keeps its
  * own character while it grows and changes with the seasons.
  */
-import { rng, hsl, mix, clamp, canvas } from './util.js?v=2.7.2';
-import { SEASON_MONTHS } from './library.js?v=2.7.2';
-import { SIDE as FSIDE, topFeature } from './features-art.js?v=2.7.2';
-import { seasonalPhoto, drawPhotoSprite, onPhotoReady, photoImage } from './photo.js?v=2.7.2';
+import { rng, hsl, mix, clamp, canvas } from './util.js?v=2.7.3';
+import { SEASON_MONTHS } from './library.js?v=2.7.3';
+import { SIDE as FSIDE, topFeature } from './features-art.js?v=2.7.3';
+import { seasonalPhoto, drawPhotoSprite, onPhotoReady, photoImage } from './photo.js?v=2.7.3';
 
 const cache = new Map();
 const CACHE_MAX = 500;

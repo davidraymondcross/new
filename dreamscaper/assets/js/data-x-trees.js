@@ -1,5 +1,5 @@
 /* Expanded tree library (deciduous). See data-x-helpers.js for the row format. */
-import { fam, sp } from './data-x-helpers.js?v=2.7.2';
+import { fam, sp } from './data-x-helpers.js?v=2.7.3';
 
 const RED = 'n z3-9 s:FP fc:red bl:red w:Mar';
 const SUG = 'n z3-8 s:FP fc:orange';

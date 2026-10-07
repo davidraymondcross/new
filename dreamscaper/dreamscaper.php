@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DreamScaper
  * Description: A fun landscape design studio for your visitors. Customers photograph their yard (or use Connecticut aerial imagery), add real plants and garden features, paint mulch and stone, magic-erase what they don't want, watch plants grow year by year, and save named designs. Customer accounts (email, Google, Facebook) keep designs online across devices and unlock Dreamscape AI (FLUX.2 [klein]) plus AI Erase, Smart Select, Make it real, Season & light and plant/weed identification. Share to social media and print. Contractor CRM: Design → Quote estimating, e-signature, follow-ups, scheduling, job costing and invoices. Shortcodes: [dreamscaper], [dreamscaper_quote]
- * Version: 2.7.2
+ * Version: 2.7.3
  * Author: David's Landscaping
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DREAMSCAPER_VERSION', '2.7.2' );
+define( 'DREAMSCAPER_VERSION', '2.7.3' );
 define( 'DREAMSCAPER_URL', plugin_dir_url( __FILE__ ) );
 define( 'DREAMSCAPER_OPT', 'dreamscaper_settings' );
 
@@ -81,7 +81,19 @@ function dreamscaper_defaults() {
 		'twilio_token'       => '',
 		'twilio_from'        => '',
 		'twilio_msid'        => '',
-		'connect_fee_pct'    => 0,
+		'home_region'        => 'Connecticut', // plant advice for visitors who haven't said where they are
+		'connect_fee_pct'    => 0, // replaced by the per-method processing rates below (kept so old settings still load)
+		// what a contractor pays per customer payment (the site's Stripe fees come out of this)
+		'fee_card_pct'       => 3.5,
+		'fee_card_fixed'     => 0.30,
+		'fee_ach_pct'        => 1.5,
+		'fee_instant_pct'    => 2.5,
+		'pay_ach'            => 1,
+		'pay_instant'        => 0,
+		// door-to-door map imagery (XYZ tile URL); blank = OpenStreetMap (fine for light use)
+		'map_tiles'          => '',
+		'map_tiles_attr'     => '',
+		'map_tiles_max'      => 20,
 	);
 }
 
@@ -91,6 +103,7 @@ function dreamscaper_opt( $key ) {
 }
 
 require_once __DIR__ . '/includes/accounts.php';
+require_once __DIR__ . '/includes/terms.php';
 require_once __DIR__ . '/includes/cloud.php';
 require_once __DIR__ . '/includes/ai.php';
 require_once __DIR__ . '/includes/ai-tools.php';
@@ -165,7 +178,17 @@ function dreamscaper_sanitize( $in ) {
 		'twilio_token'       => $secret( 'twilio_token' ),
 		'twilio_from'        => $txt( 'twilio_from' ),
 		'twilio_msid'        => preg_replace( '/[^A-Za-z0-9]/', '', $txt( 'twilio_msid' ) ),
+		'home_region'        => sanitize_text_field( isset( $in['home_region'] ) ? $in['home_region'] : $d['home_region'] ),
 		'connect_fee_pct'    => max( 0, min( 20, round( (float) ( isset( $in['connect_fee_pct'] ) ? $in['connect_fee_pct'] : 0 ), 2 ) ) ),
+		'fee_card_pct'       => max( 0, min( 15, round( (float) ( isset( $in['fee_card_pct'] ) ? $in['fee_card_pct'] : $d['fee_card_pct'] ), 3 ) ) ),
+		'fee_card_fixed'     => max( 0, min( 5, round( (float) ( isset( $in['fee_card_fixed'] ) ? $in['fee_card_fixed'] : $d['fee_card_fixed'] ), 2 ) ) ),
+		'fee_ach_pct'        => max( 0, min( 15, round( (float) ( isset( $in['fee_ach_pct'] ) ? $in['fee_ach_pct'] : $d['fee_ach_pct'] ), 3 ) ) ),
+		'fee_instant_pct'    => max( 0, min( 15, round( (float) ( isset( $in['fee_instant_pct'] ) ? $in['fee_instant_pct'] : $d['fee_instant_pct'] ), 3 ) ) ),
+		'pay_ach'            => empty( $in['pay_ach'] ) ? 0 : 1,
+		'pay_instant'        => empty( $in['pay_instant'] ) ? 0 : 1,
+		'map_tiles'          => preg_match( '#^https://[^\s]+\{z\}[^\s]*\{x\}[^\s]*\{y\}#', isset( $in['map_tiles'] ) ? trim( $in['map_tiles'] ) : '' ) ? esc_url_raw( trim( $in['map_tiles'] ), array( 'https' ) ) : '',
+		'map_tiles_attr'     => sanitize_text_field( isset( $in['map_tiles_attr'] ) ? $in['map_tiles_attr'] : '' ),
+		'map_tiles_max'      => max( 15, min( 22, (int) ( isset( $in['map_tiles_max'] ) ? $in['map_tiles_max'] : 20 ) ) ),
 	);
 	foreach ( $d as $k => $v ) {
 		if ( preg_match( '/^(pts_|redeem_)/', $k ) ) {
@@ -206,6 +229,7 @@ function dreamscaper_settings_page() {
 			<table class="form-table">
 				<?php
 				$row( 'brand', 'Business name' );
+				$row( 'home_region', 'Home region (for plant advice)', 'Used for visitors who haven’t told us their state (e.g. “Connecticut”). Everyone else gets advice for their own state — DreamScaper works anywhere in the US.' );
 				$row( 'short_brand', 'Short name (for “Send to …” button)' );
 				$row( 'site', 'Website shown on saved images' );
 				$row( 'notify_email', 'Send designs and leads to', '', 'email' );
@@ -345,10 +369,29 @@ function dreamscaper_settings_page() {
 				$row( 'twilio_msid', 'Messaging Service SID (optional)', 'Starts with <code>MG</code>.' );
 				?>
 			</table>
-			<h3>Contractor payments (Stripe Connect)</h3>
-			<p>Contractors connect their own Stripe account from the Contractor Hub (Settings → Get paid online). Homeowners pay deposits, progress and final invoices by card, Apple Pay or Google Pay; the money goes to the contractor’s Stripe account. Uses the Stripe keys above. In your Stripe Dashboard turn on <b>Connect</b> (Express accounts) and add the events <code>checkout.session.completed</code> and <code>account.updated</code> to your webhook.</p>
+			<h3>Door-to-door map</h3>
+			<p>Contractors tap houses on a street map to log door-to-door visits. By default the map uses OpenStreetMap, which is fine for light use. For heavy use or satellite imagery, sign up with a map tile provider (for example MapTiler or Stadia Maps) and paste its tile address here.</p>
 			<table class="form-table">
-				<?php $row( 'connect_fee_pct', 'Platform fee (% of each contractor payment)', 'What this site keeps from each payment. 0 = nothing. Stripe’s own fee (2.9% + 30¢) is paid by the contractor.', 'number' ); ?>
+				<?php
+				$row( 'map_tiles', 'Map tile address (optional)', 'Like <code>https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=YOUR_KEY</code>. Must contain {z}, {x} and {y}.' );
+				$row( 'map_tiles_attr', 'Map credit line', 'Shown on the map, as your provider requires (e.g. “© MapTiler © OpenStreetMap contributors”).' );
+				$row( 'map_tiles_max', 'Deepest zoom level', 'Usually 19–20.', 'number' );
+				?>
+			</table>
+			<h3>Contractor payments (Stripe Connect)</h3>
+			<p>Contractors connect their own Stripe account from the Contractor Hub (Settings → Get paid online). Homeowners pay deposits, progress and final invoices by card, Apple Pay, Google Pay or bank account (ACH); the money goes to the contractor’s Stripe account. Uses the Stripe keys above. In your Stripe Dashboard turn on <b>Connect</b> (Express accounts) and add the events <code>checkout.session.completed</code>, <code>checkout.session.async_payment_succeeded</code>, <code>checkout.session.async_payment_failed</code> (bank payments) and <code>account.updated</code> to your webhook. Instant Payouts also need <b>Instant Payouts</b> and <b>Account Debits</b> enabled for your Connect platform — try them in test mode first.</p>
+			<table class="form-table">
+				<?php
+				$row( 'fee_card_pct', 'Card payments — % per payment', 'Processing rate a contractor pays on each card / Apple Pay / Google Pay payment (default 3.5%). Stripe’s own card fee is paid out of this by the site.', 'number' );
+				$row( 'fee_card_fixed', 'Card payments — fixed $ per payment', 'Added to the % above (default $0.30).', 'number' );
+				$row( 'fee_ach_pct', 'Bank (ACH) payments — % per payment', 'Default 1.5%. Bank payments take about 4 business days to clear.', 'number' );
+				$row( 'fee_instant_pct', 'Instant Payouts — % of the payout', 'Default 2.5%. Contractors can choose to get paid out instantly to a debit card instead of waiting for the standard payout.', 'number' );
+				?>
+				<tr><th>Payment options</th><td>
+					<label><input type="checkbox" name="<?php echo esc_attr( $n ); ?>[pay_ach]" value="1" <?php checked( $o['pay_ach'], 1 ); ?>> Let customers pay by bank account (ACH)</label><br>
+					<label><input type="checkbox" name="<?php echo esc_attr( $n ); ?>[pay_instant]" value="1" <?php checked( $o['pay_instant'], 1 ); ?>> Offer contractors Instant Payouts</label>
+					<p class="description">Before switching Instant Payouts on: in Stripe → Connect → Settings, enable Instant Payouts for connected accounts and Account Debits (US). Test it in test mode first.</p>
+				</td></tr>
 			</table>
 			<?php submit_button(); ?>
 		</form>
@@ -699,20 +742,60 @@ function dreamscaper_limit( $prefix, $max, $ttl ) {
 	return true;
 }
 
+/** US states and territories: abbreviation => name. DreamScaper works anywhere in the US. */
+function dreamscaper_us_states() {
+	return array( 'AL' => 'Alabama', 'AK' => 'Alaska', 'AZ' => 'Arizona', 'AR' => 'Arkansas', 'CA' => 'California', 'CO' => 'Colorado', 'CT' => 'Connecticut', 'DE' => 'Delaware', 'DC' => 'District of Columbia', 'FL' => 'Florida', 'GA' => 'Georgia', 'HI' => 'Hawaii', 'ID' => 'Idaho', 'IL' => 'Illinois', 'IN' => 'Indiana', 'IA' => 'Iowa', 'KS' => 'Kansas', 'KY' => 'Kentucky', 'LA' => 'Louisiana', 'ME' => 'Maine', 'MD' => 'Maryland', 'MA' => 'Massachusetts', 'MI' => 'Michigan', 'MN' => 'Minnesota', 'MS' => 'Mississippi', 'MO' => 'Missouri', 'MT' => 'Montana', 'NE' => 'Nebraska', 'NV' => 'Nevada', 'NH' => 'New Hampshire', 'NJ' => 'New Jersey', 'NM' => 'New Mexico', 'NY' => 'New York', 'NC' => 'North Carolina', 'ND' => 'North Dakota', 'OH' => 'Ohio', 'OK' => 'Oklahoma', 'OR' => 'Oregon', 'PA' => 'Pennsylvania', 'RI' => 'Rhode Island', 'SC' => 'South Carolina', 'SD' => 'South Dakota', 'TN' => 'Tennessee', 'TX' => 'Texas', 'UT' => 'Utah', 'VT' => 'Vermont', 'VA' => 'Virginia', 'WA' => 'Washington', 'WV' => 'West Virginia', 'WI' => 'Wisconsin', 'WY' => 'Wyoming', 'PR' => 'Puerto Rico' );
+}
+/** 'Connecticut' / 'ct' / 'CT' → 'CT'; '' when it isn't a US state. */
+function dreamscaper_state_abbr( $s ) {
+	$s = trim( (string) $s );
+	if ( '' === $s ) {
+		return '';
+	}
+	$all = dreamscaper_us_states();
+	if ( isset( $all[ strtoupper( $s ) ] ) ) {
+		return strtoupper( $s );
+	}
+	$k = array_search( strtolower( $s ), array_map( 'strtolower', $all ), true );
+	return false === $k ? '' : $k;
+}
 /**
- * Address autocomplete. Google Places (New) when a Maps key is set, otherwise
- * Photon (OpenStreetMap, includes Connecticut's statewide address points).
+ * Where a person (or the site) is, for plant advice and AI prompts: their state's name, else the
+ * site's home region (Settings), else "the United States".
+ */
+function dreamscaper_region( $uid = 0 ) {
+	$uid = $uid ? $uid : get_current_user_id();
+	$st  = $uid ? dreamscaper_state_abbr( get_user_meta( $uid, 'dscp_state', true ) ) : '';
+	if ( ! $st && $uid && function_exists( 'dreamscaper_pro_row' ) ) {
+		$p  = dreamscaper_pro_row( $uid );
+		$st = $p ? dreamscaper_state_abbr( $p->state ) : '';
+	}
+	$all = dreamscaper_us_states();
+	if ( $st ) {
+		return $all[ $st ];
+	}
+	$home = trim( (string) dreamscaper_opt( 'home_region' ) );
+	return $home ? $home : 'the United States';
+}
+
+/**
+ * Address autocomplete. Google Places (New) when a Maps key is set, otherwise Photon (OpenStreetMap).
+ * Results are biased toward the visitor's own area when the app passes lat/lng — never limited to one
+ * state, except for the Connecticut-only aerial imagery search (ct=1).
  */
 function dreamscaper_rest_suggest( WP_REST_Request $r ) {
 	$q  = trim( sanitize_text_field( (string) $r->get_param( 'q' ) ) );
 	$ct = '1' === (string) $r->get_param( 'ct' );
+	// optional bias toward the person's area (lat/lng from their profile or a recent search)
+	$blat = max( -90, min( 90, (float) $r->get_param( 'lat' ) ) );
+	$blng = max( -180, min( 180, (float) $r->get_param( 'lng' ) ) );
 	if ( strlen( $q ) < 3 ) {
 		return array( 'items' => array() );
 	}
 	if ( ! dreamscaper_limit( 'sug', 400, HOUR_IN_SECONDS ) ) {
 		return array( 'items' => array() );
 	}
-	$ck = 'dscp_sug_' . md5( strtolower( $q ) . ( $ct ? 'ct' : '' ) );
+	$ck = 'dscp_sug_' . md5( strtolower( $q ) . ( $ct ? 'ct' : '' ) . round( $blat, 1 ) . round( $blng, 1 ) );
 	$c  = get_transient( $ck );
 	if ( false !== $c ) {
 		return array( 'items' => $c );
@@ -723,8 +806,8 @@ function dreamscaper_rest_suggest( WP_REST_Request $r ) {
 		$body = array( 'input' => $q, 'includedRegionCodes' => array( 'us' ), 'includedPrimaryTypes' => array( 'street_address', 'premise', 'subpremise', 'route' ) );
 		if ( $ct ) {
 			$body['locationRestriction'] = array( 'rectangle' => array( 'low' => array( 'latitude' => 40.95, 'longitude' => -73.73 ), 'high' => array( 'latitude' => 42.06, 'longitude' => -71.78 ) ) );
-		} else {
-			$body['locationBias'] = array( 'circle' => array( 'center' => array( 'latitude' => 41.6, 'longitude' => -72.7 ), 'radius' => 50000.0 ) );
+		} elseif ( $blat || $blng ) {
+			$body['locationBias'] = array( 'circle' => array( 'center' => array( 'latitude' => $blat, 'longitude' => $blng ), 'radius' => 50000.0 ) );
 		}
 		$res = wp_remote_post( 'https://places.googleapis.com/v1/places:autocomplete', array(
 			'timeout' => 8,
@@ -742,9 +825,9 @@ function dreamscaper_rest_suggest( WP_REST_Request $r ) {
 		$args = array( 'q' => $q, 'limit' => 6, 'lang' => 'en' );
 		if ( $ct ) {
 			$args['bbox'] = '-73.73,40.95,-71.78,42.06';
-		} else {
-			$args['lat'] = 41.6;
-			$args['lon'] = -72.7;
+		} elseif ( $blat || $blng ) {
+			$args['lat'] = $blat;
+			$args['lon'] = $blng;
 		}
 		$res = wp_remote_get( add_query_arg( $args, 'https://photon.komoot.io/api/' ), array( 'timeout' => 8, 'user-agent' => 'DreamScaper/' . DREAMSCAPER_VERSION . ' (' . home_url() . ')' ) );
 		$j   = is_wp_error( $res ) ? null : json_decode( wp_remote_retrieve_body( $res ), true );
@@ -755,7 +838,7 @@ function dreamscaper_rest_suggest( WP_REST_Request $r ) {
 			}
 			$street = trim( ( isset( $p['housenumber'] ) ? $p['housenumber'] . ' ' : '' ) . ( isset( $p['street'] ) ? $p['street'] : ( isset( $p['name'] ) ? $p['name'] : '' ) ) );
 			$town   = isset( $p['city'] ) ? $p['city'] : ( isset( $p['town'] ) ? $p['town'] : ( isset( $p['village'] ) ? $p['village'] : '' ) );
-			$state  = isset( $p['state'] ) ? ( 'Connecticut' === $p['state'] ? 'CT' : $p['state'] ) : '';
+			$state  = isset( $p['state'] ) ? ( dreamscaper_state_abbr( $p['state'] ) ? dreamscaper_state_abbr( $p['state'] ) : $p['state'] ) : '';
 			$label  = implode( ', ', array_filter( array( $street, $town, trim( $state . ' ' . ( isset( $p['postcode'] ) ? $p['postcode'] : '' ) ) ) ) );
 			if ( $street && $town ) {
 				$items[] = array( 'label' => $label, 'lat' => $f['geometry']['coordinates'][1], 'lng' => $f['geometry']['coordinates'][0] );

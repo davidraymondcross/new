@@ -1731,3 +1731,95 @@
 .ds-lay-row .ds-lay-name { flex: 1 1 96px; min-width: 96px; }
 .ds-lay-row .ds-lay-pick { order: 10; flex: 0 0 calc(100% - 44px); max-width: none; margin: 0 4px 2px 36px; }
 .ds-lay-layers .ds-lay-row .ds-lay-name { flex: 1 1 120px; }
+.ds-form-3 { display: grid; grid-template-columns: 1.4fr 1fr .8fr; gap: 8px; }
+@media (max-width: 480px) { .ds-form-3 { grid-template-columns: 1fr 1fr; } }
+
+/* 2.7.3 — month calendar */
+.ds-mc-head h3 { margin: 0; text-align: center; }
+.ds-mc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 8px; }
+.ds-mc-dow { font-size: 12px; font-weight: 700; color: var(--muted); text-align: center; padding: 4px 0; }
+.ds-mc-day { min-height: 96px; border: 1px solid var(--line2); border-radius: 10px; padding: 4px; background: var(--bg2); display: flex; flex-direction: column; gap: 2px; cursor: pointer; overflow: hidden; }
+.ds-mc-day:hover, .ds-mc-day:focus-visible { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(123,224,160,.35); }
+.ds-mc-day.off { opacity: .45; }
+.ds-mc-day.today { border: 2px solid var(--accent); }
+.ds-mc-day.full .ds-mc-num small { color: var(--gold); }
+.ds-mc-num { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; }
+.ds-mc-num small { color: var(--muted); font-size: 11px; }
+.ds-mc-item, .ds-mc-more { display: block; width: 100%; text-align: left; border: 0; border-radius: 6px; padding: 2px 4px; font-size: 11.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(123,224,160,.16); color: var(--text); cursor: pointer; min-height: 20px; }
+.ds-mc-job, .ds-mc-maintenance { background: rgba(92,200,255,.18); }
+.ds-mc-site_visit, .ds-mc-estimate, .ds-mc-consult { background: rgba(244,201,93,.2); }
+.ds-mc-canvass { background: rgba(167,123,240,.2); }
+.ds-mc-timeoff { background: rgba(255,138,122,.18); }
+.ds-mc-item.x { text-decoration: line-through; opacity: .6; }
+.ds-mc-item.done { opacity: .7; }
+.ds-mc-more { background: none; color: var(--muted); font-weight: 700; }
+@media (max-width: 600px) {
+	.ds-mc-day { min-height: 58px; padding: 3px; }
+	.ds-mc-item { font-size: 0; padding: 0; height: 6px; min-height: 6px; border-radius: 3px; }
+	.ds-mc-item span { display: none; }
+	.ds-mc-more { font-size: 10px; padding: 0; }
+}
+.ds-daymenu { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; margin: 8px 0; }
+.ds-daymenu-btn { display: flex; gap: 10px; align-items: center; text-align: left; border: 1px solid var(--line2); background: var(--bg2); color: var(--text); border-radius: 12px; padding: 10px; min-height: 52px; cursor: pointer; }
+.ds-daymenu-btn:hover, .ds-daymenu-btn:focus-visible { border-color: var(--accent); }
+.ds-daymenu-ic { font-size: 22px; width: 28px; text-align: center; }
+.ds-daymenu-btn small { display: block; color: var(--muted); font-size: 12px; }
+
+/* street map (door-to-door) */
+.ds-cv-map { position: relative; height: min(68vh, 640px); min-height: 360px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line2); margin-top: 8px; }
+.ds-map { position: absolute; inset: 0; overflow: hidden; background: #dde3df; touch-action: none; cursor: grab; user-select: none; }
+.ds-map:active { cursor: grabbing; }
+.ds-map:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+.ds-map-tiles img { position: absolute; left: 0; top: 0; width: 256px; height: 256px; transform-origin: 0 0; max-width: none; pointer-events: none; }
+.ds-map-pins { position: absolute; inset: 0; pointer-events: none; }
+.ds-pin { position: absolute; width: 30px; height: 30px; margin: -30px 0 0 -15px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35); pointer-events: auto; cursor: pointer; padding: 0; display: grid; place-items: center; }
+.ds-pin > span { transform: rotate(45deg); font-size: 14px; line-height: 1; }
+.ds-pin.sm { width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; transform: none; border-width: 1.5px; }
+.ds-pin.ring { box-shadow: 0 0 0 3px #a77bf0, 0 2px 6px rgba(0,0,0,.35); }
+.ds-map-me { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #1e88e5; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(30,136,229,.25); pointer-events: none; }
+.ds-map-zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.ds-map-zoom button { width: 44px; height: 44px; border-radius: 10px; border: 1px solid rgba(0,0,0,.15); background: #fff; color: #1d2a22; font-size: 22px; font-weight: 700; cursor: pointer; }
+.ds-map-attr { position: absolute; right: 0; bottom: 0; font-size: 10.5px; background: rgba(255,255,255,.8); color: #333; padding: 1px 6px; border-top-left-radius: 6px; }
+.ds-cv-filter { margin-top: 6px; }
+.ds-cv-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.ds-cv-legend i, .ds-cv-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; flex: none; }
+.ds-cv-dot { width: 14px; height: 14px; }
+.ds-cv-status { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
+.ds-cv-st { display: flex; flex-direction: column; align-items: center; gap: 2px; border: 2px solid var(--line2); border-radius: 12px; background: var(--bg2); color: var(--text); padding: 8px 4px; min-height: 64px; cursor: pointer; }
+.ds-cv-st > span { font-size: 22px; }
+.ds-cv-st small { font-size: 12px; font-weight: 700; text-align: center; line-height: 1.2; }
+.ds-cv-st.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 22%, transparent); }
+.ds-cv-st.stop small { color: #ff8a7a; }
+.ds-cv-stop { padding: 10px 12px; border-radius: 10px; }
+.ds-cv-contact { border-top: 1px solid var(--line2); padding-top: 8px; margin-top: 4px; }
+
+/* contractor home */
+.ds-ph-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.ds-ph-head h1 { margin: 0; font-size: 26px; }
+.ds-ph-kicker { margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 800; }
+.ds-ph-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+@media (max-width: 600px) { .ds-ph-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ds-kpi.hot { border-color: var(--gold); }
+.ds-ph-today { border: 1px solid var(--line2); border-radius: 14px; padding: 10px 12px; margin-bottom: 12px; }
+.ds-ph-today h2 { margin: 0 0 6px; font-size: 17px; }
+.ds-tile-hot { border-color: var(--gold) !important; }
+.ds-ph-studio { border-top: 1px solid var(--line2); margin-top: 14px; padding-top: 10px; }
+.ds-ph-studio h2 { margin: 0 0 4px; font-size: 17px; }
+.ds-ph-switch { text-align: center; margin: 16px 0 6px; }
+
+/* terms of service */
+.ds-terms-bar { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 2147483000; width: min(640px, calc(100vw - 24px)); display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 14px; background: #10261a; color: #eef7f0; box-shadow: 0 10px 30px rgba(0,0,0,.35); font: 14px/1.45 system-ui, sans-serif; }
+.ds-terms-bar p { margin: 0; flex: 1; }
+.ds-terms-bar a { color: #7be0a0; }
+.ds-terms-link { text-align: center; font-size: 12.5px; margin: 6px 0 14px; }
+.ds-terms-link a { color: var(--muted); }
+.ds-agree { border: 1px solid var(--line2); border-radius: 12px; padding: 8px 10px; margin: 8px 0; display: grid; gap: 6px; }
+.ds-rates li { margin: 4px 0; }
+
+/* contractor notes (customer records) */
+.ds-tr-private { background: #fff7e6; border: 1px solid #f0c36d; color: #6b4a00; border-radius: 10px; padding: 8px 12px; font-size: .9rem; }
+.ds-tr-list { margin: 0; padding-left: 1.2em; }
+.ds-tr-list li { margin: 4px 0; }
+.ds-tr-rules ol { padding-left: 1.3em; }
+.ds-tr-rules li { margin: 6px 0; }
+.ds-crew-private { border-top: 1px dashed var(--ds-line, #ddd); margin-top: 8px; padding-top: 8px; }

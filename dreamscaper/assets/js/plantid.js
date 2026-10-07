@@ -3,15 +3,15 @@
  * saved to My Library so it can be placed in any Dreamscape and grown through the years.
  * Available from every screen.
  */
-import { h, put, icon, uid, canvas, canvasToBlob } from './util.js?v=2.7.2';
-import { session, api } from './api.js?v=2.7.2';
-import { openAuth } from './account.js?v=2.7.2';
-import { identify } from './aiclient.js?v=2.7.2';
-import { ALL, plantFromProfile, sizeAt, fmtFt, growthLabel, sunLabel, bloomLabel } from './library.js?v=2.7.2';
-import { prepareCutout, defaultBox, segment as cutSegment, renderCutout } from './cutout.js?v=2.7.2';
-import { encodeCutout } from './photo.js?v=2.7.2';
-import { modal } from './capture.js?v=2.7.2';
-import { storageMeter, storageLeft, fmtBytes, refreshStorage, openStorage } from './storage.js?v=2.7.2';
+import { h, put, icon, uid, canvas, canvasToBlob } from './util.js?v=2.7.3';
+import { session, api } from './api.js?v=2.7.3';
+import { openAuth } from './account.js?v=2.7.3';
+import { identify } from './aiclient.js?v=2.7.3';
+import { ALL, plantFromProfile, sizeAt, fmtFt, growthLabel, sunLabel, bloomLabel } from './library.js?v=2.7.3';
+import { prepareCutout, defaultBox, segment as cutSegment, renderCutout } from './cutout.js?v=2.7.3';
+import { encodeCutout } from './photo.js?v=2.7.3';
+import { modal } from './capture.js?v=2.7.3';
+import { storageMeter, storageLeft, fmtBytes, refreshStorage, openStorage } from './storage.js?v=2.7.3';
 
 const WEED_GENERA = /^(Taraxacum|Plantago|Digitaria|Oxalis|Glechoma|Ambrosia|Chenopodium|Portulaca|Stellaria|Cirsium|Rumex|Polygonum|Persicaria|Alliaria|Reynoutria|Fallopia|Celastrus|Toxicodendron|Cyperus|Poa annua|Trifolium repens|Galium aparine|Lamium|Veronica persica|Euphorbia maculata|Setaria|Echinochloa|Eleusine|Mollugo|Lepidium|Capsella|Cardamine|Medicago lupulina|Ranunculus repens|Rosa multiflora|Lonicera japonica|Ailanthus|Microstegium|Artemisia vulgaris|Ampelopsis|Hedera helix)/i;
 const INVASIVE = /^(Berberis thunbergii|Euonymus alatus|Celastrus orbiculatus|Rosa multiflora|Alliaria petiolata|Reynoutria|Fallopia japonica|Ailanthus altissima|Lonicera (japonica|maackii|morrowii|tatarica)|Microstegium vimineum|Lythrum salicaria|Pyrus calleryana|Elaeagnus umbellata|Ampelopsis brevipedunculata)/i;
@@ -25,7 +25,7 @@ const BENEFITS = [
 	['📈', 'Real growth data, linked automatically', 'Mature height and spread, how fast it grows, sun needs and bloom time — matched to our library of 480+ New England plants.'],
 	['⏳', 'See it years from now', 'Add it to a Dreamscape and slide through time to see how big it will really be in 1, 3, 5 or 10 years — and how it looks every season.'],
 	['📚', 'Keep it in My Library', 'If you choose, we cut the plant out of your photo and save it with all its details, ready to use in any project on any device.'],
-	['⚠️', 'Weed & invasive alerts', 'We warn you about common weeds, Connecticut invasives and poison ivy.']
+	['⚠️', 'Weed & invasive alerts', 'We warn you about common weeds, local invasives and poison ivy.']
 ];
 
 /**
@@ -147,7 +147,7 @@ export function idCard(res, photo) {
 			sci ? h('i', null, sci) : null,
 			toxic ? h('p', { class: 'ds-warn' }, '⚠️ Poison ivy family — don’t touch it with bare skin.') : null,
 			weed ? h('p', { class: 'ds-warn' }, '⚠️ This is a common weed. Pull it before it goes to seed — or use AI Erase to see your yard without it.') : null,
-			invasive ? h('p', { class: 'ds-warn' }, '⚠️ Listed as invasive in Connecticut. We can help remove it.') : null,
+			invasive ? h('p', { class: 'ds-warn' }, '⚠️ Flagged as invasive in your area. We can help remove it.') : null,
 			res.description ? h('p', { class: 'ds-hint' }, res.description) : null,
 			alts.length ? h('p', { class: 'ds-hint' }, 'Could also be: ' + alts.join(', ')) : null));
 	return { el, lib, weed };

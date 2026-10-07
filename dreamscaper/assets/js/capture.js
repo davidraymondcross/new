@@ -1,8 +1,8 @@
 /* DreamScaper – getting a picture of the yard: guided camera, upload, Connecticut
  * aerial imagery, and a Google 3D explorer for scouting & saving viewing angles.
  */
-import { h, icon, canvas, canvasToBlob, clamp } from './util.js?v=2.7.2';
-import { addressField } from './address.js?v=2.7.2';
+import { h, icon, canvas, canvasToBlob, clamp } from './util.js?v=2.7.3';
+import { addressField } from './address.js?v=2.7.3';
 
 const MAX_SIDE = 1600;
 

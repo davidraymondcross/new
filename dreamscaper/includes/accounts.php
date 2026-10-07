@@ -47,6 +47,7 @@ function dreamscaper_profile( $user_id ) {
 		'address'  => $m( 'address' ),
 		'town'     => $m( 'town' ),
 		'zip'      => $m( 'zip' ),
+		'state'    => $m( 'state' ),
 		'contact'  => $m( 'contact' ) !== '0',
 		'provider' => $m( 'provider' ),
 		'avatar'   => $m( 'avatar' ) ? $m( 'avatar' ) : get_avatar_url( $user_id, array( 'size' => 64, 'default' => 'blank' ) ),
@@ -64,6 +65,8 @@ function dreamscaper_session_payload() {
 		'nonce'   => wp_create_nonce( 'wp_rest' ),
 		'ai'      => dreamscaper_ai_status( $uid ),
 		'socials' => dreamscaper_social_providers(),
+		'region'  => dreamscaper_region( $uid ),
+		'terms'   => dreamscaper_terms_public( $uid ),
 		'storage' => dreamscaper_storage_status( $uid ),
 		'community' => dreamscaper_community_status( $uid ),
 		'crm'       => function_exists( 'dreamscaper_crm_status' ) ? dreamscaper_crm_status( $uid ) : array( 'on' => false ),
@@ -83,6 +86,9 @@ function dreamscaper_clean_profile( $p ) {
 		if ( isset( $p[ $k ] ) ) {
 			$out[ $k ] = sanitize_text_field( wp_unslash( (string) $p[ $k ] ) );
 		}
+	}
+	if ( isset( $p['state'] ) ) {
+		$out['state'] = dreamscaper_state_abbr( wp_unslash( (string) $p['state'] ) );
 	}
 	if ( isset( $p['contact'] ) ) {
 		$out['contact'] = $p['contact'] ? '1' : '0';
@@ -195,6 +201,9 @@ function dreamscaper_rest_register( WP_REST_Request $r ) {
 	if ( strlen( $pass ) < 8 ) {
 		return new WP_Error( 'dreamscaper', 'Use a password with at least 8 characters.', array( 'status' => 400 ) );
 	}
+	if ( empty( $p['agree'] ) ) {
+		return new WP_Error( 'dreamscaper', 'Please tick the box to agree to the Terms of Service.', array( 'status' => 400 ) );
+	}
 	if ( email_exists( $email ) ) {
 		return new WP_Error( 'dreamscaper', 'That email already has an account. Sign in instead (or use “Forgot password”).', array( 'status' => 409 ) );
 	}
@@ -203,6 +212,7 @@ function dreamscaper_rest_register( WP_REST_Request $r ) {
 		return $id;
 	}
 	dreamscaper_save_profile( $id, $p );
+	dreamscaper_terms_accept( $id, 'signup' );
 	return dreamscaper_login_response( $id, true );
 }
 

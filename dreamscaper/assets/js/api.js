@@ -14,6 +14,8 @@ export function applySession(j) {
 	if (j.nonce) session.nonce = j.nonce;
 	if (j.ai) session.ai = j.ai;
 	if (j.socials) session.socials = j.socials;
+	if (j.region) session.region = j.region;
+	if (j.terms) session.terms = j.terms;
 	if ('storage' in j) session.storage = j.storage;
 	if (j.community) { session.community = j.community; if (j.community.rewards && j.community.rewards.length) rewardFn(j.community.rewards); }
 	if (j.crm) session.crm = j.crm;

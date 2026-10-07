@@ -361,7 +361,7 @@ function dreamscaper_tpl_when( $start_ts, $now = null ) {
 
 /** Appointment type labels. */
 function dreamscaper_visit_kinds() {
-	return array( 'consult' => 'Consultation', 'site_visit' => 'Site visit', 'estimate' => 'Estimate walk-through', 'job' => 'Job day', 'maintenance' => 'Maintenance visit', 'followup' => 'Follow-up visit', 'meeting' => 'Meeting', 'other' => 'Appointment' );
+	return array( 'consult' => 'Consultation', 'site_visit' => 'Site visit', 'estimate' => 'Estimate walk-through', 'job' => 'Job day', 'maintenance' => 'Maintenance visit', 'followup' => 'Follow-up visit', 'meeting' => 'Meeting', 'canvass' => 'Door-to-door', 'timeoff' => 'Time off / blocked', 'other' => 'Appointment' );
 }
 
 /**

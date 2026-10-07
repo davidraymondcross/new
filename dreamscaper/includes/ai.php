@@ -402,8 +402,8 @@ function dreamscaper_plantnet( $img, $organ ) {
 }
 
 function dreamscaper_vision_identify( $img ) {
-	$sys = 'You identify things in residential landscape photos for a New England landscaping company. Reply with JSON only.';
-	$q   = 'Identify the plant in this photo. If the main subject is not a living plant (for example a stone, paver, statue or furniture), set kind to "item". Return JSON with keys: kind ("plant" or "item"), name (common name, short), sci (botanical name for plants, else ""), category (one of: trees, evergreens, shrubs, perennials, grasses, annuals, vines, weeds, features), group (for items: one of Stone, Water, Furniture, Fire, Lighting, Structures, Containers, Decor, Play, Utility, Hardscape; for plants ""), weed (true/false), confidence (0-1), description (one short sentence a homeowner understands, include if it is a weed or invasive in Connecticut), tags (array of 3-8 search words).';
+	$sys = 'You identify things in residential landscape photos for a residential landscaping company in ' . dreamscaper_region() . '. Reply with JSON only.';
+	$q   = 'Identify the plant in this photo. If the main subject is not a living plant (for example a stone, paver, statue or furniture), set kind to "item". Return JSON with keys: kind ("plant" or "item"), name (common name, short), sci (botanical name for plants, else ""), category (one of: trees, evergreens, shrubs, perennials, grasses, annuals, vines, weeds, features), group (for items: one of Stone, Water, Furniture, Fire, Lighting, Structures, Containers, Decor, Play, Utility, Hardscape; for plants ""), weed (true/false), confidence (0-1), description (one short sentence a homeowner understands, include if it is a weed or invasive in ' . dreamscaper_region() . '), tags (array of 3-8 search words).';
 	$out = dreamscaper_fal( 'fal-ai/any-llm/vision', array(
 		'model'         => dreamscaper_opt( 'vision_model' ),
 		'system_prompt' => $sys,
@@ -457,7 +457,7 @@ function dreamscaper_rest_ai_growth( WP_REST_Request $r ) {
 	if ( ! dreamscaper_limit( 'aigrow', 80, DAY_IN_SECONDS ) ) {
 		return new WP_Error( 'dreamscaper', 'Try again tomorrow.', array( 'status' => 429 ) );
 	}
-	$q   = 'Plant: ' . $name . ( $sci ? ' (' . $sci . ')' : '' ) . '. Give typical landscape values for a garden in Connecticut (USDA zone 6), from university extension references. Return JSON only with keys: '
+	$q   = 'Plant: ' . $name . ( $sci ? ' (' . $sci . ')' : '' ) . '. Give typical landscape values for a garden in ' . dreamscaper_region() . ', from university extension references. Return JSON only with keys: '
 		. 'cat (one of trees, evergreens, shrubs, perennials, grasses, annuals, vines), h (mature height in feet), w (mature spread in feet), '
 		. 'g (for trees, evergreens and shrubs: average growth in inches per year; for perennials and grasses: number of growing seasons to reach full size, 1-4; annuals: 1; vines: feet per year), '
 		. 'sun ("F" full sun, "P" part shade, "S" shade, or combinations like "FP"), ev (true if it keeps leaves in winter), native (true if native to the eastern US), '

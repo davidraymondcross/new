@@ -1,8 +1,8 @@
 /* DreamScaper – share to social media and print. */
-import { h, icon, canvas } from './util.js?v=2.7.2';
-import { session, api } from './api.js?v=2.7.2';
-import { openAuth } from './account.js?v=2.7.2';
-import { modal } from './capture.js?v=2.7.2';
+import { h, icon, canvas } from './util.js?v=2.7.3';
+import { session, api } from './api.js?v=2.7.3';
+import { openAuth } from './account.js?v=2.7.3';
+import { modal } from './capture.js?v=2.7.3';
 
 function jpeg(c, max = 1600, q = 0.88) {
 	const k = Math.min(1, max / Math.max(c.width, c.height));

@@ -851,6 +851,8 @@ require_once __DIR__ . '/inbox.php';
 require_once __DIR__ . '/calendar.php';
 require_once __DIR__ . '/requests.php';
 require_once __DIR__ . '/social.php';
+require_once __DIR__ . '/canvass.php';
+require_once __DIR__ . '/trust.php';
 require_once __DIR__ . '/crm-api.php';
 require_once __DIR__ . '/crm-portal.php';
 require_once __DIR__ . '/crm-pay.php';

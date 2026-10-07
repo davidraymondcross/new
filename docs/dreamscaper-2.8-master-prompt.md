@@ -15,7 +15,8 @@ When you are finished, four things must be true:
 1. **The designer feels like a real design tool**: shapes snap closed, loops are labelled and filled the way a contractor thinks, there are layers, the mouse wheel zooms, and many things can be moved at once.
 2. **A contractor can run a route-based service business**: bill however their customers pay (per visit, monthly, annual plan paid monthly), plan the day's route around real constraints, and measure a property from the office.
 3. **Homeowners and job-seekers can trust who they're dealing with**: verified contractors are clearly marked and filterable, and job listings come from real businesses.
-4. **Contractors can protect each other — lawfully.** Shared signals are factual, tied to real jobs, and built to comply with Connecticut law (see Part H and Part I: these are not optional design choices).
+4. **Contractors can protect each other — lawfully.** Shared signals are factual, tied to real jobs, and built to comply with the law (Connecticut first, then every state — see Part H and Part I: these are not optional design choices).
+5. **It works anywhere in the USA.** Nothing is limited to one state (see §2a).
 
 ---
 
@@ -53,6 +54,17 @@ Single WordPress plugin, no build step, plain PHP + native ES modules (`?v=X.Y.Z
 7. **Mobile first, gloves on.** Tap targets ≥ 44 px. The route planner and the measure wizard must work one-handed on a phone in a truck.
 8. **Scrolling:** the page must never hijack the wheel. **The one exception is the design canvas and the map canvases**, where the wheel zooms the drawing — and only while the pointer is over the canvas.
 9. **Version:** ship the designer upgrades as **2.7.2**, then **2.8.0** for the rest, bumping every `?v=` string each time.
+10. **Two different apps (decided).** Homeowners and contractors get vastly different experiences, and it must stay that way. A homeowner never sees contractor tools (CRM, calendar, door-to-door map, invoices, customer records, hiring admin) — only a small "Are you a contractor?" link. An approved contractor lands on the Contractor Hub home (2.7.3 `prohome.js`) and can switch to the homeowner view for their own yard. Every new feature in this spec must declare which side it belongs to; contractor endpoints refuse everyone else on the server.
+11. **Terms of Service (decided).** Every feature that records or shares information about people (Part H, Part I, door-to-door, texts) is described on the Terms of Service page (`includes/terms.php`, editable in WP Admin → DreamScaper Terms). The site shows *"By continuing to use this website, you agree to our Terms of Service"*; sign-up and the contractor application require ticking "I agree"; each acceptance is stored with the terms version. When the terms change, people are told again.
+
+## 2a. USA-wide (decided)
+
+DreamScaper will serve the whole USA. **Never restrict anything by state.**
+- Every address, profile, contractor application and job posting has a **state** (`dreamscaper_us_states()`, 50 states + DC + PR); defaults come from the user's profile, then the site's home region setting — never a hard-coded "CT".
+- AI prompts, plant advice and invasive-species notes use the user's region (`dreamscaper_region()`).
+- Address search is not biased to one state. Connecticut-only data sources (the CT aerial imagery, data.ct.gov, CT eLicense) are **adapters**: used when the address is in Connecticut, with a clearly labelled fallback (manual measuring / manual review) elsewhere. New states are added as new adapters, never as code changes to features.
+- Sales tax defaults to 0 outside Connecticut (the contractor sets their own rate).
+- **Jobs Board:** every posting has a state and town; job-seekers can **filter and search by state** (and town / ZIP / distance within it). Contractor search filters by state too.
 
 ---
 
@@ -237,6 +249,8 @@ A guided tool for measuring lawn, beds, roof, driveway or any area from aerial i
 
 Verification is **optional to use DreamScaper** and **required to appear in the Verified list**. It earns a ✓ **Verified** badge that homeowners can filter on (and they can also filter to *Unverified* — the filter is neutral).
 
+**USA-wide:** verification runs through **state adapters** (`dreamscaper_verify_{state}`). Connecticut is the first adapter (below). For any other state the business details and credential numbers are collected the same way and go to the site owner's **Needs review** queue with links to that state's official business and licence lookups, until an automated adapter exists for it. The wording below says "Connecticut" because that is the first adapter.
+
 ## F1. What "Verified" means — say it precisely
 
 The badge means: **the business is registered and active with the State of Connecticut, its Home Improvement Contractor (HIC) registration is active where the work requires one, and the person who verified is who they say they are and is connected to the business.** The badge's info panel lists exactly which checks passed and when. Never imply insurance or quality unless separately checked.
@@ -295,13 +309,15 @@ Run behind a `dreamscaper_verify_*` adapter, results stored with evidence links:
 
 - Must **sign up** (DreamScaper member account with a job-seeker profile: name, contact, towns, availability, experience, certifications).
 - **Résumé upload** (PDF/DOCX, ≤ 5 MB, stored privately — not in a public uploads path; served through an authenticated endpoint). A résumé is visible **only** to the people at businesses the applicant applied to, and only for that application; the applicant can withdraw an application (the business loses access) or delete the résumé.
-- **Browse & search:** keyword search on job title; filters for employment type (full-time, part-time, seasonal, year-round), pay range, service category, distance from a town/ZIP, verified employer only, posted date.
+- **Browse & search:** keyword search on job title; **filter and search by state** (decided) and town; filters for employment type (full-time, part-time, seasonal, year-round), pay range, service category, distance from a town/ZIP, verified employer only, posted date.
 - **My applications** (Account → Jobs): every job applied to, its status, messages, and withdraw.
 - Fair-chance: application forms must not ask about criminal history (Connecticut's "ban the box" law applies to all employers); questions about age, disability, religion etc. are blocked by the question editor. Show the contractor a short notice about this.
 
 ---
 
-# PART H — CONTRACTOR-ONLY CUSTOMER FLAGS (decided: factual flags)
+# PART H — CONTRACTOR-ONLY CUSTOMER FLAGS (decided: factual flags — attorney-approved, built in 2.7.3)
+
+**Status:** the owner's attorney approved these functions. Built in 2.7.3 as `includes/trust.php` + `assets/js/trust.js` (customer page → 🔒 Contractor notes), disclosed on the Terms of Service page. 2.8 adds: visibility on incoming requests and leads, verified-only viewing once Part F ships, and the Stripe dispute → *reversed* flag automatically.
 
 **Decision recorded:** shared, contractor-only, **factual** flags tied to real jobs — not opinions, scores or free-text notes. This keeps the feature useful while staying on the right side of Connecticut's Data Privacy Act (consumers' right to access their personal data) and defamation law.
 
@@ -332,11 +348,13 @@ Many flags are created **automatically** from these records (with the contractor
 - The feature is **not advertised to customers**, and contractors are told it's confidential. Before first use a contractor must accept terms: share nothing from this panel with customers or the public; use it only to decide how to approach a job (deposits, prepayment), never to harass; **misuse, false flags or disclosure is grounds for suspension or termination** of the contractor account.
 - **It is not secret from the law:** the privacy policy discloses that contractors may record factual payment and scheduling events about their customers and share them with other contractors on the platform; a customer who requests their data (CTDPA access request) receives their flags, and can **dispute** one — a disputed flag is hidden while the site owner reviews it.
 - Never shown in any public endpoint, never exported, never used to rank homeowners publicly.
-- **Get a Connecticut attorney to review the terms, the privacy-policy wording and the dispute process before launch.**
+- ~~Get an attorney to review~~ **Done — the owner's attorney approved it.** Keep the Terms of Service page in step with any change to this feature, and re-check each new state's privacy law as DreamScaper expands (a state adapter checklist item).
 
 ---
 
-# PART I — EMPLOYEE NOTES AND CONSENTED REFERENCES (decided: both)
+# PART I — EMPLOYEE NOTES AND CONSENTED REFERENCES (decided: both — attorney-approved)
+
+**Status:** private notes are built in 2.7.3 (Settings → Crew & hours → 🔒 Private notes on each person: role, start date, pay, reliability / quality / safety 1–5, notes; owner-only, stripped from every other payload). Consented references ship with the Jobs Board (Part G).
 
 **Why it's built this way:** Connecticut General Statutes **§ 31-51** makes it a crime to blacklist an employee or publish their name to prevent them getting work, and restricts employers from keeping or subscribing to services that hold information about a person's character or actions that could affect their employment — with an exception for a **truthful statement of facts**. A secret shared employee score would also likely be a "consumer report" under the federal **FCRA**. So:
 
@@ -351,7 +369,7 @@ Many flags are created **automatically** from these records (with the contractor
 - A reference contains **only facts** recorded by previous DreamScaper employers: employer, dates worked, role, **eligible for rehire (yes / no / not stated)**, and optionally a short factual statement the employer confirms is truthful. No scores, no opinions about character, **no criminal-record or health information**.
 - The worker can **see** every reference about them (Account → Jobs → My references) and **dispute** one; a disputed reference is hidden while the site owner reviews it.
 - Only verified contractors who received that worker's application can read the reference, and only for that application.
-- **Get a Connecticut employment attorney to review this before launch** (FCRA disclosure/consent wording, adverse-action process, § 31-51 truthful-statement scope).
+- **Attorney review: done (owner's attorney approved).** The Terms of Service page describes notes and references. Re-check employment-reference rules per state as DreamScaper expands.
 
 ---
 
@@ -366,7 +384,7 @@ Many flags are created **automatically** from these records (with the contractor
 | 3 | 2.8.0-beta2 | Part E Property Measure wizard (shared loop component from A3) |
 | 4 | 2.8.0-beta3 | Part D Route Planner (adapters: routing, places/fuel, vehicles) |
 | 5 | 2.8.0-beta4 | Part F verification (data.ct.gov adapters, Stripe Identity) |
-| 6 | 2.8.0-rc | Part G Jobs Board; Part I notes + consented references; Part H factual flags — **after legal review** |
+| 6 | 2.8.0-rc | Part G Jobs Board (state filter/search); Part I consented references; Part H flags on requests & leads — legal review done |
 
 ## J2. Acceptance tests (state the expected result for each)
 
@@ -391,6 +409,10 @@ Many flags are created **automatically** from these records (with the contractor
 **ACH** — 12b. An ACH payment shows Processing, becomes Paid only on success, and a returned ACH debit re-opens the invoice and alerts both sides.
 **Route per crew** — 12c. Planning Crew A's day only uses Crew A's visits and vehicle; Crew B's plan is independent; nothing moves between crews automatically.
 **Jobs free** — 12d. A Starter or trial account can publish any number of job postings.
+**USA** — 12e. A contractor in Texas can sign up, set their state, quote, invoice and post a job; nothing says "Connecticut" to them except the honest "aerial imagery covers CT only" note; the jobs board filters to Texas.
+**Fees** — 12f. A $100 card payment takes $3.80 platform fee ($3.50 + $0.30); a $100 ACH payment takes $1.50; an instant payout of $200 takes $5.00 and lands in minutes, and a failed instant payout returns the fee.
+**Hours** — 12g. A new contractor's day is 7 AM–5 PM; changing it in Crew & hours changes the calendar and the route planner's default.
+**Two apps** — 12h. A homeowner account can't see or call any contractor screen or endpoint; a contractor lands on the Contractor Hub and can switch to the homeowner view.
 
 **Jobs** — 13. A résumé is downloadable only by the businesses applied to; withdrawing removes access; filters work; criminal-history questions can't be added.
 
@@ -409,11 +431,17 @@ Complete files, a changed-files list, migrations, new settings and where they ap
 - Job postings: free on every plan for now. (G1)
 - Route planning: one crew at a time. (Part D)
 
+- **Working hours: 7 AM–5 PM by default, editable** per business (Settings → Crew & hours). The route planner uses them as the default day. (2.7.3)
+- **Payment processing rates (platform fees, built in 2.7.3):** credit/debit cards **3.5% + $0.30**, ACH bank payments **1.5%**, Instant Payouts **2.5%** — all editable in WP Admin → DreamScaper settings, shown to the contractor in Settings → Payments. Billing Plans and autopay (Part B) use the same rates.
+- **USA-wide, no state restrictions;** jobs filterable and searchable by state. (§2a)
+- **Flags and references: attorney approved;** disclosed in the Terms of Service, with "by continuing to use this website you agree". (Parts H, I)
+- **Separate homeowner and contractor experiences, permanently.** (§2 rule 10)
+- **Month calendar** with tap-a-day actions and a **door-to-door canvassing map** were built in 2.7.3; the route planner (Part D) should accept a door-to-door session's houses as stops.
+
 **Still open:**
-1. Route planner: default working hours (e.g. 7:00–17:00) and fuel safety reserve (default 15%).
-2. Flags and references: attorney review completed? (Phase 6 does not ship until yes.)
-3. Jobs board: open to job-seekers statewide, or limited to towns where there are contractors?
-4. ACH fees: does the contractor absorb Stripe's ACH fee, or pass a lower "bank transfer" price on to the customer?
+1. Route planner fuel safety reserve (default 15%).
+2. ACH: does the contractor pass a lower "bank transfer" price on to the customer (now that bank payments cost 1.5% vs 3.5% + $0.30)?
+3. Nationwide aerial imagery for measuring outside Connecticut (Google Solar/Maps tiles or a paid imagery provider) — cost vs plan tier.
 
 ---
 

@@ -189,7 +189,7 @@ function dreamscaper_crm_apply( WP_REST_Request $r ) {
 		'years'    => max( 0, min( 100, (int) ( isset( $j['years'] ) ? $j['years'] : 0 ) ) ),
 		'address'  => dreamscaper_crm_txt( $j, 'address', 200 ),
 		'town'     => dreamscaper_crm_txt( $j, 'town', 80 ),
-		'state'    => strtoupper( dreamscaper_crm_txt( $j, 'state', 20 ) ),
+		'state'    => dreamscaper_state_abbr( dreamscaper_crm_txt( $j, 'state', 30 ) ),
 		'zip'      => dreamscaper_crm_txt( $j, 'zip', 12 ),
 		'radius'   => max( 5, min( 200, (int) ( isset( $j['radius'] ) ? $j['radius'] : 25 ) ) ),
 		'services' => ',' . implode( ',', array_slice( array_filter( array_map( function ( $s ) { return str_replace( ',', ' ', sanitize_text_field( $s ) ); }, (array) ( isset( $j['services'] ) ? $j['services'] : array() ) ) ), 0, 30 ) ) . ',',
@@ -210,6 +210,12 @@ function dreamscaper_crm_apply( WP_REST_Request $r ) {
 		$f['lng'] = $g['lng'];
 	}
 	$p = dreamscaper_pro_row( $uid );
+	if ( ! $p && ( empty( $j['agree'] ) || empty( $j['confidential'] ) ) ) {
+		return dreamscaper_crm_err( 'Please tick both boxes: the Terms of Service, and keeping contractor-only information confidential.' );
+	}
+	if ( ! $p ) {
+		dreamscaper_terms_accept( $uid, 'contractor' );
+	}
 	if ( $p ) {
 		$wpdb->update( dreamscaper_t( 'pros' ), $f, array( 'user_id' => $uid ) );
 	} else {
@@ -263,7 +269,7 @@ function dreamscaper_crm_me() {
 		'sms'       => (bool) dreamscaper_sms_ready() && dreamscaper_pro_can( $id, 'sms' ),
 		'needs_reply' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . dreamscaper_t( 'thread_users' ) . ' tu JOIN ' . dreamscaper_t( 'threads' ) . " t ON t.id=tu.thread_id WHERE tu.user_id=%d AND t.pro_id=%d AND t.kind='hire' AND t.msgs>0 AND tu.archived=0 AND tu.state IN ('new','waiting')", $id, $id ) ),
 		'held'      => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . dreamscaper_t( 'followups' ) . " WHERE pro_id=%d AND status='held'", $id ) ),
-		'connect'   => array( 'on' => (bool) dreamscaper_opt( 'stripe_secret' ), 'ready' => (bool) $p->stripe_ready, 'started' => '' !== $p->stripe_acct, 'fee' => (float) dreamscaper_opt( 'connect_fee_pct' ) ),
+		'connect'   => array( 'on' => (bool) dreamscaper_opt( 'stripe_secret' ), 'ready' => (bool) $p->stripe_ready, 'started' => '' !== $p->stripe_acct, 'rates' => dreamscaper_pay_rates() ),
 	);
 }
 
@@ -275,7 +281,7 @@ function dreamscaper_crm_settings( WP_REST_Request $r ) {
 	}
 	$j = $r->get_json_params();
 	$s = dreamscaper_pro_settings( $p );
-	foreach ( array( 'costs', 'book', 'followups', 'crew', 'signature', 'scopeIntro', 'payments', 'emailIntro', 'snippets' ) as $k ) {
+	foreach ( array( 'costs', 'book', 'followups', 'crew', 'signature', 'scopeIntro', 'payments', 'emailIntro', 'snippets', 'hours' ) as $k ) {
 		if ( array_key_exists( $k, $j ) ) {
 			$s[ $k ] = dreamscaper_crm_clean( $j[ $k ] );
 		}
@@ -887,7 +893,7 @@ function dreamscaper_crm_ai_scope( WP_REST_Request $r ) {
 			$images[] = esc_url_raw( $j[ $k ] );
 		}
 	}
-	$system = 'You are an estimator for a professional residential landscaping company in Connecticut. You write clear, specific, plain-English proposal text that a homeowner understands and that precisely defines what the contractor will do. You never invent work, materials, quantities, sizes, depths, dimensions or prices. Reply with JSON only.';
+	$system = 'You are an estimator for a professional residential landscaping company in ' . dreamscaper_region() . '. You write clear, specific, plain-English proposal text that a homeowner understands and that precisely defines what the contractor will do. You never invent work, materials, quantities, sizes, depths, dimensions or prices. Reply with JSON only.';
 	$prompt = "Rewrite the scope of work below so it reads well in a customer proposal.\n\nRules:\n1. Keep every section id and title meaning. You may polish the title.\n2. Every number in the input (quantities, square feet, cubic yards, tons, inches, feet, counts) must appear unchanged in your output. Do not add any new numbers.\n3. Do not add or remove work items. Do not mention prices.\n4. Each bullet: one action, starting with a verb, under 25 words.\n5. Add an 'intro' of 2-3 sentences describing the finished result" . ( $images ? ' as seen in the attached before (first image) and design (second image) pictures' : '' ) . ". The intro must not contain numbers.\n6. Output schema: {\"intro\": string, \"sections\": [{\"id\": string, \"title\": string, \"scope\": [string]}]}\n\nInput:\n" . wp_json_encode( $sections );
 	$args   = array( 'model' => dreamscaper_opt( 'vision_model' ), 'system_prompt' => $system, 'prompt' => $prompt, 'max_tokens' => 2500, 'temperature' => 0.2 );
 	$model  = 'fal-ai/any-llm';
@@ -1002,7 +1008,11 @@ function dreamscaper_crm_schedule( WP_REST_Request $r ) {
 			return $o;
 		}, $rows ),
 		'jobs'  => array_map( 'dreamscaper_quote_out', $jobs ),
-		'crew'  => ( function () use ( $p ) { $s = dreamscaper_pro_settings( $p ); return isset( $s['crew'] ) ? $s['crew'] : array(); } )(),
+		'crew'  => ( function () use ( $p ) {
+			$s = dreamscaper_pro_settings( $p );
+			// names and crews only — the owner's private notes stay in Settings
+			return array_map( function ( $c ) { if ( is_array( $c ) ) { unset( $c['private'] ); } return $c; }, isset( $s['crew'] ) && is_array( $s['crew'] ) ? $s['crew'] : array() );
+		} )(),
 	);
 }
 

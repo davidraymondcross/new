@@ -400,7 +400,7 @@ function dreamscaper_invoice_page( $tok ) {
 	dreamscaper_page_head( 'Invoice ' . $inv->number . ' – ' . $p->business, $p );
 	?>
 	<div class="card">
-		<div class="row"><span class="muted sm">Invoice <?php echo esc_html( $inv->number ); ?> · <?php echo esc_html( wp_date( 'F j, Y', strtotime( $inv->created . ' UTC' ) ) ); ?></span><span class="sp"></span><span class="badge<?php echo 'void' === $inv->status ? ' warn' : ''; ?>"><?php echo esc_html( 'paid' === $inv->status ? 'Paid' : ( 'void' === $inv->status ? 'Void' : 'Due ' . ( $inv->due ? wp_date( 'M j', strtotime( $inv->due ) ) : 'now' ) ) ); ?></span></div>
+		<div class="row"><span class="muted sm">Invoice <?php echo esc_html( $inv->number ); ?> · <?php echo esc_html( wp_date( 'F j, Y', strtotime( $inv->created . ' UTC' ) ) ); ?></span><span class="sp"></span><span class="badge<?php echo 'void' === $inv->status ? ' warn' : ''; ?>"><?php echo esc_html( 'paid' === $inv->status ? 'Paid' : ( 'processing' === $inv->status ? 'Processing' : ( 'void' === $inv->status ? 'Void' : 'Due ' . ( $inv->due ? wp_date( 'M j', strtotime( $inv->due ) ) : 'now' ) ) ) ); ?></span></div>
 		<h1><?php echo esc_html( $inv->title ); ?></h1>
 		<p class="muted"><?php echo esc_html( $c ? 'Bill to: ' . $c->name . ( $c->address ? ', ' . $c->address . ' ' . $c->town : '' ) : '' ); ?></p>
 		<table><thead><tr><th>Description</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Amount</th></tr></thead><tbody>
@@ -411,10 +411,13 @@ function dreamscaper_invoice_page( $tok ) {
 		<div class="tot" style="margin-top:12px"><b>Total</b><b class="n"><?php echo esc_html( $money( $inv->amount ) ); ?></b></div>
 		<?php if ( 'paid' === $inv->status ) : ?>
 			<p><span class="badge">✅ Paid <?php echo esc_html( wp_date( 'F j, Y', strtotime( $inv->paid_at . ' UTC' ) ) ); ?></span> Thank you!</p>
+		<?php elseif ( 'processing' === $inv->status ) : ?>
+			<p><span class="badge">⏳ Bank payment processing</span> Thank you! Bank payments usually clear in about 4 business days — you’ll get a receipt when it does.</p>
 		<?php elseif ( 'sent' === $inv->status && $p->stripe_ready ) : ?>
-			<p class="np"><button class="btn" id="pay">Pay <?php echo esc_html( $money( $inv->amount ) ); ?> securely</button></p>
-			<p class="muted sm np">Card, Apple Pay or Google Pay through Stripe. <?php echo esc_html( $p->business ); ?> receives your payment directly.</p><p id="msg" class="err"></p>
-			<script>document.getElementById('pay').onclick=function(){var b=this;b.disabled=true;fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'dreamscaper/v1/crm/pay' ) ) ); ?>,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:<?php echo wp_json_encode( $inv->token ); ?>})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message);location.href=j.url;});}).catch(function(e){document.getElementById('msg').textContent=e.message;b.disabled=false;});};</script>
+			<p class="np"><button class="btn" data-m="card">💳 Pay <?php echo esc_html( $money( $inv->amount ) ); ?> by card</button>
+			<?php if ( dreamscaper_opt( 'pay_ach' ) ) : ?> <button class="btn ghost" data-m="ach">🏦 Pay by bank account</button><?php endif; ?></p>
+			<p class="muted sm np">Card, Apple Pay or Google Pay<?php echo dreamscaper_opt( 'pay_ach' ) ? ', or straight from your bank account (US, takes about 4 business days to clear)' : ''; ?> — securely through Stripe. <?php echo esc_html( $p->business ); ?> receives your payment directly.</p><p id="msg" class="err"></p>
+			<script>document.querySelectorAll('[data-m]').forEach(function(b){b.onclick=function(){document.querySelectorAll('[data-m]').forEach(function(x){x.disabled=true;});fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'dreamscaper/v1/crm/pay' ) ) ); ?>,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:<?php echo wp_json_encode( $inv->token ); ?>,method:b.getAttribute('data-m')})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message);location.href=j.url;});}).catch(function(e){document.getElementById('msg').textContent=e.message;document.querySelectorAll('[data-m]').forEach(function(x){x.disabled=false;});});};});</script>
 		<?php elseif ( 'sent' === $inv->status ) : ?>
 			<p class="muted">Please pay <?php echo esc_html( $p->business ); ?> directly<?php echo $p->phone ? ' (' . esc_html( $p->phone ) . ')' : ''; ?>.</p>
 		<?php endif; ?>

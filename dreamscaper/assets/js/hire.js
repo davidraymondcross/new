@@ -5,13 +5,13 @@
  * inside the homeowner's own DreamScaper account: quotes to sign, who they hired, schedule,
  * invoices to pay, history of past hires and reviews.
  */
-import { h, put, icon } from './util.js?v=2.7.2';
-import { session, api } from './api.js?v=2.7.2';
-import { modal, camera, pickFile, aerial } from './capture.js?v=2.7.2';
-import { money } from './takeoff.js?v=2.7.2';
-import { initRequest, openRequest, basketButton, basketBar, basketAddAll, basketHas } from './request.js?v=2.7.2';
-import { initCalendar, myCalendar, apptCard } from './calendar.js?v=2.7.2';
-import { sectionHead, tip } from './explain.js?v=2.7.2';
+import { h, put, icon } from './util.js?v=2.7.3';
+import { session, api } from './api.js?v=2.7.3';
+import { modal, camera, pickFile, aerial } from './capture.js?v=2.7.3';
+import { money } from './takeoff.js?v=2.7.3';
+import { initRequest, openRequest, basketButton, basketBar, basketAddAll, basketHas } from './request.js?v=2.7.3';
+import { initCalendar, myCalendar, apptCard } from './calendar.js?v=2.7.3';
+import { sectionHead, tip } from './explain.js?v=2.7.3';
 
 let H = null; // { ctx, body, stack, cur }
 const toast = (m, ms) => H && H.ctx.toast(m, ms);
@@ -236,7 +236,7 @@ export function propertyWizard(prop) {
 				h('div', { class: 'ds-row ds-wrap' },
 					s.aerial ? h('button', { class: 'ds-btn', onclick: () => add(() => aerial(H.ctx.root, H.ctx.cfg, toast)) }, '🛰️ ' + (mine.length ? 'Load it again' : 'Load my aerial view')) : h('button', { class: 'ds-btn', onclick: () => add(() => camera(H.ctx.root, s.how)) }, icon('camera', 18), mine.length ? ' Add another' : ' Take photo'),
 					s.aerial ? null : h('button', { class: 'ds-btn ds-ghost', onclick: () => add(() => pickFile()) }, icon('upload', 18), ' Upload')),
-				s.aerial ? h('p', { class: 'ds-hint' }, 'Aerial photos cover Connecticut addresses. Outside CT? Skip this step — the contractor will measure on site.') : null,
+				s.aerial ? h('p', { class: 'ds-hint' }, 'Aerial photos currently cover Connecticut addresses. Somewhere else? Skip this step — the contractor will measure on site.') : null,
 				err,
 				h('div', { class: 'ds-row ds-wrap ds-wiz-nav' }, i > 0 ? h('button', { class: 'ds-btn ds-ghost', onclick: () => stepAt(i - 1) }, '← Back') : h('button', { class: 'ds-btn ds-ghost', onclick: addr }, '← Address'), h('div', { class: 'ds-spacer' }), h('button', { class: 'ds-btn' + (mine.length ? '' : ' ds-ghost'), onclick: () => stepAt(i + 1) }, mine.length ? 'Next →' : 'Skip →')));
 		};

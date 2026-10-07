@@ -1,10 +1,10 @@
 /* DreamScaper – sign in / create account / profile, and the account chip. */
-import { h, icon } from './util.js?v=2.7.2';
-import { session, api, refreshSession, onSession, applySession } from './api.js?v=2.7.2';
-import { modal } from './capture.js?v=2.7.2';
-import { addressField } from './address.js?v=2.7.2';
-import { openCredits } from './credits.js?v=2.7.2';
-import { openStorage, fmtBytes } from './storage.js?v=2.7.2';
+import { h, icon, stateSelect, US_STATES } from './util.js?v=2.7.3';
+import { session, api, refreshSession, onSession, applySession } from './api.js?v=2.7.3';
+import { modal } from './capture.js?v=2.7.3';
+import { addressField } from './address.js?v=2.7.3';
+import { openCredits } from './credits.js?v=2.7.3';
+import { openStorage, fmtBytes } from './storage.js?v=2.7.3';
 
 let CFG = {}, ROOT = null, TOAST = () => {};
 export function initAccount(cfg, root, toast) { CFG = cfg; ROOT = root; TOAST = toast; }
@@ -74,12 +74,15 @@ export function openAuth({ reason = '', start = 'signup' } = {}) {
 				const addr = input('address', 'text', 'Street address of the yard', 'off', { placeholder: 'Start typing…' });
 				const town = input('town', 'text', 'Town', 'address-level2');
 				const zip = input('zip', 'text', 'ZIP', 'postal-code', { inputmode: 'numeric', maxlength: 10 });
-				const addrRow = h('label', null, 'Street address of the yard', addressField(addr.i, { api: CFG.api, onPick: (it) => fillAddress(it.label, addr.i, town.i, zip.i) }));
+				const st = stateSelect('');
+				const addrRow = h('label', null, 'Street address of the yard', addressField(addr.i, { api: CFG.api, onPick: (it) => fillAddress(it.label, addr.i, town.i, zip.i, st) }));
 				const contact = h('input', { type: 'checkbox', checked: true });
 				const hp = h('input', { type: 'text', class: 'ds-hp', tabindex: -1, autocomplete: 'off', 'aria-hidden': 'true' });
-				fields = { name, email, phone, addr, town, zip, pass, contact, hp };
-				form.append(name.row, email.row, phone.row, addrRow, h('div', { class: 'ds-form-2' }, town.row, zip.row), pass.row,
-					h('label', { class: 'ds-check' }, contact, ` It's OK for ${CFG.brand || 'us'} to contact me about my design`), hp);
+				const agree = h('input', { type: 'checkbox', required: true });
+				fields = { name, email, phone, addr, town, zip, st, pass, contact, hp, agree };
+				form.append(name.row, email.row, phone.row, addrRow, h('div', { class: 'ds-form-3' }, town.row, h('label', null, 'State', st), zip.row), pass.row,
+					h('label', { class: 'ds-check' }, contact, ` It's OK for ${CFG.brand || 'us'} to contact me about my design`),
+					h('label', { class: 'ds-check' }, agree, ' I agree to the ', h('a', { href: (session.terms && session.terms.url) || '#', target: '_blank', rel: 'noopener' }, 'Terms of Service'), '.'), hp);
 			} else {
 				fields = { email, pass };
 				form.append(email.row, pass.row, h('button', { type: 'button', class: 'ds-link', onclick: () => lost(email.i.value) }, 'Forgot password?'));
@@ -100,7 +103,7 @@ export function openAuth({ reason = '', start = 'signup' } = {}) {
 				submit.disabled = true;
 				try {
 					if (mode === 'signup') {
-						await api('auth/register', { body: { name: v(fields.name), email: v(fields.email), phone: v(fields.phone), address: v(fields.addr), town: v(fields.town), zip: v(fields.zip), password: fields.pass.i.value, contact: fields.contact.checked, hp: fields.hp.value } });
+						await api('auth/register', { body: { name: v(fields.name), email: v(fields.email), phone: v(fields.phone), address: v(fields.addr), town: v(fields.town), state: fields.st.value, zip: v(fields.zip), agree: fields.agree.checked, password: fields.pass.i.value, contact: fields.contact.checked, hp: fields.hp.value } });
 						TOAST(`Welcome, ${session.user.name.split(' ')[0]}! Your Dreamscapes now save to your account.`, 4500);
 					} else {
 						await api('auth/login', { body: { email: v(fields.email), password: fields.pass.i.value } });
@@ -119,12 +122,16 @@ export function openAuth({ reason = '', start = 'signup' } = {}) {
 	});
 }
 
-function fillAddress(label, addr, town, zip) {
+function fillAddress(label, addr, town, zip, st) {
 	const parts = label.split(',').map((s) => s.trim());
 	addr.value = parts[0] || label;
 	if (parts[1]) town.value = parts[1];
 	const z = (parts[2] || '').match(/\d{5}/);
 	if (z) zip.value = z[0];
+	// "…, Farmington, CT 06032" or "…, Austin, Texas 78701"
+	const sp = (parts[2] || '').replace(/\d{5}(-\d{4})?/, '').trim();
+	const hit = US_STATES.find(([a, n]) => a === sp.toUpperCase() || n.toLowerCase() === sp.toLowerCase());
+	if (st && hit) st.value = hit[0];
 }
 
 /** Ask for the details social sign-in doesn't give us (phone, address). */
@@ -139,6 +146,7 @@ export function completeProfile(force = false) {
 		const addr = mk('address', 'text', 'Street address of the yard', u.address, 'off');
 		const town = mk('town', 'text', 'Town', u.town, 'address-level2');
 		const zip = mk('zip', 'text', 'ZIP', u.zip, 'postal-code');
+		const st = stateSelect(u.state);
 		const contact = h('input', { type: 'checkbox', checked: u.contact !== false });
 		const status = h('p', { class: 'ds-hint ds-err', role: 'alert' });
 		const save = h('button', { class: 'ds-btn ds-wide', type: 'submit' }, 'Save');
@@ -146,8 +154,8 @@ export function completeProfile(force = false) {
 		const form = h('form', { class: 'ds-form ds-form-1' },
 			force ? null : h('p', { class: 'ds-muted' }, 'Almost done! Add where your yard is so we can tailor plant suggestions and follow up if you’d like a quote.'),
 			name.row, email.row, phone.row,
-			h('label', null, 'Street address of the yard', addressField(addr.i, { api: CFG.api, onPick: (it) => fillAddress(it.label, addr.i, town.i, zip.i) })),
-			h('div', { class: 'ds-form-2' }, town.row, zip.row),
+			h('label', null, 'Street address of the yard', addressField(addr.i, { api: CFG.api, onPick: (it) => fillAddress(it.label, addr.i, town.i, zip.i, st) })),
+			h('div', { class: 'ds-form-3' }, town.row, h('label', null, 'State', st), zip.row),
 			h('label', { class: 'ds-check' }, contact, ` It's OK for ${CFG.brand || 'us'} to contact me about my design`),
 			status, save);
 		const m = modal(ROOT, force ? 'My account' : 'A couple more details', [form], close);
@@ -158,7 +166,7 @@ export function completeProfile(force = false) {
 			if (addr.i.value.trim().length < 4) return (status.textContent = 'Please add the yard’s street address.');
 			save.disabled = true;
 			try {
-				await api('auth/profile', { body: { name: name.i.value, email: email.i.value, phone: phone.i.value, address: addr.i.value, town: town.i.value, zip: zip.i.value, contact: contact.checked } });
+				await api('auth/profile', { body: { name: name.i.value, email: email.i.value, phone: phone.i.value, address: addr.i.value, town: town.i.value, state: st.value, zip: zip.i.value, contact: contact.checked } });
 				m.remove();
 				TOAST('Saved!');
 				resolve(true);

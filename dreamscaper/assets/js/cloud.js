@@ -2,8 +2,8 @@
  * The device (IndexedDB) stays the working copy so everything is instant and works
  * offline; when signed in, every save is mirrored to the customer's account.
  */
-import { store } from './store.js?v=2.7.2';
-import { api, session } from './api.js?v=2.7.2';
+import { store } from './store.js?v=2.7.3';
+import { api, session } from './api.js?v=2.7.3';
 
 const BLOB_KEYS = new Set(['base', 'edited', 'blob', 'thumb', 'original', 'input', 'img', 'before']);
 

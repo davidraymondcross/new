@@ -906,11 +906,15 @@ function dreamscaper_otp_check( $pro_id, $channel, $code ) {
 /* ----------------------------------------------------------------- Stripe */
 
 /** Stripe call that returns Stripe's own message on failure (for billing screens). */
-function dreamscaper_stripe_x( $method, $path, $body = array() ) {
+function dreamscaper_stripe_x( $method, $path, $body = array(), $account = '' ) {
+	$hdr = array( 'Authorization' => 'Bearer ' . dreamscaper_opt( 'stripe_secret' ), 'Stripe-Version' => '2024-06-20' );
+	if ( $account ) {
+		$hdr['Stripe-Account'] = $account; // act on a contractor's connected account
+	}
 	$res  = wp_remote_request( 'https://api.stripe.com/v1/' . $path, array(
 		'method'  => $method,
 		'timeout' => 25,
-		'headers' => array( 'Authorization' => 'Bearer ' . dreamscaper_opt( 'stripe_secret' ), 'Stripe-Version' => '2024-06-20' ),
+		'headers' => $hdr,
 		'body'    => $body ? $body : null,
 	) );
 	$code = is_wp_error( $res ) ? 0 : wp_remote_retrieve_response_code( $res );
