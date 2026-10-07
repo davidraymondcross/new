@@ -5,26 +5,28 @@
  * text, shortcodes) · Jobs & job costing · Schedule / dispatch · Invoices (Stripe Connect) ·
  * Settings (business, costs & markups, price book, terms, follow-up plan, crew, payments).
  */
-import { h, put, icon } from './util.js?v=2.7.4';
-import { session, api, refreshSession } from './api.js?v=2.7.4';
-import { modal, aerial, pickFile } from './capture.js?v=2.7.4';
-import { openPlan } from './siteplan.js?v=2.7.4';
-import { segment } from './aiclient.js?v=2.7.4';
-import { ALL, matchesWords, searchScore } from './library.js?v=2.7.4';
+import { h, put, icon } from './util.js?v=2.7.5';
+import { session, api, refreshSession } from './api.js?v=2.7.5';
+import { modal, aerial, pickFile } from './capture.js?v=2.7.5';
+import { openPlan } from './siteplan.js?v=2.7.5';
+import { segment } from './aiclient.js?v=2.7.5';
+import { ALL, matchesWords, searchScore } from './library.js?v=2.7.5';
 import {
 	PRICEBOOK, DEFAULT_COSTS, DEFAULT_FOLLOWUPS, DEFAULT_TERMS, SHORTCODES, KINDS,
 	mergeBook, mergeCosts, planToSections, priceEstimate, buildDocuments, scheduleFollowups, merge, missingCodes,
 	money, fmtArea, fmtFtIn, measure, round2
-} from './takeoff.js?v=2.7.4';
-import { inboxPane, inboxDot } from './inbox.js?v=2.7.4';
-import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.4';
-import { monthGrid, monthRange, monthStart, dayMenu } from './calmonth.js?v=2.7.4';
-import { initCanvass, viewCanvass } from './canvass.js?v=2.7.4';
-import { initPlanWizard, viewPlans } from './planwiz.js?v=2.7.4';
-import { trustPane } from './trust.js?v=2.7.4';
-import { billingView, subBanner } from './billing.js?v=2.7.4';
-import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.4';
-import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.4';
+} from './takeoff.js?v=2.7.5';
+import { inboxPane, inboxDot } from './inbox.js?v=2.7.5';
+import { remindersEditor, reminderSummary, syncSheet } from './calendar.js?v=2.7.5';
+import { monthGrid, monthRange, monthStart, dayMenu } from './calmonth.js?v=2.7.5';
+import { initCanvass, viewCanvass } from './canvass.js?v=2.7.5';
+import { initPlanWizard, viewPlans } from './planwiz.js?v=2.7.5';
+import { initMeasure, viewMeasure, measurementsPane } from './measure.js?v=2.7.5';
+import { initRoutes, viewRoutes } from './routes.js?v=2.7.5';
+import { trustPane } from './trust.js?v=2.7.5';
+import { billingView, subBanner } from './billing.js?v=2.7.5';
+import { messagesEditor, intakeEditor, socialEditor, snippetsEditor } from './msgsettings.js?v=2.7.5';
+import { sectionHead, tip, planPrompt, loadCaps, setPlansRoute, capabilityMap, usageBar, lockNote, has } from './explain.js?v=2.7.5';
 
 let X = null; // { ctx, body, stack, cur, me }
 const STAGES = [['lead', 'Lead'], ['prospect', 'Prospect'], ['customer', 'Customer'], ['past', 'Past customer'], ['lost', 'Lost']];
@@ -46,7 +48,7 @@ async function run(btn, fn, label) { busy(btn, true, label); try { return await 
 
 /* --------------------------------------------------------------- framing */
 
-export function initHub(ctx) { X = { ctx, body: null, stack: [], cur: null, me: null, draft: null }; setPlansRoute(() => openHub({ v: 'plan' })); initCanvass(ctx); initPlanWizard(ctx, { editPlan }); }
+export function initHub(ctx) { X = { ctx, body: null, stack: [], cur: null, me: null, draft: null }; setPlansRoute(() => openHub({ v: 'plan' })); initCanvass(ctx); initPlanWizard(ctx, { editPlan }); initMeasure(ctx); initRoutes(ctx, { workHours: () => workHours() }); }
 export const isPro = () => !!(session.crm && session.crm.pro && session.crm.pro.status === 'approved');
 
 /** Open the Contractor Hub. view: { v: 'dash'|'inbox'|'customers'|'customer'|'quotes'|'quote'|'jobs'|'schedule'|'invoices'|'settings'|'plan'|'help'|'apply', ... } */
@@ -59,7 +61,7 @@ export async function openHub(view = { v: 'dash' }) {
 	const tab = (v, e, l) => h('button', { class: 'ds-hub-tab', 'data-v': v, onclick: () => go({ v }) }, h('span', null, e), h('small', null, l));
 	const inboxTab = tab('inbox', '💬', 'Inbox');
 	inboxTab.append(inboxDot());
-	const nav = h('nav', { class: 'ds-hub-nav', 'aria-label': 'Contractor Hub' }, tab('dash', '📊', 'Dashboard'), inboxTab, tab('customers', '👥', 'Customers'), tab('quotes', '🧾', 'Quotes'), tab('jobs', '🛠️', 'Jobs'), tab('schedule', '📅', 'Calendar'), tab('canvass', '🚪', 'Door-to-door'), tab('plans', '📐', 'Landscape plans'), tab('invoices', '💵', 'Invoices'), tab('settings', '⚙️', 'Settings'), tab('plan', '💳', 'Plan'), tab('help', '❓', 'Help'));
+	const nav = h('nav', { class: 'ds-hub-nav', 'aria-label': 'Contractor Hub' }, tab('dash', '📊', 'Dashboard'), inboxTab, tab('customers', '👥', 'Customers'), tab('quotes', '🧾', 'Quotes'), tab('jobs', '🛠️', 'Jobs'), tab('schedule', '📅', 'Calendar'), tab('canvass', '🚪', 'Door-to-door'), tab('plans', '📐', 'Landscape plans'), tab('measure', '📏', 'Measure'), tab('routes', '🗺️', 'Route planner'), tab('invoices', '💵', 'Invoices'), tab('settings', '⚙️', 'Settings'), tab('plan', '💳', 'Plan'), tab('help', '❓', 'Help'));
 	const bar = h('div', { class: 'ds-cm-bar' },
 		h('button', { class: 'ds-btn ds-ghost ds-sm ds-cm-back', onclick: back, 'aria-label': 'Back' }, '←', h('span', null, ' Back')),
 		h('h1', null, '🧰 Contractor Hub'),
@@ -99,7 +101,7 @@ function render(view) {
 	for (const t of X.nav.children) t.classList.toggle('on', t.dataset.v === view.v || (view.v === 'customer' && t.dataset.v === 'customers') || (view.v === 'quote' && t.dataset.v === 'quotes'));
 	X.nav.hidden = view.v === 'apply';
 	drawBanner(view);
-	({ dash: viewDash, inbox: viewInbox, plan: viewPlan, help: viewHelp, customers: viewCustomers, customer: viewCustomer, quotes: viewQuotes, quote: viewQuote, jobs: viewJobs, schedule: viewSchedule, canvass: (bb, vv) => viewCanvass(bb, vv, go), plans: (bb, vv) => viewPlans(bb, vv, go), invoices: viewInvoices, settings: viewSettings, apply: viewApply }[view.v] || viewDash)(b, view);
+	({ dash: viewDash, inbox: viewInbox, plan: viewPlan, help: viewHelp, customers: viewCustomers, customer: viewCustomer, quotes: viewQuotes, quote: viewQuote, jobs: viewJobs, schedule: viewSchedule, canvass: (bb, vv) => viewCanvass(bb, vv, go), plans: (bb, vv) => viewPlans(bb, vv, go), measure: (bb, vv) => viewMeasure(bb, vv, go), routes: (bb, vv) => viewRoutes(bb, vv, go), invoices: viewInvoices, settings: viewSettings, apply: viewApply }[view.v] || viewDash)(b, view);
 }
 async function loadMe(force) {
 	if (!X.me || force) X.me = await api('crm/me');
@@ -111,7 +113,8 @@ const book = () => mergeBook(X.me && X.me.settings && X.me.settings.book);
 function loading(b) { b.innerHTML = ''; b.append(h('div', { class: 'ds-center ds-pad-l' }, h('span', { class: 'ds-spin' }))); }
 function err(b, e) { b.innerHTML = ''; b.append(h('div', { class: 'ds-soon' }, h('p', null, e.message || 'Couldn’t load this.'), h('button', { class: 'ds-btn', onclick: () => render(X.cur) }, 'Try again'))); }
 const card = (title, ...kids) => h('section', { class: 'ds-hub-card' }, title ? h('h2', null, title) : null, ...kids);
-const field = (label, el, hint) => h('label', { class: 'ds-field' }, h('span', null, label), el, hint ? h('small', { class: 'ds-hint' }, hint) : null);
+// a <label> forwards clicks to its first control, so groups of buttons (chips) get a plain <div>
+const field = (label, el, hint) => h(el && el.querySelector && el.querySelector('button') ? 'div' : 'label', { class: 'ds-field' }, h('span', null, label), el, hint ? h('small', { class: 'ds-hint' }, hint) : null);
 const input = (val, attrs = {}) => h('input', { type: 'text', value: val == null ? '' : val, ...attrs });
 const select = (val, opts, attrs = {}) => h('select', attrs, ...opts.map(([v, l]) => h('option', { value: v, selected: String(v) === String(val) }, l)));
 const statusChip = (s) => { const q = QSTATUS[s] || ['', s]; return h('span', { class: 'ds-qs ds-qs-' + s }, q[0] + ' ' + q[1]); };
@@ -263,7 +266,7 @@ async function viewCustomer(b, view) {
 	try { c = await api('crm/client', { query: { id: view.id } }); } catch (e) { return err(b, e); }
 	b.innerHTML = '';
 	const d = c.data || {};
-	const tabs = [['overview', 'Overview'], ['properties', `Properties (${c.properties.length})`], ['quotes', `Quotes & jobs (${c.quotes.length})`], ['invoices', `Invoices (${c.invoices.length})`], ['history', 'History'], ['trust', '🔒 Contractor notes']];
+	const tabs = [['overview', 'Overview'], ['properties', `Properties (${c.properties.length})`], ['quotes', `Quotes & jobs (${c.quotes.length})`], ['invoices', `Invoices (${c.invoices.length})`], ['measure', `📏 Measurements (${(c.properties || []).reduce((n, p) => n + ((p.data && p.data.measurements) || []).length, 0)})`], ['history', 'History'], ['trust', '🔒 Contractor notes']];
 	let tab = view.tab || 'overview';
 	const pane = h('div');
 	const tb = h('div', { class: 'ds-chips ds-tabs' }, ...tabs.map(([v, l]) => h('button', { class: 'ds-chip' + (v === tab ? ' on' : ''), onclick: (e) => { tab = v; X.cur.tab = v; for (const x of tb.children) x.classList.remove('on'); e.currentTarget.classList.add('on'); draw(); } }, l)));
@@ -280,7 +283,8 @@ async function viewCustomer(b, view) {
 		h('button', { class: 'ds-btn', onclick: () => newQuote({ client_id: c.id, prop_id: c.properties[0] ? c.properties[0].id : 0 }) }, icon('plus', 18), ' New quote'),
 		h('button', { class: 'ds-btn ds-ghost', onclick: () => editCustomer(c, () => render(X.cur)) }, icon('edit', 16), ' Edit'),
 		h('button', { class: 'ds-btn ds-ghost', onclick: () => logNote(c, () => render(X.cur)) }, '📝 Log call / note'),
-		h('button', { class: 'ds-btn ds-ghost', onclick: () => editVisit({ client_id: c.id, title: 'Site visit – ' + c.name }) }, '📅 Schedule visit')),
+		h('button', { class: 'ds-btn ds-ghost', onclick: () => editVisit({ client_id: c.id, title: 'Site visit – ' + c.name }) }, '📅 Schedule visit'),
+		h('button', { class: 'ds-btn ds-ghost', onclick: () => go({ v: 'measure', client_id: c.id }) }, '📏 Measure property')),
 	tb, pane);
 	const draw = () => {
 		pane.innerHTML = '';
@@ -295,6 +299,8 @@ async function viewCustomer(b, view) {
 			put(pane, c.quotes.length ? h('div', { class: 'ds-hub-list' }, ...c.quotes.map(quoteRow)) : h('p', { class: 'ds-muted' }, 'No quotes yet.'));
 		} else if (tab === 'invoices') {
 			put(pane, c.invoices.length ? h('div', { class: 'ds-hub-list' }, ...c.invoices.map(invoiceRow)) : h('p', { class: 'ds-muted' }, 'No invoices yet.'), h('button', { class: 'ds-btn ds-ghost', onclick: () => editInvoice({ client_id: c.id }) }, '+ New invoice'));
+		} else if (tab === 'measure') {
+			measurementsPane(pane, c, go, () => render(X.cur));
 		} else if (tab === 'trust') {
 			trustPane(pane, c, { toast });
 		} else {
@@ -1079,7 +1085,11 @@ async function editVisit(v = {}) {
 		h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: (ev) => run(ev.currentTarget, async () => { await api('crm/visit/notify', { body: { id: v.id, customer: true, sms: !!X.me.sms } }); toast('Customer notified.'); }, 'Sending…') }, '📣 Tell the customer'),
 		h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: (ev) => { const to = crewList.map((c) => c.contact).filter(Boolean); const list = prompt('Send the crew sheet to (emails or mobile numbers, comma separated)', to.join(', ')); if (!list) return; run(ev.currentTarget, async () => { await api('crm/visit/notify', { body: { id: v.id, crew: list.split(',').map((x) => x.trim()).filter(Boolean) } }); toast('Crew sheet sent.'); }, 'Sending…'); } }, '👷 Send crew sheet'),
 		h('button', { class: 'ds-btn ds-ghost ds-sm ds-danger', onclick: async () => { if (!confirm(v.start > Date.now() ? 'Delete this visit? The customer will be told it’s cancelled (if “Tell the customer” is ticked).' : 'Delete this visit?')) return; await api('crm/visit/delete', { body: { id: v.id }, query: { notify: tell.checked ? 1 : 0 } }).catch((x) => toast(x.message)); m.remove(); render(X.cur); } }, icon('trash', 16), ' Delete')) : null;
+	const tools = v.client_id ? h('div', { class: 'ds-row ds-wrap' },
+		h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { m.remove(); go({ v: 'measure', client_id: v.client_id, visit_id: v.id || 0 }); } }, '📏 Measure property'),
+		v.start ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { m.remove(); go({ v: 'routes', date: v.start, crew: v.crew || '' }); } }, '🗺️ Plan this day’s route') : null) : null;
 	const m = modal(X.ctx.root, v.id ? 'Visit' : 'Schedule a visit', [
+		tools,
 		h('datalist', { id: 'ds-crew-dl' }, ...crewList.map((c) => h('option', { value: c.name }))),
 		v.cust_status === 'reschedule' ? h('p', { class: 'ds-warn' }, '🔁 The customer asked for another time', v.cust_note ? ': “' + v.cust_note + '”' : '.', ' Change the date below — they’ll be told and asked to confirm.') : v.cust_status === 'confirmed' ? h('p', { class: 'ds-ok' }, '✅ The customer confirmed this time.') : null,
 		h('div', { class: 'ds-form-grid' }, field('Type', kind), field('What', title)), cust ? [custList, field('Customer', cust, 'It goes on their DreamScaper calendar and they get your reminders.')] : null, h('div', { class: 'ds-form-grid' }, field('Date', date), field('Start', t1), field('Length', dur), field('Status', status)), field('Where', loc), field('Crew', crew), field('Notes for the crew (not shown to the customer)', notes),

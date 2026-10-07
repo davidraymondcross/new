@@ -7,9 +7,9 @@
  * tip(key, text)     a one-time tip the first time someone opens an area (remembered per device)
  * capabilityMap()    the whole product on one page: every area, one line each, and whether you have it
  */
-import { h, put, icon } from './util.js?v=2.7.4';
-import { api, session } from './api.js?v=2.7.4';
-import { modal } from './capture.js?v=2.7.4';
+import { h, put, icon } from './util.js?v=2.7.5';
+import { api, session } from './api.js?v=2.7.5';
+import { modal } from './capture.js?v=2.7.5';
 
 let ROOT = null, GO_PLANS = null;
 export function initExplain(root, goPlans) { ROOT = root; GO_PLANS = goPlans || null; }
@@ -79,6 +79,12 @@ export const HELP = {
 	plans: { t: 'Landscape plans', p: 'A step-by-step wizard that turns an address into a measured 2D landscape plan: bird’s-eye base map, traced property, tape-checked scale, guided site photos, site conditions, your chosen style and your Dreamscapes.',
 		can: ['Start a plan for any customer and address in the USA', 'Trace the property line, house and driveway on to-scale aerial imagery (AI can find the house and driveway for you)', 'Check the scale against one tape measurement — the whole plan is corrected automatically', 'Take guided site photos: a diagram shows exactly where to stand and which way to face, and every photo is checked (blur, light, wrong place, wrong direction, duplicates, wrong lens)', 'Record sun, window heights, deer, drainage and more so plants fit the site', 'Pick a style — or load a Dreamscape for any area', 'Generate the plan, review it in the 2D editor, and build a quote from it', 'Leave and come back: every step is saved'],
 		links: 'Plans are saved on the customer’s property. Quotes use the plan for measured quantities. New plans count toward your plan’s monthly landscape plans.', f: 'plans_month' },
+	measure: { t: 'Measure property', p: 'Measure lawns, roofs, beds, driveways or the whole lot from above — tap around the edge, name it, and the areas add up. Saved to the customer with a screenshot.',
+		can: ['Find the property by address (with suggestions), from a customer, or from a job on your calendar', 'Tap around an area’s edge and close it on the big Start dot', 'Name each area (lawn, roof, bed…); roofs take a pitch for the real roof surface and roofing squares', 'Measure as many areas as you like — they add up to a total', 'Save to a new contact, an existing one, or the customer you came from', 'See every measurement later on the customer page → 📏 Measurements'],
+		links: 'Measurements are saved on the customer’s property with a screenshot and appear in their history.' },
+	routes: { t: 'Route planner', p: 'Plan a crew’s day in the fewest miles: stops from your calendar or typed in, job lengths, lunch near restaurants, a “be at X by Y” stop, and the cheapest fuel stop if the tank will run low.',
+		can: ['Pull a day’s jobs (and how long each takes) from your calendar, one crew at a time — or type the addresses', 'Optional: your vehicle (miles per gallon and tank size are filled in), how much fuel is in the tank, crew size and total hourly wage', 'Set lunch time and length; tick “Be close to restaurants at lunch”', 'Tick “Be near … at …” to meet another crew or pick up a part on time', 'See the best order, every leg’s miles and times, where fuel runs low and the 3 cheapest places to fill up — counting the extra driving and paid crew time', 'Open the route in Google Maps and update the calendar times in one tap'],
+		links: 'Uses your calendar and working hours. Gas prices need a Google Maps key (Places API); without one, stations are ranked by detour only.' },
 	snippets: { t: 'Quick replies', p: 'Answers you send often, ready to drop into any conversation in one tap.',
 		can: ['Save replies like “I can come Thursday between 9 and 11 — does that work?”', 'Use merge details like the customer’s first name'], f: 'snippets' }
 };
@@ -193,7 +199,7 @@ export function planPrompt(e, toast) {
 /** Every area, one line each, and whether this account has it. */
 export function capabilityMap(isPro) {
 	const homeowner = ['find', 'request', 'projects', 'calendar', 'inbox'];
-	const pro = ['dash', 'hubinbox', 'customers', 'quotes', 'jobs', 'schedule', 'canvass', 'plans', 'invoices', 'messages', 'reminders', 'intake', 'social', 'snippets', 'plan'];
+	const pro = ['dash', 'hubinbox', 'customers', 'quotes', 'jobs', 'schedule', 'canvass', 'plans', 'measure', 'routes', 'invoices', 'messages', 'reminders', 'intake', 'social', 'snippets', 'plan'];
 	const row = (k) => {
 		const x = HELP[k];
 		const feat = x.f && CAPS && CAPS.features ? CAPS.features[x.f] : null;

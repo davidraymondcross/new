@@ -10,17 +10,17 @@
  * USGS elsewhere) or a survey, corrected by one tape measurement; photos record what can't be seen
  * from above. The geometry and the plan generator live in plangen.js; photo checks in photocheck.js.
  */
-import { h, put, icon, stateSelect } from './util.js?v=2.7.4';
-import { api, session } from './api.js?v=2.7.4';
-import { modal } from './capture.js?v=2.7.4';
-import { addressField } from './address.js?v=2.7.4';
-import { segment, toJpeg, aiReady } from './aiclient.js?v=2.7.4';
-import { traceMask } from './siteplan.js?v=2.7.4';
-import { PLANTS } from './library.js?v=2.7.4';
-import { parseFtIn, fmtFtIn, fmtArea } from './takeoff.js?v=2.7.4';
-import { sectionHead, tip } from './explain.js?v=2.7.4';
-import { frame, validateTrace, checkScale, shotPlan, STYLES, styleById, pickPlants, generatePlan, checkDesign, accuracy, area as polyArea, dist, centroid, inside } from './plangen.js?v=2.7.4';
-import { readExif, analyze, checkPhoto, worst, compass } from './photocheck.js?v=2.7.4';
+import { h, put, icon, stateSelect } from './util.js?v=2.7.5';
+import { api, session } from './api.js?v=2.7.5';
+import { modal } from './capture.js?v=2.7.5';
+import { addressField } from './address.js?v=2.7.5';
+import { segment, toJpeg, aiReady } from './aiclient.js?v=2.7.5';
+import { traceMask } from './siteplan.js?v=2.7.5';
+import { PLANTS } from './library.js?v=2.7.5';
+import { parseFtIn, fmtFtIn, fmtArea } from './takeoff.js?v=2.7.5';
+import { sectionHead, tip } from './explain.js?v=2.7.5';
+import { frame, validateTrace, checkScale, shotPlan, STYLES, styleById, pickPlants, generatePlan, checkDesign, accuracy, area as polyArea, dist, centroid, inside } from './plangen.js?v=2.7.5';
+import { readExif, analyze, checkPhoto, worst, compass } from './photocheck.js?v=2.7.5';
 
 let W = null;
 /** ctx: the hub context; tools: { editPlan(plan, prop, title) → Promise<plan|null> } */
@@ -34,7 +34,8 @@ const STEPS = [
 	['photos', 'Site photos'], ['site', 'Site details'], ['style', 'Style'], ['designs', 'Designs'], ['generate', 'Generate & review']
 ];
 const card = (title, ...kids) => h('section', { class: 'ds-hub-card' }, title ? h('h2', null, title) : null, ...kids);
-const field = (label, el, hint) => h('label', { class: 'ds-field' }, h('span', null, label), el, hint ? h('small', { class: 'ds-hint' }, hint) : null);
+// a <label> forwards clicks to its first control, so groups of buttons (chips) get a plain <div>
+const field = (label, el, hint) => h(el && el.querySelector && el.querySelector('button') ? 'div' : 'label', { class: 'ds-field' }, h('span', null, label), el, hint ? h('small', { class: 'ds-hint' }, hint) : null);
 const todo = (...items) => h('ol', { class: 'ds-pw-todo' }, ...items.filter(Boolean).map((x) => h('li', null, x)));
 const issueList = (list) => (list.length ? h('ul', { class: 'ds-pw-issues' }, ...list.map((x) => h('li', { class: 'ds-pw-' + x.level }, h('b', null, { bad: '✖ ', warn: '⚠️ ', ok: '✓ ', info: 'ℹ️ ' }[x.level] || '', x.text), x.fix ? h('small', null, ' ' + x.fix) : null))) : null);
 const chipSet = (opts, val, onPick, multi = false) => {
@@ -146,6 +147,13 @@ async function viewWizard(b, view, go) {
 	const bar = h('div', { class: 'ds-pw-bar' });
 	put(b, h('div', { class: 'ds-row ds-wrap ds-pw-top' }, h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { save(true); go({ v: 'plans' }); } }, '← All plans'), h('h2', { class: 'ds-grow' }, '📐 Landscape Plan wizard', s.client ? h('small', { class: 'ds-muted' }, ' · ' + s.client) : null), h('small', { class: 'ds-muted', 'aria-live': 'polite' }, 'Saved as you go')),
 		h('div', { class: 'ds-pw' }, side, h('div', { class: 'ds-pw-col' }, main, bar)));
+	// the floating Next bar steps aside while the picture is being traced, back after 10 s idle
+	let idleT = 0;
+	b.addEventListener('ds-busy', () => {
+		bar.classList.add('away'); // only the bar that floats over the picture — nothing above it moves
+		clearTimeout(idleT);
+		idleT = setTimeout(() => { for (const el of b.querySelectorAll('.away')) el.classList.remove('away'); }, 10000);
+	});
 	const ctx = { s, main, bar, rerender: () => show(s.step), next: () => show(s.step + 1), back: () => show(s.step - 1), go };
 	function show(i) {
 		i = Math.max(0, Math.min(STEPS.length - 1, i));
@@ -998,6 +1006,7 @@ function pickPhotoFile(cam) {
 
 /* ================================================================ the tracer */
 
+const START_R = 15; // the first point is big and easy to tap again to close the shape
 const COLORS = { boundary: '#e53935', house: '#546e7a', driveway: '#9e9e9e', structures: '#8d6e63', street: '#1e88e5', door: '#fb8c00', trees: '#2e7d32', line: '#00b0ff' };
 /**
  * Tap-to-trace on an image. Data is in FEET (image px / ppf); W, H = the image size the ppf belongs to.
@@ -1029,9 +1038,18 @@ export function tracer(el, o) {
 			if (closed) x.closePath();
 			if (fill && closed) { x.fillStyle = color + '40'; x.fill(); }
 			x.strokeStyle = color; x.lineWidth = activeNow ? 3 : 2; x.setLineDash(color === COLORS.boundary ? [8, 5] : []); x.stroke(); x.setLineDash([]);
-			if (activeNow) pts.forEach((p, i) => { const q = ftToScr(p); x.beginPath(); x.arc(q[0], q[1], i === 0 && !closed ? 9 : 6, 0, 7); x.fillStyle = i === 0 && !closed ? '#fff' : color; x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 2; x.stroke(); });
+			if (activeNow) pts.forEach((p, i) => {
+				const q = ftToScr(p), start = i === 0 && !closed;
+				x.beginPath(); x.arc(q[0], q[1], start ? START_R : 6, 0, 7);
+				x.fillStyle = start ? (pts.length >= 3 ? '#ffd43b' : '#fff') : color; x.fill();
+				x.strokeStyle = start ? color : '#fff'; x.lineWidth = start ? 4 : 2; x.stroke();
+				if (start) { label(pts.length >= 3 ? 'Start — tap to close' : 'Start', q[0] + START_R + 4, q[1] + 4); }
+			});
 		};
+		const label = (txt, lx, ly) => { x.font = 'bold 13px sans-serif'; x.lineWidth = 4; x.strokeStyle = 'rgba(0,0,0,.75)'; x.strokeText(txt, lx, ly); x.fillStyle = '#fff'; x.fillText(txt, lx, ly); };
 		const pin = (p, color, label) => { if (!p) return; const q = ftToScr(p); x.beginPath(); x.arc(q[0], q[1], 8, 0, 7); x.fillStyle = color; x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 2; x.stroke(); if (label) { x.font = 'bold 12px sans-serif'; x.fillStyle = '#fff'; x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = 3; x.strokeText(label, q[0] + 11, q[1] + 4); x.fillText(label, q[0] + 11, q[1] + 4); } };
+		// measured areas (Measure Property Features): filled, with their name and size
+		(t.sections || []).forEach((sc) => { poly(sc.pts, sc.color || '#ffd43b', true, true, false); const cc = centroid(sc.pts), q = ftToScr(cc); if (sc.label) { label(sc.label, q[0] - x.measureText(sc.label).width / 2, q[1] + 4); } });
 		poly(t.boundary, COLORS.boundary, true, false, act.key === 'boundary' && !draft);
 		poly(t.house, COLORS.house, true, true, act.key === 'house' && !draft);
 		poly(t.driveway, COLORS.driveway, true, true, act.key === 'driveway' && !draft);
@@ -1050,6 +1068,8 @@ export function tracer(el, o) {
 	// pointer
 	const ptrs = new Map();
 	let press = null, pinch = null, dragV = null;
+	const busy = () => cv.dispatchEvent(new CustomEvent('ds-busy', { bubbles: true, composed: true }));
+	for (const ev of ['pointerdown', 'wheel']) cv.addEventListener(ev, busy, { passive: true });
 	const local = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
 	const activePts = () => (draft ? draft : act.type === 'poly' && !act.multi ? t[act.key] : act.type === 'line' ? t.line : null);
 	cv.addEventListener('pointerdown', (e) => {
@@ -1059,7 +1079,7 @@ export function tracer(el, o) {
 		if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), s: view.s, c: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] }; press = null; return; }
 		const pts = activePts();
 		dragV = null;
-		if (pts) pts.forEach((q, i) => { const s = ftToScr(q); if (Math.hypot(s[0] - p[0], s[1] - p[1]) < 14 && !(draft && i === 0 && draft.length >= 3)) dragV = { pts, i }; });
+		if (pts) pts.forEach((q, i) => { const s = ftToScr(q); if (Math.hypot(s[0] - p[0], s[1] - p[1]) < 14 && !(draft && i === 0 && draft.length >= 2)) dragV = { pts, i }; });
 		press = { p, vx: view.x, vy: view.y, moved: false };
 	});
 	cv.addEventListener('pointermove', (e) => {
@@ -1092,7 +1112,7 @@ export function tracer(el, o) {
 		else if (act.type === 'line') { t.line = t.line && t.line.length === 1 ? [t.line[0], ft] : [ft]; }
 		else if (act.type === 'poly') {
 			if (!draft) draft = [];
-			if (draft.length >= 3) { const f = ftToScr(draft[0]); if (Math.hypot(f[0] - p[0], f[1] - p[1]) < 16) { close(); return; } }
+			if (draft.length >= 3) { const f = ftToScr(draft[0]); if (Math.hypot(f[0] - p[0], f[1] - p[1]) < START_R + 10) { close(); return; } }
 			draft.push(ft);
 		}
 		draw();
@@ -1119,7 +1139,7 @@ export function tracer(el, o) {
 			draw(); o.onChange && o.onChange();
 		},
 		clearActive() { draft = null; if (act.type === 'points' || act.multi) t[act.key] = []; else if (act.type === 'line') t.line = []; else t[act.key] = null; draw(); o.onChange && o.onChange(); },
-		redraw: draw, fit, data: () => t,
+		redraw: draw, fit, data: () => t, draft: () => draft, view: () => ({ ...view }),
 		destroy() { ro.disconnect(); wrap.remove(); }
 	};
 	void imgK;

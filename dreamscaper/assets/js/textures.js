@@ -2,7 +2,7 @@
  * the photo with true ground-plane perspective. Materials are generated lazily the
  * first time they're shown or used.
  */
-import { rng, canvas, hsl } from './util.js?v=2.7.4';
+import { rng, canvas, hsl } from './util.js?v=2.7.5';
 
 const S = 256; // tile size in texels
 

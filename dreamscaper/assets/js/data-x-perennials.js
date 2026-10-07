@@ -1,5 +1,5 @@
 /* Expanded perennial library, part 1. 6th value = seasons to reach full size. */
-import { fam, sp } from './data-x-helpers.js?v=2.7.4';
+import { fam, sp } from './data-x-helpers.js?v=2.7.5';
 
 export const PERENNIALS_X = [
 	...fam('Hosta', 'Hosta', 'hosta', 3, 'z3-9 s:PS bl:lavender w:Jul-Aug', 'Shade-loving foliage perennial (deer browse it).', [

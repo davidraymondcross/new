@@ -1888,3 +1888,51 @@
 	.ds-pw-steps li:not(.on) span { display: none; }
 	.ds-pw-cvwrap { height: 60vh; }
 }
+
+/* the step-by-step guide sits above the picture (never over it) and steps aside while you work */
+.ds-stage-wrap { display: flex; flex-direction: column; }
+.ds-stage { position: relative; inset: auto; flex: 1 1 auto; min-height: 0; }
+.ds-guidebar { position: relative; left: auto; top: auto; transform: none; width: auto; margin: 8px 10px 4px; flex: none; }
+.ds-guidebar.away { display: none; }
+@media (max-width: 760px) {
+	.ds-guidebar { margin: 0; border-radius: 0; border-width: 0 0 1px; top: auto; padding: 6px 8px; }
+}
+.ds-pw-bar.away { visibility: hidden; }
+
+/* measure property features */
+.ds-ms { display: flex; flex-direction: column; gap: 12px; }
+.ds-ms-live p { margin: 0; font-weight: 600; color: var(--gold); }
+.ds-ms-tools { position: sticky; bottom: 0; background: var(--panel); border: 1px solid var(--line2); border-radius: 14px; padding: 8px 10px; z-index: 3; }
+.ds-ms-sw { width: 14px; height: 14px; border-radius: 4px; background: var(--c); flex: none; }
+.ds-ms-total { font-size: 18px; margin: 4px 0 0; }
+.ds-ms-shot { width: 100%; height: auto; border-radius: 12px; display: block; }
+.ds-ms-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.ds-ms-cards ul { margin: 0; padding-left: 18px; }
+
+/* route planner */
+.ds-rt-stops { display: flex; flex-direction: column; gap: 8px; }
+.ds-rt-stop { display: flex; gap: 8px; align-items: flex-start; padding: 8px; border: 1px solid var(--line2); border-radius: 12px; background: var(--bg2); }
+.ds-rt-stop.bad { border-color: var(--danger); }
+.ds-rt-stop .ds-grow { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ds-rt-n { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); flex: none; }
+.ds-rt-min { display: flex; align-items: center; gap: 4px; flex: none; }
+.ds-rt-min input { width: 74px; }
+.ds-rt-opts summary { cursor: pointer; padding: 4px 0; }
+.ds-rt-opts[open] { display: flex; flex-direction: column; gap: 8px; }
+.ds-rt-go { font-size: 17px; min-height: 52px; }
+.ds-rt-result { display: flex; flex-direction: column; gap: 12px; }
+.ds-rt-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.ds-rt-timeline { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 3px solid var(--line2); display: flex; flex-direction: column; gap: 6px; }
+.ds-rt-timeline li { display: flex; flex-direction: column; }
+.ds-rt-timeline li small { color: var(--muted); }
+.ds-rt-drive { color: var(--muted); font-size: 13px; }
+.ds-rt-lunch b { color: var(--gold); }
+.ds-rt-fuel b { color: #ff922b; }
+.ds-rt-wait { color: var(--gold); font-size: 13px; }
+.ds-rt-map { position: relative; height: 360px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line2); }
+.ds-rt-map .ds-map { height: 100%; }
+.ds-rt-stations { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
+.ds-rt-stations li div { margin: 2px 0; }
+@media (max-width: 760px) {
+	.ds-rt-stop { flex-wrap: wrap; }
+}

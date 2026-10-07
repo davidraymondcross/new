@@ -1,10 +1,10 @@
 /* DreamScaper – sign in / create account / profile, and the account chip. */
-import { h, icon, stateSelect, US_STATES } from './util.js?v=2.7.4';
-import { session, api, refreshSession, onSession, applySession } from './api.js?v=2.7.4';
-import { modal } from './capture.js?v=2.7.4';
-import { addressField } from './address.js?v=2.7.4';
-import { openCredits } from './credits.js?v=2.7.4';
-import { openStorage, fmtBytes } from './storage.js?v=2.7.4';
+import { h, icon, stateSelect, US_STATES } from './util.js?v=2.7.5';
+import { session, api, refreshSession, onSession, applySession } from './api.js?v=2.7.5';
+import { modal } from './capture.js?v=2.7.5';
+import { addressField } from './address.js?v=2.7.5';
+import { openCredits } from './credits.js?v=2.7.5';
+import { openStorage, fmtBytes } from './storage.js?v=2.7.5';
 
 let CFG = {}, ROOT = null, TOAST = () => {};
 export function initAccount(cfg, root, toast) { CFG = cfg; ROOT = root; TOAST = toast; }

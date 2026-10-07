@@ -1,6 +1,6 @@
 /* DreamScaper – How it works (tutorial) and the step-by-step guide in the editor. */
-import { h, icon } from './util.js?v=2.7.4';
-import { modal } from './capture.js?v=2.7.4';
+import { h, icon } from './util.js?v=2.7.5';
+import { modal } from './capture.js?v=2.7.5';
 
 const T = (title, ...body) => ({ title, body });
 const P = (t) => h('p', null, t);
@@ -129,6 +129,20 @@ export function guideBar(ctx) {
 	// skipped steps count as done
 	for (const s of STEPS) { if (s._w) continue; const d = s.done; s.done = (p, v, st) => d(p, v, st) || !!st['skip_' + s.id]; s._w = true; }
 	el.update = update;
+	/**
+	 * Get out of the way while the picture is being worked on: hide on any touch, drag, pinch or wheel
+	 * over the stage and come back after 10 seconds without one.
+	 */
+	el.watch = (stage, idleMs = 10000) => {
+		let t = 0;
+		const away = () => {
+			el.classList.add('away');
+			clearTimeout(t);
+			t = setTimeout(() => el.classList.remove('away'), idleMs);
+		};
+		for (const ev of ['pointerdown', 'pointermove', 'wheel', 'touchstart', 'keydown']) stage.addEventListener(ev, (e) => { if (ev === 'pointermove' && !e.buttons && e.pointerType === 'mouse') return; away(); }, { passive: true });
+		return () => clearTimeout(t);
+	};
 	el.show = () => { const p = ctx.project(); if (p) { p.guide = p.guide || {}; p.guide.off = false; ctx.changed(); update(); } };
 	return el;
 }

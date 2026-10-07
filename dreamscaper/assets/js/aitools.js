@@ -6,14 +6,14 @@
  *  4. Season & light  – re-light the real photo: spring, fall, winter snow, dusk lights
  *  5. Plant ID        – what plant is this? (opens the shared Plant ID flow)
  */
-import { h, icon, uid, canvas, canvasToBlob } from './util.js?v=2.7.4';
-import { session } from './api.js?v=2.7.4';
-import { openAuth, creditsPill } from './account.js?v=2.7.4';
-import { confirmCredit } from './credits.js?v=2.7.4';
-import { voiceButton } from './voice.js?v=2.7.4';
-import { runEdit, segment, dilateMask, compositeMasked } from './aiclient.js?v=2.7.4';
-import { inpaint, maskCount } from './eraser.js?v=2.7.4';
-import { SELECT, REMOVE, ADD, removePrompt, addPrompt } from './aitoolkit.js?v=2.7.4';
+import { h, icon, uid, canvas, canvasToBlob } from './util.js?v=2.7.5';
+import { session } from './api.js?v=2.7.5';
+import { openAuth, creditsPill } from './account.js?v=2.7.5';
+import { confirmCredit } from './credits.js?v=2.7.5';
+import { voiceButton } from './voice.js?v=2.7.5';
+import { runEdit, segment, dilateMask, compositeMasked } from './aiclient.js?v=2.7.5';
+import { inpaint, maskCount } from './eraser.js?v=2.7.5';
+import { SELECT, REMOVE, ADD, removePrompt, addPrompt } from './aitoolkit.js?v=2.7.5';
 
 const QUICK_ERASE = ['trash cans', 'garden hose', 'weeds', 'dead shrubs', 'car', 'toys', 'tree stump', 'leaves and debris'];
 const QUICK_SELECT = [['the lawn', 'Lawn'], ['planting beds', 'Beds'], ['driveway', 'Driveway'], ['walkway', 'Walkway'], ['shrubs', 'Shrubs'], ['trees', 'Trees'], ['house', 'House'], ['fence', 'Fence'], ['sky', 'Sky']];

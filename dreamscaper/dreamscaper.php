@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DreamScaper
  * Description: A fun landscape design studio for your visitors. Customers photograph their yard (or use Connecticut aerial imagery), add real plants and garden features, paint mulch and stone, magic-erase what they don't want, watch plants grow year by year, and save named designs. Customer accounts (email, Google, Facebook) keep designs online across devices and unlock Dreamscape AI (FLUX.2 [klein]) plus AI Erase, Smart Select, Make it real, Season & light and plant/weed identification. Share to social media and print. Contractor CRM: Design → Quote estimating, e-signature, follow-ups, scheduling, job costing and invoices. Shortcodes: [dreamscaper], [dreamscaper_quote]
- * Version: 2.7.4
+ * Version: 2.7.5
  * Author: David's Landscaping
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DREAMSCAPER_VERSION', '2.7.4' );
+define( 'DREAMSCAPER_VERSION', '2.7.5' );
 define( 'DREAMSCAPER_URL', plugin_dir_url( __FILE__ ) );
 define( 'DREAMSCAPER_OPT', 'dreamscaper_settings' );
 
@@ -28,6 +28,8 @@ function dreamscaper_defaults() {
 		'short_brand'        => 'David',
 		'site'               => 'getmylandscaped.com',
 		'maps_key'           => '',
+		'maps_server_key'    => '',
+		'osrm_url'           => '',
 		'share'              => 1,
 		'notify_email'       => 'careformygrass@gmail.com',
 		'notify_signup'      => 1,
@@ -145,6 +147,8 @@ function dreamscaper_sanitize( $in ) {
 		'short_brand'        => $txt( 'short_brand' ),
 		'site'               => $txt( 'site' ),
 		'maps_key'           => $secret( 'maps_key' ),
+		'maps_server_key'    => $secret( 'maps_server_key' ),
+		'osrm_url'           => preg_match( '#^https://[^\s]+$#', isset( $in['osrm_url'] ) ? trim( $in['osrm_url'] ) : '' ) ? esc_url_raw( trim( $in['osrm_url'] ), array( 'https' ) ) : '',
 		'share'              => empty( $in['share'] ) ? 0 : 1,
 		'notify_email'       => sanitize_email( isset( $in['notify_email'] ) ? $in['notify_email'] : $d['notify_email'] ),
 		'notify_signup'      => empty( $in['notify_signup'] ) ? 0 : 1,
@@ -248,6 +252,8 @@ function dreamscaper_settings_page() {
 					?>
 				</td></tr>
 				<?php $row( 'maps_key', 'Google Maps API key (optional)', 'Turns on address autocomplete powered by Google (enable <em>Places API (New)</em>) and “Explore in 3D” (enable <em>Maps JavaScript API</em>). Restrict the key to your website. Without a key, addresses autocomplete from OpenStreetMap.', 'secret' ); ?>
+				<?php $row( 'maps_server_key', 'Google server key for the Route planner (optional)', 'Driving distances (<em>Routes API</em>) and nearby restaurants and gas prices (<em>Places API (New)</em>) are looked up from your server. Use a key restricted to your server’s IP address; if empty, the key above is used.', 'secret' ); ?>
+				<?php $row( 'osrm_url', 'OSRM routing server (optional)', 'Without a Google key, driving distances can come from an OSRM server you host (e.g. <code>https://osrm.example.com</code>). Without either, the planner estimates road miles from straight-line distance.' ); ?>
 			</table>
 
 			<h2>Customer accounts</h2>

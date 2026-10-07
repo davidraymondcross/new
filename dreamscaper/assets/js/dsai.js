@@ -2,16 +2,16 @@
  * Talk, tap ideas, add inspiration photos — any mix — and the prompt writes itself.
  * Every generation is kept; tweaks can always be undone back to the original.
  */
-import { h, put, icon, uid, canvas, canvasToBlob, blobToBitmap } from './util.js?v=2.7.4';
-import { session, onSession, api } from './api.js?v=2.7.4';
-import { openAuth, creditsPill } from './account.js?v=2.7.4';
-import { openCredits, confirmCredit } from './credits.js?v=2.7.4';
-import { SELECT, REMOVE, ADD, removePrompt, replacePrompt, improvePrompt, addPrompt } from './aitoolkit.js?v=2.7.4';
-import { historyPanel } from './history.js?v=2.7.4';
-import { maybeTour } from './tour.js?v=2.7.4';
-import { voiceButton, voiceSupported } from './voice.js?v=2.7.4';
-import { IDEAS, IDEA_GROUPS, GOAL_GROUPS, REF_ROLES, TWEAKS, STYLES, buildPrompt, summarize, tweakPrompt, regionPrompt, stylePrompt, KEEP_TEXT } from './aiprompt.js?v=2.7.4';
-import { runEdit, compositeMasked, loadImage, aiReady, segment, dilateMask, toJpeg } from './aiclient.js?v=2.7.4';
+import { h, put, icon, uid, canvas, canvasToBlob, blobToBitmap } from './util.js?v=2.7.5';
+import { session, onSession, api } from './api.js?v=2.7.5';
+import { openAuth, creditsPill } from './account.js?v=2.7.5';
+import { openCredits, confirmCredit } from './credits.js?v=2.7.5';
+import { SELECT, REMOVE, ADD, removePrompt, replacePrompt, improvePrompt, addPrompt } from './aitoolkit.js?v=2.7.5';
+import { historyPanel } from './history.js?v=2.7.5';
+import { maybeTour } from './tour.js?v=2.7.5';
+import { voiceButton, voiceSupported } from './voice.js?v=2.7.5';
+import { IDEAS, IDEA_GROUPS, GOAL_GROUPS, REF_ROLES, TWEAKS, STYLES, buildPrompt, summarize, tweakPrompt, regionPrompt, stylePrompt, KEEP_TEXT } from './aiprompt.js?v=2.7.5';
+import { runEdit, compositeMasked, loadImage, aiReady, segment, dilateMask, toJpeg } from './aiclient.js?v=2.7.5';
 
 /** AI design assistant tools (left rail → "AI tools"). Thinking tools are free; making an image uses credits. */
 const AI_TOOLS = [

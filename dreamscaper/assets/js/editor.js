@@ -1,11 +1,11 @@
 /* DreamScaper – canvas editor engine: scene rendering, perspective, tools, history. */
-import { canvas, clamp, uid, smoothPath } from './util.js?v=2.7.4';
-import { byId, sizeAt } from './library.js?v=2.7.4';
-import { sprite } from './sprites.js?v=2.7.4';
-import { fillGround } from './textures.js?v=2.7.4';
-import { magicSelect, inpaint, dilate, maskBBox, maskCount } from './eraser.js?v=2.7.4';
-import { groundPoint, polyArea, fmtFtIn, sampleSmooth } from './takeoff.js?v=2.7.4';
-import { applyAdjust, hasAdjust } from './photoedit.js?v=2.7.4';
+import { canvas, clamp, uid, smoothPath } from './util.js?v=2.7.5';
+import { byId, sizeAt } from './library.js?v=2.7.5';
+import { sprite } from './sprites.js?v=2.7.5';
+import { fillGround } from './textures.js?v=2.7.5';
+import { magicSelect, inpaint, dilate, maskBBox, maskCount } from './eraser.js?v=2.7.5';
+import { groundPoint, polyArea, fmtFtIn, sampleSmooth } from './takeoff.js?v=2.7.5';
+import { applyAdjust, hasAdjust } from './photoedit.js?v=2.7.5';
 
 const EDGING = {
 	none: null,
@@ -64,7 +64,22 @@ export class Editor {
 		this.personPos = null;
 		this._raf = 0;
 		this._bindEvents();
-		this._ro = new ResizeObserver(() => this.fit());
+		// when the stage changes size (e.g. the guide hides or shows), refit only if the picture is still
+		// fitted; if the user has zoomed or panned, keep the same spot in the middle instead
+		this._fitted = true;
+		this._size = null;
+		this._ro = new ResizeObserver(() => {
+			const r = stage.getBoundingClientRect(), old = this._size;
+			this._size = { w: r.width, h: r.height, top: r.top, left: r.left };
+			if (!old || !old.w || (this._fitted && Math.abs(r.width - old.w) > 1)) return this.fit();
+			// only the stage's top edge moved (the guide hid or came back): keep the picture exactly
+			// where it is on screen — even mid-drag or mid-pinch — so nothing jumps under the finger
+			const dx = old.left - r.left, dy = old.top - r.top;
+			this.ox += dx; this.oy += dy;
+			if (this.drag && this.drag.kind === 'pan') { this.drag.ox += dx; this.drag.oy += dy; }
+			if (this.pinch) { this.pinch.ox += dx; this.pinch.oy += dy; }
+			this._applyView();
+		});
 		this._ro.observe(stage);
 	}
 
@@ -904,6 +919,7 @@ export class Editor {
 		this.z = Math.min((r.width - pad * 2) / this.W, (r.height - pad * 2) / this.H);
 		this.ox = (r.width - this.W * this.z) / 2;
 		this.oy = (r.height - this.H * this.z) / 2;
+		this._fitted = true;
 		this._applyView();
 	}
 	zoomBy(f, cx, cy) {
@@ -913,6 +929,7 @@ export class Editor {
 		this.ox = cx - (cx - this.ox) * (nz / this.z);
 		this.oy = cy - (cy - this.oy) * (nz / this.z);
 		this.z = nz;
+		this._fitted = false;
 		this._applyView();
 	}
 	_applyView() {
@@ -1097,6 +1114,7 @@ export class Editor {
 			const nz = clamp(this.pinch.z * (d / this.pinch.d), 0.05, 8);
 			const cx = this.pinch.mx - r.left, cy = this.pinch.my - r.top;
 			this.z = nz;
+			this._fitted = false;
 			this.ox = cx - (cx - this.pinch.ox) * (nz / this.pinch.z) + (mx - this.pinch.mx);
 			this.oy = cy - (cy - this.pinch.oy) * (nz / this.pinch.z) + (my - this.pinch.my);
 			this._applyView();
@@ -1106,7 +1124,7 @@ export class Editor {
 		this.hover = p;
 		const d = this.drag;
 		if (d) {
-			if (d.kind === 'pan') { this.ox = d.ox + e.clientX - d.sx; this.oy = d.oy + e.clientY - d.sy; this._applyView(); return; }
+			if (d.kind === 'pan') { this._fitted = false; this.ox = d.ox + e.clientX - d.sx; this.oy = d.oy + e.clientY - d.sy; this._applyView(); return; }
 			if (d.kind === 'move') { d.o.x = clamp(p.x - d.dx, 0, this.W); d.o.y = clamp(p.y - d.dy, 0, this.H); d.moved = true; this.render(); return; }
 			if (d.kind === 'scale') {
 				const dist = Math.hypot(p.x - d.o.x, p.y - d.o.y);

@@ -1,10 +1,10 @@
 /* DreamScaper – contractor settings: Messages & alerts, Intake questions, Social links & gallery,
  * Quick replies. Each is a tab under Contractor Hub → Settings.
  */
-import { h, put, icon } from './util.js?v=2.7.4';
-import { api } from './api.js?v=2.7.4';
-import { modal, pickFile } from './capture.js?v=2.7.4';
-import { sectionHead, lockNote, has, loadCaps, planPrompt, usageBar, tip } from './explain.js?v=2.7.4';
+import { h, put, icon } from './util.js?v=2.7.5';
+import { api } from './api.js?v=2.7.5';
+import { modal, pickFile } from './capture.js?v=2.7.5';
+import { sectionHead, lockNote, has, loadCaps, planPrompt, usageBar, tip } from './explain.js?v=2.7.5';
 
 let M = null;
 export function initMsgSettings(ctx) { M = { ctx }; }

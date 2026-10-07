@@ -1,42 +1,42 @@
 /* DreamScaper – app shell: gallery, project flow, editor UI, autosave. */
-import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.4';
-import { store } from './store.js?v=2.7.4';
-import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.4';
-import { openAssetMaker } from './assetmaker.js?v=2.7.4';
-import { voiceButton } from './voice.js?v=2.7.4';
-import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.4';
-import { thumb, sprite } from './sprites.js?v=2.7.4';
-import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.4';
-import { Editor } from './editor.js?v=2.7.4';
-import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.4';
-import { sampleYard } from './sample.js?v=2.7.4';
-import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.4';
-import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.4';
-import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.4';
-import { openStudio } from './dsai.js?v=2.7.4';
-import { panelAI } from './aitools.js?v=2.7.4';
-import { shareSheet, printDesign } from './share.js?v=2.7.4';
-import { openPlantId } from './plantid.js?v=2.7.4';
-import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.4';
-import { onRewards } from './api.js?v=2.7.4';
-import { segment } from './aiclient.js?v=2.7.4';
-import { historyPanel } from './history.js?v=2.7.4';
-import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.4';
-import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.4';
-import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.4';
-import { initStorage, openStorage } from './storage.js?v=2.7.4';
-import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.4';
-import { proHome } from './prohome.js?v=2.7.4';
-import { initHire, openFind, openProjects } from './hire.js?v=2.7.4';
-import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.4';
-import { initExplain } from './explain.js?v=2.7.4';
-import { initBilling, confirmReturn } from './billing.js?v=2.7.4';
-import { initMsgSettings } from './msgsettings.js?v=2.7.4';
-import { dreamscapeToPlan } from './takeoff.js?v=2.7.4';
-import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.4';
-import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.4';
-import { openGuide, guideBar } from './guide.js?v=2.7.4';
-import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.4';
+import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.5';
+import { store } from './store.js?v=2.7.5';
+import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.5';
+import { openAssetMaker } from './assetmaker.js?v=2.7.5';
+import { voiceButton } from './voice.js?v=2.7.5';
+import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.5';
+import { thumb, sprite } from './sprites.js?v=2.7.5';
+import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.5';
+import { Editor } from './editor.js?v=2.7.5';
+import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.5';
+import { sampleYard } from './sample.js?v=2.7.5';
+import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.5';
+import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.5';
+import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.5';
+import { openStudio } from './dsai.js?v=2.7.5';
+import { panelAI } from './aitools.js?v=2.7.5';
+import { shareSheet, printDesign } from './share.js?v=2.7.5';
+import { openPlantId } from './plantid.js?v=2.7.5';
+import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.5';
+import { onRewards } from './api.js?v=2.7.5';
+import { segment } from './aiclient.js?v=2.7.5';
+import { historyPanel } from './history.js?v=2.7.5';
+import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.5';
+import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.5';
+import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.5';
+import { initStorage, openStorage } from './storage.js?v=2.7.5';
+import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.5';
+import { proHome } from './prohome.js?v=2.7.5';
+import { initHire, openFind, openProjects } from './hire.js?v=2.7.5';
+import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.5';
+import { initExplain } from './explain.js?v=2.7.5';
+import { initBilling, confirmReturn } from './billing.js?v=2.7.5';
+import { initMsgSettings } from './msgsettings.js?v=2.7.5';
+import { dreamscapeToPlan } from './takeoff.js?v=2.7.5';
+import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.5';
+import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.5';
+import { openGuide, guideBar } from './guide.js?v=2.7.5';
+import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.5';
 
 const CFG = (() => {
 	try { return JSON.parse(document.getElementById('dreamscaper-config').textContent); } catch (e) { return {}; }
@@ -531,54 +531,28 @@ async function capture(kind, project) {
 
 /** Guided start: 1) how to design (yourself or AI) 2) the photo. */
 function newProject() {
-	let mode = null;
+	// one path: add a photo and start designing. The AI is in the builder's menu
+	// ("Automate the design process"), so there's no "regular or AI?" question here.
+	const mode = 'self';
 	const name = h('input', { type: 'text', value: suggestName(), maxlength: 60, 'aria-label': 'Name your Dreamscape' });
 	const body = h('div', { class: 'ds-wiz' });
 	const close = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => m.remove() }, icon('close'));
 	const m = modal(app.root, 'Start a new Dreamscape', [body], close, 'ds-modal-wiz');
-	const stepper = (i) => h('ol', { class: 'ds-wiz-steps' }, ...['How to design', 'Your photo'].map((t, k) => h('li', { class: k === i ? 'on' : k < i ? 'done' : '' }, h('b', null, k < i ? '✓' : String(k + 1)), h('span', null, t))));
-	const step1 = () => {
-		body.innerHTML = '';
-		const card = (id, ic, title, desc, extra) => h('button', { class: 'ds-source ds-choice' + (mode === id ? ' on' : ''), onclick: () => pick(id) },
-			h('span', { class: 'ds-source-ic' }, ic), h('b', null, title, extra || null), h('small', null, desc));
-		body.append(stepper(0),
-			h('h4', { class: 'ds-wiz-q' }, 'How would you like to design your yard?'),
-			h('div', { class: 'ds-sources ds-sources-2' },
-				card('self', icon('pencil', 26), 'Design it myself', 'Place real plants at true size, paint on mulch and stone, erase things you don’t want, and watch it grow year by year. Free — no account needed.'),
-				card('ai', icon('sparkle', 26), 'Design it with AI', `Dreamscape AI repaints your photo with what you ask for — say it, tap ideas, or show it a photo you love. Takes about 20 seconds. You can still add plants yourself afterwards. ${session.ai.limit || 10} free AI credits a day.`,
-					!session.user ? h('span', { class: 'ds-lock-tag' }, icon('lock', 12), ' Free sign-in') : null)),
-			h('p', { class: 'ds-hint ds-center' }, 'Not sure? Start with “Design it myself” — you can send your design to the AI at any time with the ✨ button.'));
-	};
-	const pick = async (id) => {
-		if (id === 'ai') {
-			if (!session.ai.enabled) return toast('Dreamscape AI is being set up — try “Design it myself” for now.');
-			if (!(await requireSignIn('Sign in to design with Dreamscape AI — it’s free.'))) return;
-		}
-		mode = id;
-		step2();
-	};
-	const step2 = () => {
-		body.innerHTML = '';
-		body.append(stepper(1),
-			h('h4', { class: 'ds-wiz-q' }, mode === 'ai' ? 'Which photo should the AI transform?' : 'Add a photo of your yard'),
-			h('div', { class: 'ds-explain' }, h('p', null, '📸 ', h('b', null, 'Best results: '), 'stand back so the whole area (and some of the house) fits, hold your phone sideways at eye level, and keep it level.')),
-			sourceButtons(async (k) => {
-				const shot = await capture(k, { angles: [] });
-				if (!shot) return;
-				if (shot.error) return toast(shot.error);
-				m.remove();
-				const nm = name.value.trim() || 'My Dreamscape';
-				if (mode === 'ai') await createAIProject(nm, shot);
-				else await createProject(nm, shot, { id: uid(), angles: [] });
-			}),
-			h('details', { class: 'ds-start-from' }, h('summary', null, 'Or start from…'),
-				h('div', { class: 'ds-row ds-wrap' },
-					h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { m.remove(); startFromDesign(mode, name.value.trim()); } }, icon('folder', 16), ' One of my Dreamscapes or saved views'),
-					mode === 'ai' ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: async () => { m.remove(); const items = (await store.listBoard().catch(() => [])).filter((x) => x.blob).slice(0, 3); const refs = []; for (const it of items) { const b = await store.getBlob(it.blob); if (b) refs.push(await blobToBitmap(b)); } if (!refs.length) toast('Your Inspiration Board has no pictures yet — add some first.', 4500); openStudioFor(null, null, { prefill: { refs, words: '' } }); } }, '💡 My Inspiration Board') : null)),
-			h('label', { class: 'ds-label ds-wiz-name' }, 'Name (optional)', name),
-			h('button', { class: 'ds-link', onclick: step1 }, '← Back'));
-	};
-	step1();
+	body.append(
+		h('h4', { class: 'ds-wiz-q' }, 'Add a photo of your yard'),
+		h('div', { class: 'ds-explain' }, h('p', null, '📸 ', h('b', null, 'Best results: '), 'stand back so the whole area (and some of the house) fits, hold your phone sideways at eye level, and keep it level.')),
+		sourceButtons(async (k) => {
+			const shot = await capture(k, { angles: [] });
+			if (!shot) return;
+			if (shot.error) return toast(shot.error);
+			m.remove();
+			await createProject(name.value.trim() || 'My Dreamscape', shot, { id: uid(), angles: [] });
+		}),
+		h('details', { class: 'ds-start-from' }, h('summary', null, 'Or start from…'),
+			h('div', { class: 'ds-row ds-wrap' },
+				h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => { m.remove(); startFromDesign(mode, name.value.trim()); } }, icon('folder', 16), ' One of my Dreamscapes or saved views'))),
+		h('label', { class: 'ds-label ds-wiz-name' }, 'Name (optional)', name),
+		h('p', { class: 'ds-hint ds-center' }, 'Want the AI to do it? Open your photo, then tap ✨ Automate (or ⋯ → Automate the design process).'));
 }
 
 /** AI path: the photo becomes a Dreamscape, then the AI studio opens on it. */
@@ -699,9 +673,10 @@ function buildEditorUI() {
 		(ui.layBtn = h('button', { class: 'ds-icon-btn', 'aria-label': 'Layers', title: 'Layers — show, hide, lock and arrange everything', onclick: () => toggleLayers() }, icon('layers'))),
 		(ui.cloud = h('span', { class: 'ds-cloud', hidden: !session.user, title: 'Saved to your account' }, icon('cloud', 18))),
 		pidButton(),
-		h('button', { class: 'ds-btn ds-ai-btn ds-sm', onclick: sendToAI, title: 'Send this design to Dreamscape AI' }, icon('sparkle', 18), h('span', { class: 'ds-hide-sm' }, ' Dreamscape AI')),
+		h('button', { class: 'ds-btn ds-ai-btn ds-sm', onclick: sendToAI, title: 'Automate the design process with Dreamscape AI' }, icon('sparkle', 18), h('span', { class: 'ds-hide-sm' }, ' Automate')),
 		CFG.share ? h('button', { class: 'ds-btn ds-sm ds-send-btn', onclick: () => share() }, icon('send', 18), h('span', { class: 'ds-hide-sm' }, ' Send to ' + (CFG.shortBrand || 'us'))) : null,
 		moreMenu([
+			['sparkle', 'Automate the design process', () => sendToAI()],
 			['versions', 'Design versions & notes', () => openVersions(edCtx())],
 			['compare', 'Compare designs', () => compareDialog(edCtx())],
 			['eye', 'Presentation mode', () => presentation(edCtx())],
@@ -735,6 +710,9 @@ function buildEditorUI() {
 	ui.panelToggle = h('button', { class: 'ds-panel-grip', 'aria-label': 'Show or hide options', onclick: () => ui.panel.classList.toggle('collapsed') }, h('i'));
 	ui.guide = guideBar({ project: () => app.project, view: () => app.editor && app.editor.view, setTool, toast, changed: () => saveSoon(), onHelp: (k) => guide(k) });
 	const stageWrap = (ui.stageWrap = h('div', { class: 'ds-stage-wrap' }, ui.guide, ui.stage, ui.scenebar, ui.zoom, ui.toast));
+	ui.guide.watch(ui.stage);
+	// tips that pop up over the picture get out of the way as soon as you start working on it
+	for (const ev of ['pointerdown', 'wheel']) ui.stage.addEventListener(ev, () => ui.toast.classList.remove('on'), { passive: true });
 	root.append(top, h('div', { class: 'ds-main' }, ui.tools, stageWrap, h('div', { class: 'ds-panel-wrap' }, ui.panelToggle, ui.panel)));
 
 	app.editor = new Editor(ui.stage, {
