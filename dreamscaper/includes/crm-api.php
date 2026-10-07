@@ -152,7 +152,9 @@ function dreamscaper_visit_out( $v ) {
 	return $out;
 }
 function dreamscaper_invoice_out( $i ) {
-	return array( 'id' => (int) $i->id, 'quote_id' => (int) $i->quote_id, 'client_id' => (int) $i->client_id, 'number' => $i->number, 'kind' => $i->kind, 'title' => $i->title, 'items' => dreamscaper_json( $i->items ), 'amount' => (float) $i->amount, 'status' => $i->status, 'due' => $i->due, 'recur' => $i->recur, 'next_at' => $i->next_at, 'paid' => dreamscaper_ms( $i->paid_at ), 'sent' => dreamscaper_ms( $i->sent_at ), 'link' => dreamscaper_invoice_url( $i->token ) );
+	$o = isset( $i->opts ) ? dreamscaper_json( $i->opts ) : array();
+	$items = dreamscaper_json( $i->items );
+	return array( 'opts' => $o ? $o : new stdClass(), 'totals' => function_exists( 'dreamscaper_invoice_calc' ) ? dreamscaper_invoice_calc( $items, $o ) : null, 'repeats' => function_exists( 'dreamscaper_invoice_recur_label' ) ? dreamscaper_invoice_recur_label( $i->recur, $o ) : $i->recur, 'id' => (int) $i->id, 'quote_id' => (int) $i->quote_id, 'client_id' => (int) $i->client_id, 'number' => $i->number, 'kind' => $i->kind, 'title' => $i->title, 'items' => dreamscaper_json( $i->items ), 'amount' => (float) $i->amount, 'status' => $i->status, 'due' => $i->due, 'recur' => $i->recur, 'next_at' => $i->next_at, 'paid' => dreamscaper_ms( $i->paid_at ), 'sent' => dreamscaper_ms( $i->sent_at ), 'link' => dreamscaper_invoice_url( $i->token ) );
 }
 
 /* ------------------------------------------------------------- application */
@@ -1241,29 +1243,27 @@ function dreamscaper_crm_invoice_save( WP_REST_Request $r ) {
 	if ( ! $c ) {
 		return dreamscaper_crm_err( 'Choose a customer for this invoice.' );
 	}
-	$items = array();
-	$sum   = 0;
-	foreach ( array_slice( (array) ( isset( $j['items'] ) ? $j['items'] : array() ), 0, 60 ) as $it ) {
-		$qty  = round( (float) ( isset( $it['qty'] ) ? $it['qty'] : 1 ), 2 );
-		$rate = round( (float) ( isset( $it['rate'] ) ? $it['rate'] : 0 ), 2 );
-		$name = mb_substr( sanitize_text_field( isset( $it['name'] ) ? $it['name'] : '' ), 0, 200 );
-		if ( '' === $name ) {
-			continue;
-		}
-		$items[] = array( 'name' => $name, 'qty' => $qty, 'rate' => $rate );
-		$sum    += $qty * $rate;
+	$items = dreamscaper_invoice_items_clean( isset( $j['items'] ) ? $j['items'] : array() );
+	$opts  = dreamscaper_invoice_opts_clean( isset( $j['opts'] ) && is_array( $j['opts'] ) ? $j['opts'] : array(), $inv ? dreamscaper_json( $inv->opts ) : array() );
+	if ( ! isset( $opts['remind'] ) ) {
+		$opts['remind'] = 'default';
 	}
-	if ( $sum <= 0 ) {
+	$tot = dreamscaper_invoice_calc( $items, $opts );
+	if ( $tot['total'] <= 0 ) {
 		return dreamscaper_crm_err( 'Add at least one line with an amount.' );
+	}
+	$recur = in_array( isset( $j['recur'] ) ? $j['recur'] : '', array( 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly', 'custom' ), true ) ? $j['recur'] : '';
+	if ( 'custom' === $recur && empty( $opts['every'] ) ) {
+		return dreamscaper_crm_err( 'Set how often the custom repeat goes out (e.g. every 6 weeks).' );
 	}
 	$f = array(
 		'client_id' => $client, 'quote_id' => $q ? $q->id : 0, 'user_id' => (int) $c->user_id,
 		'kind' => in_array( isset( $j['kind'] ) ? $j['kind'] : '', array( 'deposit', 'progress', 'final', 'recurring', 'other' ), true ) ? $j['kind'] : 'final',
-		'title' => dreamscaper_crm_txt( $j, 'title', 160 ), 'items' => wp_json_encode( $items ), 'amount' => round( $sum, 2 ),
+		'title' => dreamscaper_crm_txt( $j, 'title', 160 ), 'items' => wp_json_encode( $items ), 'amount' => $tot['total'], 'opts' => wp_json_encode( $opts ),
 		'due' => ! empty( $j['due'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $j['due'] ) ? $j['due'] : gmdate( 'Y-m-d', strtotime( '+14 days' ) ),
-		'recur' => in_array( isset( $j['recur'] ) ? $j['recur'] : '', array( 'weekly', 'monthly', 'yearly' ), true ) ? $j['recur'] : '',
+		'recur' => $recur,
 	);
-	$f['next_at'] = $f['recur'] ? ( ! empty( $j['next_at'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $j['next_at'] ) ? $j['next_at'] : gmdate( 'Y-m-d', strtotime( $f['due'] . ( 'weekly' === $f['recur'] ? ' +1 week' : ( 'yearly' === $f['recur'] ? ' +1 year' : ' +1 month' ) ) ) ) ) : null;
+	$f['next_at'] = $recur ? ( ! empty( $j['next_at'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $j['next_at'] ) ? $j['next_at'] : dreamscaper_invoice_next_date( $recur, $opts, $f['due'] ) ) : null;
 	if ( ! $f['title'] ) {
 		$f['title'] = ( $q ? $q->title : 'Landscape services' ) . ' – ' . ucfirst( $f['kind'] );
 	}
@@ -1292,10 +1292,16 @@ function dreamscaper_crm_invoice_send( WP_REST_Request $r ) {
 	if ( ! $inv || in_array( $inv->status, array( 'paid', 'void' ), true ) ) {
 		return dreamscaper_crm_err( 'This invoice can’t be sent.' );
 	}
+	// how to send it: email, text or both (and an optional message just for this invoice)
+	$ch  = in_array( $r->get_param( 'channel' ), array( 'email', 'sms', 'both' ), true ) ? $r->get_param( 'channel' ) : 'email';
+	$msg = $r->get_param( 'message' );
 	$wpdb->update( dreamscaper_t( 'invoices' ), array( 'status' => 'sent', 'sent_at' => dreamscaper_now() ), array( 'id' => $inv->id ) );
 	$inv = dreamscaper_crm_get( 'invoices', $inv->id, $p->user_id );
-	if ( ! dreamscaper_invoice_email( $inv ) ) {
-		return dreamscaper_crm_err( 'The customer needs an email address to receive invoices. The link is ready to share: ' . dreamscaper_invoice_url( $inv->token ) );
+	$res = dreamscaper_invoice_email( $inv, 'both' === $ch ? array( 'email', 'sms' ) : array( $ch ), is_array( $msg ) ? $msg : array() );
+	if ( ! $res ) {
+		$c = dreamscaper_crm_get( 'clients', $inv->client_id, $p->user_id );
+		$why = 'sms' === $ch ? ( dreamscaper_sms_ready() ? 'a mobile number' : 'text messages set up (Settings → DreamScaper → Text messages)' ) : 'an email address';
+		return dreamscaper_crm_err( 'The invoice couldn’t be delivered — ' . ( $c ? $c->name : 'the customer' ) . ' needs ' . $why . '. The link is ready to share: ' . dreamscaper_invoice_url( $inv->token ) );
 	}
 	return dreamscaper_invoice_out( $inv );
 }

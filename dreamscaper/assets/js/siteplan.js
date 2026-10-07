@@ -6,8 +6,8 @@
  * AI Measure (SAM 3) can trace lawn, beds, patios… from the aerial; the traced outlines are
  * ordinary editable shapes measured with the same math.
  */
-import { h, put, icon } from './util.js?v=2.7.5';
-import { GEOM, KINDS, outline, measure, polyArea, pathLength, centroid, fmtFtIn, parseFtIn, fmtArea, sampleSmooth } from './takeoff.js?v=2.7.5';
+import { h, put, icon } from './util.js?v=2.7.6';
+import { GEOM, KINDS, outline, measure, polyArea, pathLength, centroid, fmtFtIn, parseFtIn, fmtArea, sampleSmooth } from './takeoff.js?v=2.7.6';
 
 const TOOLS = [
 	['select', '👆', 'Select & edit'],

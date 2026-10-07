@@ -1,10 +1,10 @@
 /* DreamScaper – sign in / create account / profile, and the account chip. */
-import { h, icon, stateSelect, US_STATES } from './util.js?v=2.7.5';
-import { session, api, refreshSession, onSession, applySession } from './api.js?v=2.7.5';
-import { modal } from './capture.js?v=2.7.5';
-import { addressField } from './address.js?v=2.7.5';
-import { openCredits } from './credits.js?v=2.7.5';
-import { openStorage, fmtBytes } from './storage.js?v=2.7.5';
+import { h, icon, stateSelect, US_STATES } from './util.js?v=2.7.6';
+import { session, api, refreshSession, onSession, applySession } from './api.js?v=2.7.6';
+import { modal } from './capture.js?v=2.7.6';
+import { addressField, addressDetails } from './address.js?v=2.7.6';
+import { openCredits } from './credits.js?v=2.7.6';
+import { openStorage, fmtBytes } from './storage.js?v=2.7.6';
 
 let CFG = {}, ROOT = null, TOAST = () => {};
 export function initAccount(cfg, root, toast) { CFG = cfg; ROOT = root; TOAST = toast; }
@@ -75,7 +75,7 @@ export function openAuth({ reason = '', start = 'signup' } = {}) {
 				const town = input('town', 'text', 'Town', 'address-level2');
 				const zip = input('zip', 'text', 'ZIP', 'postal-code', { inputmode: 'numeric', maxlength: 10 });
 				const st = stateSelect('');
-				const addrRow = h('label', null, 'Street address of the yard', addressField(addr.i, { api: CFG.api, onPick: (it) => fillAddress(it.label, addr.i, town.i, zip.i, st) }));
+				const addrRow = h('label', null, 'Street address of the yard', addressField(addr.i, { api: CFG.api, onPick: (it) => fillFull(it, addr.i, town.i, zip.i, st) }));
 				const contact = h('input', { type: 'checkbox', checked: true });
 				const hp = h('input', { type: 'text', class: 'ds-hp', tabindex: -1, autocomplete: 'off', 'aria-hidden': 'true' });
 				const agree = h('input', { type: 'checkbox', required: true });
@@ -122,6 +122,15 @@ export function openAuth({ reason = '', start = 'signup' } = {}) {
 	});
 }
 
+/** Fill the form right away from the pick, then complete it (ZIP especially) from the address lookup. */
+async function fillFull(it, addr, town, zip, st) {
+	fillAddress(it.label, addr, town, zip, st);
+	const d = await addressDetails(it.label, it);
+	if (d.street) addr.value = d.street;
+	if (d.town) town.value = d.town;
+	if (d.zip) zip.value = d.zip;
+	if (st && d.state) st.value = d.state;
+}
 function fillAddress(label, addr, town, zip, st) {
 	const parts = label.split(',').map((s) => s.trim());
 	addr.value = parts[0] || label;
@@ -154,7 +163,7 @@ export function completeProfile(force = false) {
 		const form = h('form', { class: 'ds-form ds-form-1' },
 			force ? null : h('p', { class: 'ds-muted' }, 'Almost done! Add where your yard is so we can tailor plant suggestions and follow up if you’d like a quote.'),
 			name.row, email.row, phone.row,
-			h('label', null, 'Street address of the yard', addressField(addr.i, { api: CFG.api, onPick: (it) => fillAddress(it.label, addr.i, town.i, zip.i, st) })),
+			h('label', null, 'Street address of the yard', addressField(addr.i, { api: CFG.api, onPick: (it) => fillFull(it, addr.i, town.i, zip.i, st) })),
 			h('div', { class: 'ds-form-3' }, town.row, h('label', null, 'State', st), zip.row),
 			h('label', { class: 'ds-check' }, contact, ` It's OK for ${CFG.brand || 'us'} to contact me about my design`),
 			status, save);

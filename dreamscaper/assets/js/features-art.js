@@ -1,7 +1,7 @@
 /* DreamScaper – procedural artwork for garden features (side view + top view).
  * Every function draws with its base centered at (cx, base), w×h in pixels.
  */
-import { hsl } from './util.js?v=2.7.5';
+import { hsl } from './util.js?v=2.7.6';
 
 export const PAL = {
 	granite: [30, 5, 58], field: [32, 16, 50], moss: [95, 22, 40], quartz: [40, 10, 88], ledge: [35, 8, 46], bluestone: [210, 10, 46],

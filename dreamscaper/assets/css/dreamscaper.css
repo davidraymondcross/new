@@ -1936,3 +1936,82 @@
 @media (max-width: 760px) {
 	.ds-rt-stop { flex-wrap: wrap; }
 }
+
+/* invoices */
+.ds-modal-inv { width: min(1280px, calc(100vw - 24px)); max-width: none; }
+.ds-inv-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.ds-inv-form { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ds-inv-prev { display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; }
+.ds-inv-frame { width: 100%; height: min(78vh, 980px); border: 1px solid var(--line2); border-radius: 12px; background: #fff; }
+.ds-inv-prevbtn { display: none; }
+.ds-inv-lines { display: flex; flex-direction: column; gap: 8px; }
+.ds-inv-l { border: 1px solid var(--line2); border-radius: 12px; padding: 8px; background: var(--bg2); display: flex; flex-direction: column; gap: 6px; }
+.ds-inv-lmain { display: flex; gap: 6px; align-items: center; }
+.ds-inv-lmain > input:first-child { flex: 1; min-width: 0; }
+.ds-inv-q { width: 70px; } .ds-inv-u { width: 70px; } .ds-inv-r { width: 96px; } .ds-inv-n { width: 70px; }
+.ds-inv-amt { min-width: 84px; text-align: right; }
+.ds-inv-btns { display: flex; gap: 2px; }
+.ds-inv-lmore { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ds-inv-lmore textarea { flex: 1; min-width: 180px; }
+.ds-inv-tot { margin-left: auto; min-width: 240px; display: flex; flex-direction: column; gap: 2px; }
+.ds-inv-tot div { display: flex; justify-content: space-between; gap: 16px; }
+.ds-inv-tot .gt { border-top: 2px solid var(--line2); padding-top: 4px; font-size: 18px; }
+.ds-inv-more { border: 1px solid var(--line2); border-radius: 12px; padding: 8px 12px; }
+.ds-inv-more[open] { display: flex; flex-direction: column; gap: 8px; }
+.ds-inv-more summary { cursor: pointer; font-weight: 700; }
+.ds-inv-f input { flex: 1; min-width: 0; }
+.ds-inv-actions { position: sticky; bottom: 0; background: var(--panel); padding: 8px 0; }
+.ds-inv-secs { display: flex; flex-direction: column; gap: 4px; }
+.ds-inv-sec { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border: 1px solid var(--line2); border-radius: 10px; }
+.ds-inv-sec.off { opacity: .55; }
+.ds-inv-logo { max-height: 56px; max-width: 160px; background: #fff; border-radius: 8px; padding: 4px; }
+.ds-inv-prev-sticky { top: 8px; }
+.ds-rem-list { display: flex; flex-direction: column; gap: 8px; }
+.ds-rem { border: 1px solid var(--line2); border-radius: 12px; padding: 8px 10px; }
+.ds-rem.off { opacity: .6; }
+.ds-rem-body { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.ds-rem-codes .ds-chip { font-size: 12px; padding: 3px 8px; }
+@media (max-width: 900px) {
+	.ds-inv-grid { grid-template-columns: 1fr; }
+	.ds-inv-prev { display: none; }
+	.ds-inv-grid.prev .ds-inv-prev { display: flex; position: static; }
+	.ds-inv-prevbtn { display: inline-flex; }
+	.ds-inv-lmain { flex-wrap: wrap; }
+	.ds-inv-lmain > input:first-child { flex-basis: 100%; }
+}
+
+/* equipment */
+.ds-eq-list { display: flex; flex-direction: column; gap: 10px; }
+.ds-eq { border-left: 5px solid var(--accent); }
+.ds-eq.soon { border-left-color: var(--gold); }
+.ds-eq.due { border-left-color: var(--danger); }
+.ds-eq-ic { font-size: 28px; }
+.ds-eq-due { background: rgba(220, 70, 70, .15); }
+.ds-eq-soon { background: rgba(240, 190, 60, .18); }
+.ds-eq-meter { align-items: center; }
+.ds-eq-meterin { width: 130px; }
+.ds-eq-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ds-eq-task { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--bg2); }
+.ds-eq-task.st-due { box-shadow: inset 3px 0 0 var(--danger); }
+.ds-eq-task.st-soon { box-shadow: inset 3px 0 0 var(--gold); }
+.ds-eq-log { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.ds-eq-picks { display: flex; flex-direction: column; gap: 4px; }
+.ds-eq-edit-tasks { display: flex; flex-direction: column; gap: 8px; }
+.ds-eq-et { border: 1px solid var(--line2); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ds-eq-et.off { opacity: .55; }
+.ds-eq-et .ds-row > input[type=text] { flex: 1; min-width: 0; }
+.ds-eq-every input[type=number] { width: 84px; }
+.ds-eq-every input[type=date] { width: 150px; }
+.ds-eq-settings details[open] { display: flex; flex-direction: column; gap: 8px; }
+.ds-inv-lmain input[aria-label="Description"] { flex: 1 1 auto; width: auto; min-width: 0; }
+.ds-inv-lmain input.ds-inv-q, .ds-inv-lmain input.ds-inv-u { flex: 0 0 72px; width: 72px; }
+.ds-inv-lmain input.ds-inv-r { flex: 0 0 100px; width: 100px; }
+.ds-inv-form .ds-row > input[type=number], .ds-rem input.ds-inv-n, .ds-inv-form input.ds-inv-n { flex: 0 0 76px; width: 76px; }
+.ds-inv-form .ds-row > select, .ds-rem select { width: auto; flex: 0 0 auto; }
+.ds-eq .ds-grow { flex: 1 1 auto; min-width: 0; }
+.ds-eq .ds-grow small { display: block; }
+.ds-eq-task > .ds-grow { flex: 1 1 auto; }
+.ds-eq-task > button { flex: none; }
+.ds-eq-meter input.ds-eq-meterin { flex: 0 0 140px; width: 140px; }
+.ds-eq-every input[type=number] { flex: 0 0 84px; }
+.ds-eq-every input[type=date] { flex: 0 0 150px; }

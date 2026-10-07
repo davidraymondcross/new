@@ -393,36 +393,18 @@ function dreamscaper_invoice_page( $tok ) {
 		echo '<div class="card"><h1>Invoice not found</h1></div></div></body></html>';
 		return;
 	}
-	$c     = dreamscaper_crm_get( 'clients', $inv->client_id, $inv->pro_id );
-	$money = function ( $v ) {
-		return '$' . number_format( (float) $v, 2 );
-	};
-	dreamscaper_page_head( 'Invoice ' . $inv->number . ' – ' . $p->business, $p );
-	?>
-	<div class="card">
-		<div class="row"><span class="muted sm">Invoice <?php echo esc_html( $inv->number ); ?> · <?php echo esc_html( wp_date( 'F j, Y', strtotime( $inv->created . ' UTC' ) ) ); ?></span><span class="sp"></span><span class="badge<?php echo 'void' === $inv->status ? ' warn' : ''; ?>"><?php echo esc_html( 'paid' === $inv->status ? 'Paid' : ( 'processing' === $inv->status ? 'Processing' : ( 'void' === $inv->status ? 'Void' : 'Due ' . ( $inv->due ? wp_date( 'M j', strtotime( $inv->due ) ) : 'now' ) ) ) ); ?></span></div>
-		<h1><?php echo esc_html( $inv->title ); ?></h1>
-		<p class="muted"><?php echo esc_html( $c ? 'Bill to: ' . $c->name . ( $c->address ? ', ' . $c->address . ' ' . $c->town : '' ) : '' ); ?></p>
-		<table><thead><tr><th>Description</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Amount</th></tr></thead><tbody>
-		<?php foreach ( dreamscaper_json( $inv->items ) as $it ) : ?>
-			<tr><td><?php echo esc_html( $it['name'] ); ?></td><td class="n"><?php echo esc_html( $it['qty'] ); ?></td><td class="n"><?php echo esc_html( $money( $it['rate'] ) ); ?></td><td class="n"><?php echo esc_html( $money( $it['qty'] * $it['rate'] ) ); ?></td></tr>
-		<?php endforeach; ?>
-		</tbody></table>
-		<div class="tot" style="margin-top:12px"><b>Total</b><b class="n"><?php echo esc_html( $money( $inv->amount ) ); ?></b></div>
-		<?php if ( 'paid' === $inv->status ) : ?>
-			<p><span class="badge">✅ Paid <?php echo esc_html( wp_date( 'F j, Y', strtotime( $inv->paid_at . ' UTC' ) ) ); ?></span> Thank you!</p>
-		<?php elseif ( 'processing' === $inv->status ) : ?>
-			<p><span class="badge">⏳ Bank payment processing</span> Thank you! Bank payments usually clear in about 4 business days — you’ll get a receipt when it does.</p>
-		<?php elseif ( 'sent' === $inv->status && $p->stripe_ready ) : ?>
-			<p class="np"><button class="btn" data-m="card">💳 Pay <?php echo esc_html( $money( $inv->amount ) ); ?> by card</button>
-			<?php if ( dreamscaper_opt( 'pay_ach' ) ) : ?> <button class="btn ghost" data-m="ach">🏦 Pay by bank account</button><?php endif; ?></p>
-			<p class="muted sm np">Card, Apple Pay or Google Pay<?php echo dreamscaper_opt( 'pay_ach' ) ? ', or straight from your bank account (US, takes about 4 business days to clear)' : ''; ?> — securely through Stripe. <?php echo esc_html( $p->business ); ?> receives your payment directly.</p><p id="msg" class="err"></p>
-			<script>document.querySelectorAll('[data-m]').forEach(function(b){b.onclick=function(){document.querySelectorAll('[data-m]').forEach(function(x){x.disabled=true;});fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'dreamscaper/v1/crm/pay' ) ) ); ?>,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:<?php echo wp_json_encode( $inv->token ); ?>,method:b.getAttribute('data-m')})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message);location.href=j.url;});}).catch(function(e){document.getElementById('msg').textContent=e.message;document.querySelectorAll('[data-m]').forEach(function(x){x.disabled=false;});});};});</script>
-		<?php elseif ( 'sent' === $inv->status ) : ?>
-			<p class="muted">Please pay <?php echo esc_html( $p->business ); ?> directly<?php echo $p->phone ? ' (' . esc_html( $p->phone ) . ')' : ''; ?>.</p>
-		<?php endif; ?>
-	</div><?php echo function_exists( 'dreamscaper_pro_socials_footer' ) ? dreamscaper_pro_socials_footer( $p ) : ''; // phpcs:ignore -- escaped inside ?></div></body></html>
-	<?php
+	$c = dreamscaper_crm_get( 'clients', $inv->client_id, $inv->pro_id );
+	if ( $inv->quote_id ) {
+		$qq   = dreamscaper_crm_get( 'quotes', $inv->quote_id, $inv->pro_id );
+		$prop = $qq && $qq->prop_id ? dreamscaper_crm_get( 'props', $qq->prop_id, $inv->pro_id ) : null;
+		if ( $prop ) {
+			$inv->service_address = $prop->address;
+		}
+	}
+	nocache_headers();
+	header( 'X-Robots-Tag: noindex, nofollow' );
+	header( 'Referrer-Policy: no-referrer' );
+	echo dreamscaper_invoice_html( $inv, $p, $c, dreamscaper_invoice_design( $p ), ! empty( $_GET['print'] ) ? 'print' : 'page' ); // phpcs:ignore -- built from escaped parts
 }
 
 /* ------------------------------------------------ website lead form */
@@ -457,6 +439,11 @@ add_shortcode( 'dreamscaper_quote', function ( $atts ) {
 		<a href="<?php echo esc_url( $app ); ?>" style="border-radius:999px;padding:14px 22px;border:1px solid #1f7a46;color:#1f7a46;font-weight:700;text-decoration:none">🎨 Design it with DreamScaper first</a></p>
 		<p class="dsq-msg" role="status" style="margin:12px 0 0;font-weight:600"></p>
 	</form>
+	<datalist id="<?php echo esc_attr( $id ); ?>-dl"></datalist>
+	<script>(function(){var f=document.getElementById(<?php echo wp_json_encode( $id ); ?>),a=f.querySelector('[name=address]'),t=f.querySelector('[name=town]'),dl=document.getElementById(<?php echo wp_json_encode( $id . '-dl' ); ?>),tm=0;a.setAttribute('list',dl.id);a.setAttribute('autocomplete','off');
+	// address suggestions; picking one fills the town too
+	a.addEventListener('input',function(){var v=a.value.trim();var hit=[].slice.call(dl.options).filter(function(o){return o.value===v;})[0];if(hit){var p=v.split(',');a.value=p[0].trim();if(p[1]&&!t.value)t.value=p[1].trim();return;}clearTimeout(tm);if(v.length<4)return;tm=setTimeout(function(){fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'dreamscaper/v1/suggest' ) ) ); ?>+'?q='+encodeURIComponent(v)).then(function(r){return r.json();}).then(function(j){dl.innerHTML='';(j.items||[]).forEach(function(it){var o=document.createElement('option');o.value=it.label;dl.appendChild(o);});}).catch(function(){});},250);});
+	})();</script>
 	<script>(function(){var f=document.getElementById(<?php echo wp_json_encode( $id ); ?>);f.addEventListener('submit',function(e){e.preventDefault();var d=Object.fromEntries(new FormData(f));d.pro=<?php echo (int) $pro; ?>;d.source='website';var m=f.querySelector('.dsq-msg');m.textContent='Sending…';fetch(<?php echo wp_json_encode( esc_url_raw( rest_url( 'dreamscaper/v1/crm/lead' ) ) ); ?>,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.message);m.textContent='Thank you! We’ll be in touch shortly.';f.reset();});}).catch(function(e){m.textContent=e.message;});});})();</script>
 	<?php
 	return ob_get_clean();

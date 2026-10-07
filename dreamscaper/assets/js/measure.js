@@ -11,15 +11,15 @@
  * provider set in Settings) that may legally be traced and kept. "Open in Google Maps" shows the same
  * spot in Google for reference.
  */
-import { h, put, icon } from './util.js?v=2.7.5';
-import { api } from './api.js?v=2.7.5';
-import { modal } from './capture.js?v=2.7.5';
-import { addressField } from './address.js?v=2.7.5';
-import { fmtArea, fmtFtIn } from './takeoff.js?v=2.7.5';
-import { sectionHead, tip } from './explain.js?v=2.7.5';
-import { area as polyArea, centroid, dist } from './plangen.js?v=2.7.5';
-import { tracer, addressProblem } from './planwiz.js?v=2.7.5';
-import { analyze } from './photocheck.js?v=2.7.5';
+import { h, put, icon } from './util.js?v=2.7.6';
+import { api } from './api.js?v=2.7.6';
+import { modal } from './capture.js?v=2.7.6';
+import { addressField } from './address.js?v=2.7.6';
+import { fmtArea, fmtFtIn } from './takeoff.js?v=2.7.6';
+import { sectionHead, tip } from './explain.js?v=2.7.6';
+import { area as polyArea, centroid, dist } from './plangen.js?v=2.7.6';
+import { tracer, addressProblem } from './planwiz.js?v=2.7.6';
+import { analyze } from './photocheck.js?v=2.7.6';
 
 let M = null;
 export function initMeasure(ctx) { M = { ctx }; }

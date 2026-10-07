@@ -7,7 +7,7 @@
  *   const map = streetMap(el, { center: [lat, lng], zoom: 17, tiles: { url, attr, max }, onTap, onMove })
  *   map.setPins([{ id, lat, lng, color, icon, label, ring }]); map.setView([lat, lng], zoom); map.bounds();
  */
-import { h } from './util.js?v=2.7.5';
+import { h } from './util.js?v=2.7.6';
 
 const TS = 256;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

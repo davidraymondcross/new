@@ -5,10 +5,10 @@
  * (Stripe's portal), and export everything — always, even when suspended.
  * A failed payment is shown by stage: notice → reminder → restricted → read-only → suspended.
  */
-import { h, put, icon } from './util.js?v=2.7.5';
-import { api, session, refreshSession } from './api.js?v=2.7.5';
-import { modal } from './capture.js?v=2.7.5';
-import { sectionHead, loadCaps, usageBar } from './explain.js?v=2.7.5';
+import { h, put, icon } from './util.js?v=2.7.6';
+import { api, session, refreshSession } from './api.js?v=2.7.6';
+import { modal } from './capture.js?v=2.7.6';
+import { sectionHead, loadCaps, usageBar } from './explain.js?v=2.7.6';
 
 let B = null;
 export function initBilling(ctx) { B = { ctx }; }

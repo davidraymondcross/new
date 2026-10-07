@@ -6,11 +6,12 @@
  * can see at a glance who to follow up with. "Do not come back" and "No soliciting" houses show a
  * red warning if you tap them again. "Wants a quote" with a name and phone becomes a CRM lead.
  */
-import { h, put, icon } from './util.js?v=2.7.5';
-import { api, session } from './api.js?v=2.7.5';
-import { modal } from './capture.js?v=2.7.5';
-import { streetMap } from './map.js?v=2.7.5';
-import { sectionHead, tip } from './explain.js?v=2.7.5';
+import { h, put, icon } from './util.js?v=2.7.6';
+import { addressField } from './address.js?v=2.7.6';
+import { api, session } from './api.js?v=2.7.6';
+import { modal } from './capture.js?v=2.7.6';
+import { streetMap } from './map.js?v=2.7.6';
+import { sectionHead, tip } from './explain.js?v=2.7.6';
 
 let C = null;
 export function initCanvass(ctx) { C = { ctx }; }
@@ -115,7 +116,7 @@ export async function viewCanvass(b, view, go) {
 		const m = modal(C.ctx.root, full.id ? '🏠 ' + (full.address || 'This house') : '🏠 New house', [
 			stop ? h('div', { class: 'ds-warn ds-cv-stop', role: 'alert' }, h('b', null, `${st[full.status].icon} Do not knock. `), `${st[full.status].label} — marked ${ago(full.last_at)}.`) : null,
 			full.id && !stop ? h('p', { class: 'ds-hint' }, `Last visit ${ago(full.last_at)}: ${(st[full.status] || {}).icon || ''} ${(st[full.status] || {}).label || ''}${full.follow_up ? ' · follow up ' + full.follow_up : ''}`) : null,
-			h('label', { class: 'ds-field' }, h('span', null, 'Address'), addr),
+			h('label', { class: 'ds-field' }, h('span', null, 'Address'), addressField(addr)),
 			h('p', { class: 'ds-label' }, 'What happened?'), grid,
 			h('p', { class: 'ds-label' }, 'Also'), flagBox,
 			contactBox, h('label', { class: 'ds-field' }, h('span', null, 'Notes'), notes), msg, save,

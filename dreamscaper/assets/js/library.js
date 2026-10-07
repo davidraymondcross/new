@@ -2,20 +2,20 @@
  * 140 garden features. Data rows live in data-*.js; this module turns them into
  * searchable items with color, bloom-season, sun, native and growth details.
  */
-import { TREES, EVERGREENS } from './data-trees.js?v=2.7.5';
-import { SHRUBS } from './data-shrubs.js?v=2.7.5';
-import { PERENNIALS, GRASSES, ANNUALS, VINES } from './data-perennials.js?v=2.7.5';
-import { FEATURES as FEATURE_ROWS } from './data-features.js?v=2.7.5';
-import { TREES_X } from './data-x-trees.js?v=2.7.5';
-import { TREES_X2 } from './data-x-trees2.js?v=2.7.5';
-import { EVERGREENS_X } from './data-x-evergreens.js?v=2.7.5';
-import { SHRUBS_X } from './data-x-shrubs.js?v=2.7.5';
-import { SHRUBS_X2 } from './data-x-shrubs2.js?v=2.7.5';
-import { PERENNIALS_X } from './data-x-perennials.js?v=2.7.5';
-import { PERENNIALS_X2 } from './data-x-perennials2.js?v=2.7.5';
-import { GRASSES_X, ANNUALS_X, VINES_X } from './data-x-misc.js?v=2.7.5';
-import { FEATURES_X } from './data-x-features.js?v=2.7.5';
-import { REAL_TREES, REAL_EVERGREENS, REAL_SHRUBS, REAL_PERENNIALS, REAL_GRASSES, REAL_ANNUALS, REAL_FEATURES } from './data-x-real.js?v=2.7.5';
+import { TREES, EVERGREENS } from './data-trees.js?v=2.7.6';
+import { SHRUBS } from './data-shrubs.js?v=2.7.6';
+import { PERENNIALS, GRASSES, ANNUALS, VINES } from './data-perennials.js?v=2.7.6';
+import { FEATURES as FEATURE_ROWS } from './data-features.js?v=2.7.6';
+import { TREES_X } from './data-x-trees.js?v=2.7.6';
+import { TREES_X2 } from './data-x-trees2.js?v=2.7.6';
+import { EVERGREENS_X } from './data-x-evergreens.js?v=2.7.6';
+import { SHRUBS_X } from './data-x-shrubs.js?v=2.7.6';
+import { SHRUBS_X2 } from './data-x-shrubs2.js?v=2.7.6';
+import { PERENNIALS_X } from './data-x-perennials.js?v=2.7.6';
+import { PERENNIALS_X2 } from './data-x-perennials2.js?v=2.7.6';
+import { GRASSES_X, ANNUALS_X, VINES_X } from './data-x-misc.js?v=2.7.6';
+import { FEATURES_X } from './data-x-features.js?v=2.7.6';
+import { REAL_TREES, REAL_EVERGREENS, REAL_SHRUBS, REAL_PERENNIALS, REAL_GRASSES, REAL_ANNUALS, REAL_FEATURES } from './data-x-real.js?v=2.7.6';
 
 export const CATEGORIES = [
 	{ id: 'trees', name: 'Trees' },

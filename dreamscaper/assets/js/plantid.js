@@ -3,15 +3,15 @@
  * saved to My Library so it can be placed in any Dreamscape and grown through the years.
  * Available from every screen.
  */
-import { h, put, icon, uid, canvas, canvasToBlob } from './util.js?v=2.7.5';
-import { session, api } from './api.js?v=2.7.5';
-import { openAuth } from './account.js?v=2.7.5';
-import { identify } from './aiclient.js?v=2.7.5';
-import { ALL, plantFromProfile, sizeAt, fmtFt, growthLabel, sunLabel, bloomLabel } from './library.js?v=2.7.5';
-import { prepareCutout, defaultBox, segment as cutSegment, renderCutout } from './cutout.js?v=2.7.5';
-import { encodeCutout } from './photo.js?v=2.7.5';
-import { modal } from './capture.js?v=2.7.5';
-import { storageMeter, storageLeft, fmtBytes, refreshStorage, openStorage } from './storage.js?v=2.7.5';
+import { h, put, icon, uid, canvas, canvasToBlob } from './util.js?v=2.7.6';
+import { session, api } from './api.js?v=2.7.6';
+import { openAuth } from './account.js?v=2.7.6';
+import { identify } from './aiclient.js?v=2.7.6';
+import { ALL, plantFromProfile, sizeAt, fmtFt, growthLabel, sunLabel, bloomLabel } from './library.js?v=2.7.6';
+import { prepareCutout, defaultBox, segment as cutSegment, renderCutout } from './cutout.js?v=2.7.6';
+import { encodeCutout } from './photo.js?v=2.7.6';
+import { modal } from './capture.js?v=2.7.6';
+import { storageMeter, storageLeft, fmtBytes, refreshStorage, openStorage } from './storage.js?v=2.7.6';
 
 const WEED_GENERA = /^(Taraxacum|Plantago|Digitaria|Oxalis|Glechoma|Ambrosia|Chenopodium|Portulaca|Stellaria|Cirsium|Rumex|Polygonum|Persicaria|Alliaria|Reynoutria|Fallopia|Celastrus|Toxicodendron|Cyperus|Poa annua|Trifolium repens|Galium aparine|Lamium|Veronica persica|Euphorbia maculata|Setaria|Echinochloa|Eleusine|Mollugo|Lepidium|Capsella|Cardamine|Medicago lupulina|Ranunculus repens|Rosa multiflora|Lonicera japonica|Ailanthus|Microstegium|Artemisia vulgaris|Ampelopsis|Hedera helix)/i;
 const INVASIVE = /^(Berberis thunbergii|Euonymus alatus|Celastrus orbiculatus|Rosa multiflora|Alliaria petiolata|Reynoutria|Fallopia japonica|Ailanthus altissima|Lonicera (japonica|maackii|morrowii|tatarica)|Microstegium vimineum|Lythrum salicaria|Pyrus calleryana|Elaeagnus umbellata|Ampelopsis brevipedunculata)/i;

@@ -4,7 +4,7 @@ Tags: landscape design, garden planner, yard design, visualizer
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.7.5
+Stable tag: 2.7.6
 License: GPLv2 or later
 
 A fun, full-screen yard design studio for your website visitors.
@@ -66,6 +66,19 @@ to the phone's photo picker.
 
 == Changelog ==
 
+= 2.7.6 =
+* Addresses autocomplete everywhere: new and edited customers (picking an address fills the street, town, state and ZIP), billing address, extra properties, calendar job locations, door-to-door houses, the homeowner's project address, the contractor application, sign-up and profile, and the website quote form. ZIPs are filled even when the suggestion didn't include one.
+* Quotes: the 2D plan section is gone. "Add section" is now "✍️ Create Quote Manually" (then "+ Add another section"). If the property has a Landscape plan, "Use the Landscape plan's quantities" is offered.
+* Route planner: "🖨️ Print route sheet" and "Open as a page (save as PDF / share)" — a one-page sheet for the crew with numbered stops, arrive/leave times, customer, address, phone, job notes, time on site, the drive to the next stop, lunch / fuel / fixed-stop rows, a tick box for each stop, a route diagram, space for notes and the Google Maps links.
+* Invoices, rebuilt:
+  * Line items with details, service date, unit and taxable on/off; reorder lines; discount ($ or %, with a label); sales tax; custom fields (PO number, job site, work order…); notes, how-to-pay instructions, terms and a thank-you message; invoice date and quick due terms (on receipt, Net 7/15/30).
+  * Repeats: weekly, every 2 weeks, monthly, every 3 months, yearly, or Custom ("every 6 weeks", "every 10 days"…). Repeat copies keep the same payment terms.
+  * Reminders: your default plan (3 days before, on the due date, 3, 7 and 14 days after, optional final notice), a custom plan for one invoice, or none — each by email, text or both, with your own wording, merge tags and a "Send me a test" button. Texts never go out overnight; reminders stop when the invoice is paid.
+  * Send by email, text or both, with an optional personal message.
+  * Live preview of exactly what the customer gets while you edit.
+* Invoice design (Settings → 🧾 Invoice design): upload a logo (or use your profile logo), logo position and size, brand color, font (10 choices), layout (Classic, Modern, Compact, Bold), heading, which sections appear and in what order, line-item columns, which business and customer details show, a license line, default custom fields / notes / terms / payment instructions / thank-you / footer, default tax and due days, the default reminder plan, and a "PAID" stamp. The customer's invoice page, the printable PDF and the previews all use the same design.
+* Equipment maintenance (Contractor Hub → 🔧 Equipment): add mowers, trimmers, blowers, chainsaws, aerators, skid steers, excavators, trucks, trailers, plows, generators and more — the usual maintenance is filled in automatically (oil, blades, grease, filters, belts, tires, plugs, hydraulic service, registration…) by hours, miles and/or days. Update hour meters and odometers, mark tasks done with date, reading, cost and notes, see what's due now or soon, edit any interval, add your own tasks and fields. Reminders by email, text or both (at most one a day, in working hours, weekly while overdue), plus a Monday nudge to update readings.
+
 = 2.7.5 =
 * Designer: the step-by-step guide now sits above the picture instead of over it, disappears as soon as you touch, drag, pinch or scroll the picture, and comes back after 10 seconds without touching. The picture stays exactly where it is when the guide hides or returns (even mid-drag). Pop-up tips over the picture also clear when you start working. Same for the Landscape Plan wizard's Next bar on phones.
 * New Dreamscape goes straight to adding a photo — no more "design it myself or with AI?" question. The AI is in the builder as ✨ Automate and in the ⋯ menu as "Automate the design process".
@@ -124,6 +137,9 @@ to the phone's photo picker.
 * Fixes: email "Open your Contractor Hub" links no longer land on Home; the welcome tour no longer appears twice.
 
 == Upgrade Notice ==
+
+= 2.7.6 =
+The invoices table gets a new column (added automatically). Existing invoices keep working and keep the old overdue reminders; invoices created or saved in the new editor follow the new reminder plans. Check Settings → 🧾 Invoice design to add your logo and set your default reminder plan.
 
 = 2.7.5 =
 Adds Measure property and the Route planner. For driving distances and live gas prices, add a Google key with Routes API and Places API (New) enabled (Settings → DreamScaper → "Google server key for the Route planner"; restrict it to your server's IP). Without it the planner estimates road miles and ranks gas stations by extra driving only.

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DreamScaper
  * Description: A fun landscape design studio for your visitors. Customers photograph their yard (or use Connecticut aerial imagery), add real plants and garden features, paint mulch and stone, magic-erase what they don't want, watch plants grow year by year, and save named designs. Customer accounts (email, Google, Facebook) keep designs online across devices and unlock Dreamscape AI (FLUX.2 [klein]) plus AI Erase, Smart Select, Make it real, Season & light and plant/weed identification. Share to social media and print. Contractor CRM: Design → Quote estimating, e-signature, follow-ups, scheduling, job costing and invoices. Shortcodes: [dreamscaper], [dreamscaper_quote]
- * Version: 2.7.5
+ * Version: 2.7.6
  * Author: David's Landscaping
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DREAMSCAPER_VERSION', '2.7.5' );
+define( 'DREAMSCAPER_VERSION', '2.7.6' );
 define( 'DREAMSCAPER_URL', plugin_dir_url( __FILE__ ) );
 define( 'DREAMSCAPER_OPT', 'dreamscaper_settings' );
 
@@ -734,6 +734,7 @@ add_shortcode( 'dreamscaper', function ( $atts ) {
  * ---------------------------------------------------------------------- */
 
 add_action( 'rest_api_init', function () {
+	register_rest_route( 'dreamscaper/v1', '/address/details', array( 'methods' => 'GET', 'callback' => 'dreamscaper_rest_address_details', 'permission_callback' => '__return_true' ) );
 	register_rest_route( 'dreamscaper/v1', '/suggest', array(
 		'methods'             => 'GET',
 		'callback'            => 'dreamscaper_rest_suggest',
@@ -862,13 +863,49 @@ function dreamscaper_rest_suggest( WP_REST_Request $r ) {
 			$state  = isset( $p['state'] ) ? ( dreamscaper_state_abbr( $p['state'] ) ? dreamscaper_state_abbr( $p['state'] ) : $p['state'] ) : '';
 			$label  = implode( ', ', array_filter( array( $street, $town, trim( $state . ' ' . ( isset( $p['postcode'] ) ? $p['postcode'] : '' ) ) ) ) );
 			if ( $street && $town ) {
-				$items[] = array( 'label' => $label, 'lat' => $f['geometry']['coordinates'][1], 'lng' => $f['geometry']['coordinates'][0] );
+				$items[] = array( 'label' => $label, 'lat' => $f['geometry']['coordinates'][1], 'lng' => $f['geometry']['coordinates'][0], 'street' => $street, 'town' => $town, 'state' => strlen( $state ) === 2 ? $state : '', 'zip' => isset( $p['postcode'] ) ? substr( $p['postcode'], 0, 5 ) : '' );
 			}
 		}
 	}
 	$items = array_slice( $items, 0, 6 );
 	set_transient( $ck, $items, DAY_IN_SECONDS );
 	return array( 'items' => $items );
+}
+
+/**
+ * One address split into parts — street, town, state, ZIP — for filling forms after an
+ * autocomplete pick (Google suggestions don't include the ZIP). US Census first, Photon as a fallback.
+ */
+function dreamscaper_rest_address_details( WP_REST_Request $r ) {
+	$q = mb_substr( trim( sanitize_text_field( (string) $r->get_param( 'q' ) ) ), 0, 200 );
+	if ( strlen( $q ) < 5 || ! dreamscaper_limit( 'adet', 200, HOUR_IN_SECONDS ) ) {
+		return array( 'ok' => false );
+	}
+	$ck = 'dscp_adet_' . md5( strtolower( $q ) );
+	$c  = get_transient( $ck );
+	if ( false !== $c ) {
+		return $c;
+	}
+	$tc  = function ( $s ) { return ucwords( strtolower( trim( (string) $s ) ) ); };
+	$out = array( 'ok' => false );
+	$res = wp_remote_get( add_query_arg( array( 'address' => $q, 'benchmark' => 'Public_AR_Current', 'format' => 'json' ), 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress' ), array( 'timeout' => 10 ) );
+	$j   = is_wp_error( $res ) ? null : json_decode( wp_remote_retrieve_body( $res ), true );
+	if ( ! empty( $j['result']['addressMatches'][0] ) ) {
+		$m     = $j['result']['addressMatches'][0];
+		$parts = array_map( 'trim', explode( ',', $m['matchedAddress'] ) ); // "12 OAK ST, HARTFORD, CT, 06103"
+		$ac    = isset( $m['addressComponents'] ) ? $m['addressComponents'] : array();
+		$out   = array( 'ok' => true, 'street' => $tc( $parts[0] ), 'town' => $tc( isset( $ac['city'] ) ? $ac['city'] : ( isset( $parts[1] ) ? $parts[1] : '' ) ), 'state' => strtoupper( isset( $ac['state'] ) ? $ac['state'] : ( isset( $parts[2] ) ? $parts[2] : '' ) ), 'zip' => isset( $ac['zip'] ) ? $ac['zip'] : ( isset( $parts[3] ) ? $parts[3] : '' ), 'lat' => (float) $m['coordinates']['y'], 'lng' => (float) $m['coordinates']['x'] );
+	} else {
+		$res = wp_remote_get( add_query_arg( array( 'q' => $q, 'limit' => 1, 'lang' => 'en' ), 'https://photon.komoot.io/api/' ), array( 'timeout' => 8, 'user-agent' => 'DreamScaper/' . DREAMSCAPER_VERSION ) );
+		$j   = is_wp_error( $res ) ? null : json_decode( wp_remote_retrieve_body( $res ), true );
+		$f   = ! empty( $j['features'][0] ) ? $j['features'][0] : null;
+		if ( $f && isset( $f['properties']['countrycode'] ) && 'US' === $f['properties']['countrycode'] ) {
+			$p   = $f['properties'];
+			$out = array( 'ok' => true, 'street' => trim( ( isset( $p['housenumber'] ) ? $p['housenumber'] . ' ' : '' ) . ( isset( $p['street'] ) ? $p['street'] : '' ) ), 'town' => isset( $p['city'] ) ? $p['city'] : ( isset( $p['town'] ) ? $p['town'] : '' ), 'state' => isset( $p['state'] ) ? dreamscaper_state_abbr( $p['state'] ) : '', 'zip' => isset( $p['postcode'] ) ? substr( $p['postcode'], 0, 5 ) : '', 'lat' => (float) $f['geometry']['coordinates'][1], 'lng' => (float) $f['geometry']['coordinates'][0] );
+		}
+	}
+	set_transient( $ck, $out, $out['ok'] ? 30 * DAY_IN_SECONDS : HOUR_IN_SECONDS );
+	return $out;
 }
 
 /** US Census geocoder (free, no key), with Photon as a fallback. */

@@ -5,6 +5,8 @@ const subs = new Set();
 let CFG = {};
 
 export function initApi(cfg) { CFG = cfg; }
+/** The REST base URL (for code that calls fetch directly, e.g. address suggestions). */
+export const apiBase = () => CFG.api || '/wp-json/dreamscaper/v1/';
 export function onSession(fn) { subs.add(fn); return () => subs.delete(fn); }
 function emit() { for (const f of subs) { try { f(session); } catch (e) { console.warn(e); } } }
 

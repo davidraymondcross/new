@@ -5,13 +5,14 @@
  * inside the homeowner's own DreamScaper account: quotes to sign, who they hired, schedule,
  * invoices to pay, history of past hires and reviews.
  */
-import { h, put, icon } from './util.js?v=2.7.5';
-import { session, api } from './api.js?v=2.7.5';
-import { modal, camera, pickFile, aerial } from './capture.js?v=2.7.5';
-import { money } from './takeoff.js?v=2.7.5';
-import { initRequest, openRequest, basketButton, basketBar, basketAddAll, basketHas } from './request.js?v=2.7.5';
-import { initCalendar, myCalendar, apptCard } from './calendar.js?v=2.7.5';
-import { sectionHead, tip } from './explain.js?v=2.7.5';
+import { h, put, icon } from './util.js?v=2.7.6';
+import { addressField } from './address.js?v=2.7.6';
+import { session, api } from './api.js?v=2.7.6';
+import { modal, camera, pickFile, aerial } from './capture.js?v=2.7.6';
+import { money } from './takeoff.js?v=2.7.6';
+import { initRequest, openRequest, basketButton, basketBar, basketAddAll, basketHas } from './request.js?v=2.7.6';
+import { initCalendar, myCalendar, apptCard } from './calendar.js?v=2.7.6';
+import { sectionHead, tip } from './explain.js?v=2.7.6';
 
 let H = null; // { ctx, body, stack, cur }
 const toast = (m, ms) => H && H.ctx.toast(m, ms);
@@ -202,7 +203,7 @@ export function propertyWizard(prop) {
 			const a = h('input', { type: 'text', autocomplete: 'street-address', placeholder: '123 Example Street, Farmington, CT', value: (p && p.address) || [u.address, u.town].filter(Boolean).join(', ') });
 			const err = h('p', { class: 'ds-err' });
 			const next = h('button', { class: 'ds-btn ds-wide' }, 'Create my property →');
-			put(body, h('h3', null, 'Step 1 — Your address'), h('p', { class: 'ds-hint' }, 'We create a property record for this address. Everything you capture is saved to your DreamScaper account and only shared with contractors you choose.'), a, err, next);
+			put(body, h('h3', null, 'Step 1 — Your address'), h('p', { class: 'ds-hint' }, 'We create a property record for this address. Everything you capture is saved to your DreamScaper account and only shared with contractors you choose.'), addressField(a), err, next);
 			next.onclick = async () => { if (a.value.trim().length < 6) { err.textContent = 'Enter the street, town and state.'; return; } next.disabled = true; try { await save({ address: a.value.trim() }); stepAt(0); } catch (e) { err.textContent = e.message; next.disabled = false; } };
 			setTimeout(() => a.focus(), 50);
 		};

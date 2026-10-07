@@ -2,11 +2,11 @@
  * like / rate / comment, member profiles, follow & friends, messages, notifications,
  * points, levels, badges and rewards.
  */
-import { h, put, icon, canvas, canvasToBlob } from './util.js?v=2.7.5';
-import { session, api, onSession, setCommunity, setAi, setStorage } from './api.js?v=2.7.5';
-import { openAuth } from './account.js?v=2.7.5';
-import { modal } from './capture.js?v=2.7.5';
-import { PRESET_TAGS } from './browser.js?v=2.7.5';
+import { h, put, icon, canvas, canvasToBlob } from './util.js?v=2.7.6';
+import { session, api, onSession, setCommunity, setAi, setStorage } from './api.js?v=2.7.6';
+import { openAuth } from './account.js?v=2.7.6';
+import { modal } from './capture.js?v=2.7.6';
+import { PRESET_TAGS } from './browser.js?v=2.7.6';
 
 let C = null; // { ctx, body, stack, cur }
 const COMMUNITY_TAGS = ['Front yard', 'Backyard', 'Bed designs', 'Paver designs', 'Patio', 'Walkway', 'Low maintenance', 'Native plants', 'Pollinator garden', 'Shade garden', 'Privacy', 'Curb appeal', 'Modern', 'Cottage', 'Before & after', 'AI design'];

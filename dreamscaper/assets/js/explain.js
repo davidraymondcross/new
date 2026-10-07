@@ -7,9 +7,9 @@
  * tip(key, text)     a one-time tip the first time someone opens an area (remembered per device)
  * capabilityMap()    the whole product on one page: every area, one line each, and whether you have it
  */
-import { h, put, icon } from './util.js?v=2.7.5';
-import { api, session } from './api.js?v=2.7.5';
-import { modal } from './capture.js?v=2.7.5';
+import { h, put, icon } from './util.js?v=2.7.6';
+import { api, session } from './api.js?v=2.7.6';
+import { modal } from './capture.js?v=2.7.6';
 
 let ROOT = null, GO_PLANS = null;
 export function initExplain(root, goPlans) { ROOT = root; GO_PLANS = goPlans || null; }
@@ -85,6 +85,9 @@ export const HELP = {
 	routes: { t: 'Route planner', p: 'Plan a crew’s day in the fewest miles: stops from your calendar or typed in, job lengths, lunch near restaurants, a “be at X by Y” stop, and the cheapest fuel stop if the tank will run low.',
 		can: ['Pull a day’s jobs (and how long each takes) from your calendar, one crew at a time — or type the addresses', 'Optional: your vehicle (miles per gallon and tank size are filled in), how much fuel is in the tank, crew size and total hourly wage', 'Set lunch time and length; tick “Be close to restaurants at lunch”', 'Tick “Be near … at …” to meet another crew or pick up a part on time', 'See the best order, every leg’s miles and times, where fuel runs low and the 3 cheapest places to fill up — counting the extra driving and paid crew time', 'Open the route in Google Maps and update the calendar times in one tap'],
 		links: 'Uses your calendar and working hours. Gas prices need a Google Maps key (Places API); without one, stations are ranked by detour only.' },
+	equipment: { t: 'Equipment maintenance', p: 'Every mower, truck, trailer and machine you own, with its maintenance schedule — and a reminder before anything is due.',
+		can: ['Add equipment by type — oil changes, blades, grease, filters, belts, tires, registration and more are filled in automatically', 'Change any interval (hours, miles and/or days), add your own tasks and your own fields', 'Update hour meters and odometers in one tap', 'Mark tasks done with the date, reading, cost and notes — the next one is scheduled', 'See what’s due now or soon at a glance', 'Get reminders by email, text or both'],
+		links: 'Reminders come at most once a day, in working hours, and again weekly while something is overdue.' },
 	snippets: { t: 'Quick replies', p: 'Answers you send often, ready to drop into any conversation in one tap.',
 		can: ['Save replies like “I can come Thursday between 9 and 11 — does that work?”', 'Use merge details like the customer’s first name'], f: 'snippets' }
 };
@@ -199,7 +202,7 @@ export function planPrompt(e, toast) {
 /** Every area, one line each, and whether this account has it. */
 export function capabilityMap(isPro) {
 	const homeowner = ['find', 'request', 'projects', 'calendar', 'inbox'];
-	const pro = ['dash', 'hubinbox', 'customers', 'quotes', 'jobs', 'schedule', 'canvass', 'plans', 'measure', 'routes', 'invoices', 'messages', 'reminders', 'intake', 'social', 'snippets', 'plan'];
+	const pro = ['dash', 'hubinbox', 'customers', 'quotes', 'jobs', 'schedule', 'canvass', 'plans', 'measure', 'routes', 'equipment', 'invoices', 'messages', 'reminders', 'intake', 'social', 'snippets', 'plan'];
 	const row = (k) => {
 		const x = HELP[k];
 		const feat = x.f && CAPS && CAPS.features ? CAPS.features[x.f] : null;

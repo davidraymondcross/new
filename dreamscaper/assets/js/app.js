@@ -1,42 +1,42 @@
 /* DreamScaper – app shell: gallery, project flow, editor UI, autosave. */
-import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.5';
-import { store } from './store.js?v=2.7.5';
-import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.5';
-import { openAssetMaker } from './assetmaker.js?v=2.7.5';
-import { voiceButton } from './voice.js?v=2.7.5';
-import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.5';
-import { thumb, sprite } from './sprites.js?v=2.7.5';
-import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.5';
-import { Editor } from './editor.js?v=2.7.5';
-import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.5';
-import { sampleYard } from './sample.js?v=2.7.5';
-import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.5';
-import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.5';
-import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.5';
-import { openStudio } from './dsai.js?v=2.7.5';
-import { panelAI } from './aitools.js?v=2.7.5';
-import { shareSheet, printDesign } from './share.js?v=2.7.5';
-import { openPlantId } from './plantid.js?v=2.7.5';
-import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.5';
-import { onRewards } from './api.js?v=2.7.5';
-import { segment } from './aiclient.js?v=2.7.5';
-import { historyPanel } from './history.js?v=2.7.5';
-import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.5';
-import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.5';
-import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.5';
-import { initStorage, openStorage } from './storage.js?v=2.7.5';
-import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.5';
-import { proHome } from './prohome.js?v=2.7.5';
-import { initHire, openFind, openProjects } from './hire.js?v=2.7.5';
-import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.5';
-import { initExplain } from './explain.js?v=2.7.5';
-import { initBilling, confirmReturn } from './billing.js?v=2.7.5';
-import { initMsgSettings } from './msgsettings.js?v=2.7.5';
-import { dreamscapeToPlan } from './takeoff.js?v=2.7.5';
-import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.5';
-import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.5';
-import { openGuide, guideBar } from './guide.js?v=2.7.5';
-import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.5';
+import { h, icon, uid, debounce, canvasToBlob, blobToBitmap, canvas, clamp } from './util.js?v=2.7.6';
+import { store } from './store.js?v=2.7.6';
+import { CATEGORIES, ALL, byId, sizeAt, maxAge, fmtFt, growthLabel, bloomLabel, sunLabel, COLOR_SWATCH, matchesWords, searchScore, assetItem, addItem, removeItem } from './library.js?v=2.7.6';
+import { openAssetMaker } from './assetmaker.js?v=2.7.6';
+import { voiceButton } from './voice.js?v=2.7.6';
+import { loadPhotoPack, onPhotoReady } from './photo.js?v=2.7.6';
+import { thumb, sprite } from './sprites.js?v=2.7.6';
+import { MATERIALS, MATERIAL_GROUPS, swatch, loadMaterialPack, onMaterialReady } from './textures.js?v=2.7.6';
+import { Editor } from './editor.js?v=2.7.6';
+import { camera, pickFile, aerial, explore3d, facing, modal } from './capture.js?v=2.7.6';
+import { sampleYard } from './sample.js?v=2.7.6';
+import { initApi, session, refreshSession, onSession, api } from './api.js?v=2.7.6';
+import { initAccount, accountChip, creditsPill, openAuth, requireSignIn, openAccount as accountSheet } from './account.js?v=2.7.6';
+import { pushSoon, pushAll, pullAssets, listRemote, pull, removeRemote, onCloudStatus } from './cloud.js?v=2.7.6';
+import { openStudio } from './dsai.js?v=2.7.6';
+import { panelAI } from './aitools.js?v=2.7.6';
+import { shareSheet, printDesign } from './share.js?v=2.7.6';
+import { openPlantId } from './plantid.js?v=2.7.6';
+import { initCommunity, openCommunity, openComposer, showRewards, unreadDot, prepImages } from './community.js?v=2.7.6';
+import { onRewards } from './api.js?v=2.7.6';
+import { segment } from './aiclient.js?v=2.7.6';
+import { historyPanel } from './history.js?v=2.7.6';
+import { startTour, maybeTour, initTour, tourSettings as openTourSettings } from './tour.js?v=2.7.6';
+import { logoArt, logoMark, wordmark } from './logo.js?v=2.7.6';
+import { openBrowser, loadDreamscapes, dreamscapeCard, HOME_LIMIT } from './browser.js?v=2.7.6';
+import { initStorage, openStorage } from './storage.js?v=2.7.6';
+import { initHub, openHub, isPro, newQuote, resumeWithDesign, hubActions } from './crm.js?v=2.7.6';
+import { proHome } from './prohome.js?v=2.7.6';
+import { initHire, openFind, openProjects } from './hire.js?v=2.7.6';
+import { initInbox, openInbox, inboxButton, inboxDot } from './inbox.js?v=2.7.6';
+import { initExplain } from './explain.js?v=2.7.6';
+import { initBilling, confirmReturn } from './billing.js?v=2.7.6';
+import { initMsgSettings } from './msgsettings.js?v=2.7.6';
+import { dreamscapeToPlan } from './takeoff.js?v=2.7.6';
+import { objectControls, opInspector, panelShapes, panelMeasure, panelAdjust, panelCrop, panelMulti, transformDialog, layersPanel, openVersions, restoreVersionInto, compareDialog, presentation } from './edtools.js?v=2.7.6';
+import { initBoard, openBoard, addToBoard } from './board.js?v=2.7.6';
+import { openGuide, guideBar } from './guide.js?v=2.7.6';
+import { initCredits, openCredits, handleReturn } from './credits.js?v=2.7.6';
 
 const CFG = (() => {
 	try { return JSON.parse(document.getElementById('dreamscaper-config').textContent); } catch (e) { return {}; }
@@ -74,7 +74,7 @@ export function boot() {
 		const hub = q.get('ds_hub'), pro = parseInt(q.get('ds_pro'), 10) || 0, inbox = q.get('ds_inbox'), projects = q.has('ds_projects') || q.has('ds_review'), sub = q.get('ds_sub');
 		KEYS.forEach((k) => q.delete(k));
 		history.replaceState(history.state, '', location.pathname + (q.toString() ? '?' + q : '') + '#dreamscaper');
-		const HUB = ['plan', 'inbox', 'schedule', 'jobs', 'quotes', 'invoices', 'customers', 'settings'];
+		const HUB = ['plan', 'inbox', 'schedule', 'jobs', 'quotes', 'invoices', 'customers', 'settings', 'equipment', 'routes', 'measure', 'plans', 'canvass'];
 		pendingRoute = sub ? () => confirmReturn(sub).then(() => openHub({ v: 'plan' }))
 			: pro ? () => openFind({ pro })
 			: inbox != null ? () => openInbox(+inbox ? { id: +inbox } : {})

@@ -1,5 +1,5 @@
 /* Expanded shrub library, part 1. */
-import { fam, sp } from './data-x-helpers.js?v=2.7.5';
+import { fam, sp } from './data-x-helpers.js?v=2.7.6';
 
 export const SHRUBS_X = [
 	...fam('Bigleaf Hydrangea', 'Hydrangea macrophylla', 'hydrangea', 12, 'z5-9 s:P bl:blue w:Jun-Sep fk:globe big', 'Mophead hydrangea; blue in acid soil, pink in sweet soil.', [

@@ -1,5 +1,5 @@
 /* DreamScaper – local storage (IndexedDB). Everything stays on the customer's device. */
-import { uid } from './util.js?v=2.7.5';
+import { uid } from './util.js?v=2.7.6';
 
 const DB = 'dreamscaper';
 const VER = 3;

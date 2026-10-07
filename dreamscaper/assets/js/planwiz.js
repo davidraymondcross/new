@@ -10,17 +10,17 @@
  * USGS elsewhere) or a survey, corrected by one tape measurement; photos record what can't be seen
  * from above. The geometry and the plan generator live in plangen.js; photo checks in photocheck.js.
  */
-import { h, put, icon, stateSelect } from './util.js?v=2.7.5';
-import { api, session } from './api.js?v=2.7.5';
-import { modal } from './capture.js?v=2.7.5';
-import { addressField } from './address.js?v=2.7.5';
-import { segment, toJpeg, aiReady } from './aiclient.js?v=2.7.5';
-import { traceMask } from './siteplan.js?v=2.7.5';
-import { PLANTS } from './library.js?v=2.7.5';
-import { parseFtIn, fmtFtIn, fmtArea } from './takeoff.js?v=2.7.5';
-import { sectionHead, tip } from './explain.js?v=2.7.5';
-import { frame, validateTrace, checkScale, shotPlan, STYLES, styleById, pickPlants, generatePlan, checkDesign, accuracy, area as polyArea, dist, centroid, inside } from './plangen.js?v=2.7.5';
-import { readExif, analyze, checkPhoto, worst, compass } from './photocheck.js?v=2.7.5';
+import { h, put, icon, stateSelect } from './util.js?v=2.7.6';
+import { api, session } from './api.js?v=2.7.6';
+import { modal } from './capture.js?v=2.7.6';
+import { addressField, addressGroup } from './address.js?v=2.7.6';
+import { segment, toJpeg, aiReady } from './aiclient.js?v=2.7.6';
+import { traceMask } from './siteplan.js?v=2.7.6';
+import { PLANTS } from './library.js?v=2.7.6';
+import { parseFtIn, fmtFtIn, fmtArea } from './takeoff.js?v=2.7.6';
+import { sectionHead, tip } from './explain.js?v=2.7.6';
+import { frame, validateTrace, checkScale, shotPlan, STYLES, styleById, pickPlants, generatePlan, checkDesign, accuracy, area as polyArea, dist, centroid, inside } from './plangen.js?v=2.7.6';
+import { readExif, analyze, checkPhoto, worst, compass } from './photocheck.js?v=2.7.6';
 
 let W = null;
 /** ctx: the hub context; tools: { editPlan(plan, prop, title) → Promise<plan|null> } */
@@ -269,7 +269,7 @@ function newCustomer(ctx) {
 	const name = h('input', { type: 'text', autocomplete: 'name' }), phone = h('input', { type: 'tel' }), email = h('input', { type: 'email' });
 	const addr = h('input', { type: 'text', autocomplete: 'street-address', placeholder: '123 Main Street' }), town = h('input', { type: 'text' }), zip = h('input', { type: 'text', inputmode: 'numeric', maxlength: 10 });
 	const st = stateSelect((session.region && session.region.state) || '', { 'aria-label': 'State' });
-	const af = addressField(addr, { api: (W.ctx.cfg && W.ctx.cfg.api) || '/wp-json/dreamscaper/v1/', onPick: (it) => { const parts = it.label.split(',').map((x) => x.trim()); addr.value = parts[0] || it.label; if (parts[1]) town.value = parts[1]; const m = /([A-Z]{2})\s*(\d{5})?/.exec(parts[2] || ''); if (m) { st.value = m[1]; if (m[2]) zip.value = m[2]; } } });
+	const af = addressGroup({ street: addr, town, state: st, zip });
 	const save1 = h('button', { class: 'ds-btn ds-wide' }, 'Add customer');
 	const close = h('button', { class: 'ds-icon-btn ds-modal-x', 'aria-label': 'Close', onclick: () => m.remove() }, icon('close'));
 	const m = modal(W.ctx.root, 'New customer', [field('Name', name), h('div', { class: 'ds-form-grid' }, field('Mobile', phone), field('Email', email)), field('Street address', af), h('div', { class: 'ds-form-3' }, field('Town', town), field('State', st), field('ZIP', zip)), save1], close);

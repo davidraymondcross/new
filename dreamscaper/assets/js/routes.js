@@ -6,13 +6,13 @@
  * the lowest TOTAL cost (fuel + extra driving + paid crew time), each with the reason it was picked.
  * The maths is in routeopt.js; the server looks up addresses, driving distances and nearby places.
  */
-import { h, put, icon } from './util.js?v=2.7.5';
-import { api } from './api.js?v=2.7.5';
-import { modal } from './capture.js?v=2.7.5';
-import { addressField } from './address.js?v=2.7.5';
-import { sectionHead, tip } from './explain.js?v=2.7.5';
-import { streetMap } from './map.js?v=2.7.5';
-import { estimateMatrix, optimize, fuelPlan, rankStations, haversine, ROAD_FACTOR, LEVELS } from './routeopt.js?v=2.7.5';
+import { h, put, icon } from './util.js?v=2.7.6';
+import { api } from './api.js?v=2.7.6';
+import { modal } from './capture.js?v=2.7.6';
+import { addressField } from './address.js?v=2.7.6';
+import { sectionHead, tip } from './explain.js?v=2.7.6';
+import { streetMap } from './map.js?v=2.7.6';
+import { estimateMatrix, optimize, fuelPlan, rankStations, haversine, ROAD_FACTOR, LEVELS } from './routeopt.js?v=2.7.6';
 
 let RT = null;
 export function initRoutes(ctx, tools) { RT = { ctx, tools }; }
@@ -252,7 +252,10 @@ export async function viewRoutes(b, view, go) {
 				meetMiss ? h('p', { class: 'ds-pw-block' }, `✖ Even the best order reaches ${S.meet.address} ${Math.round(best.late)} min late. Start earlier, move a job to another day, or shorten one.`) : S.meet.on ? h('p', { class: 'ds-pw-okline' }, `✓ At ${S.meet.address} by ${hhmm(S.meet.at)}.`) : null,
 				h('ol', { class: 'ds-rt-timeline' }, ...lines),
 				h('p', { class: 'ds-hint' }, `Distances: ${source}. Job times from ${stops.some((s) => s.visit) ? 'your calendar' : 'what you typed'}. Traffic isn’t included.`),
-				h('div', { class: 'ds-row ds-wrap' }, ...gmapsLinks(best, pts, n), stops.some((s) => s.visit) ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => applyToCalendar(best, stops, n) }, '📅 Update the calendar times') : null)),
+				h('div', { class: 'ds-row ds-wrap' },
+					h('button', { class: 'ds-btn ds-sm', onclick: () => printSheet(R, nameOf, addrOf, false) }, '🖨️ Print route sheet'),
+					h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => printSheet(R, nameOf, addrOf, true) }, '📄 Open as a page (save as PDF / share)'),
+					...gmapsLinks(best, pts, n), stops.some((s) => s.visit) ? h('button', { class: 'ds-btn ds-ghost ds-sm', onclick: () => applyToCalendar(best, stops, n) }, '📅 Update the calendar times') : null)),
 			mapBox,
 			fuel ? fuelCard(fuel, mpg) : null);
 		const map = streetMap(mapBox, { center: [pts[0].lat, pts[0].lng], zoom: 12 });
@@ -272,6 +275,83 @@ export async function viewRoutes(b, view, go) {
 			st.length ? h('ol', { class: 'ds-rt-stations' }, ...st.map((s) => h('li', null, h('b', null, s.name), s.address ? h('small', null, ' · ' + s.address) : null, h('div', null, s.line), h('small', { class: 'ds-hint' }, s.why), h('a', { class: 'ds-link', target: '_blank', rel: 'noopener', href: `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}` }, 'Directions')))) : h('p', { class: 'ds-warn' }, 'No gas stations were found near that part of the route — fill up before you leave.'),
 			h('p', { class: 'ds-explain' }, '🎯 ', h('b', null, 'How these were chosen: '), 'the goal is the lowest overall cost, not just the lowest price. For each station we add up the fuel you’d buy, the extra fuel to drive there and back to your route, and the crew’s paid time for that detour (from the wage you entered). A cheaper station farther away only wins if it still saves money after all of that.'),
 			fuel.prices ? h('small', { class: 'ds-hint' }, 'Gas prices from Google; they can be a few hours old.') : h('small', { class: 'ds-hint' }, 'Live gas prices weren’t available, so stations are ranked by how little extra driving they need. (Prices need a Google Maps key with Places API.)'));
+	}
+	/**
+	 * A one-page route sheet a crew can follow: numbered stops with arrive/leave times, address, phone,
+	 * job notes, time on site and the drive to the next stop, lunch / fuel / fixed stop rows, a tick box
+	 * per stop, a simple route diagram and space for notes. Print it, or open it as a page to save as PDF.
+	 */
+	function printSheet(R, nameOf, addrOf, asPage) {
+		const { best, pts, stops, fuel, P } = R;
+		const n = P.n, esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+		const day = new Date(S.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+		const rows = [];
+		let no = 0, nextDrive = null, driveIdx = 0;
+		const fuelLeg = fuel && fuel.plan.need ? fuel.plan.leg : -1;
+		const evs = best.events;
+		for (let i = 0; i < evs.length; i++) {
+			const e = evs[i];
+			if (e.type === 'drive') {
+				if (driveIdx === fuelLeg) {
+					const st = fuel.stations && fuel.stations[0];
+					rows.push(`<tr class="x fuel"><td>⛽</td><td></td><td colspan="5"><b>Get fuel${st ? ': ' + esc(st.name) : ''}</b>${st ? ' — ' + esc(st.address || '') + ' · ' + esc(st.line) : ' before this drive'}</td><td class="box">☐</td></tr>`);
+				}
+				driveIdx++;
+				continue;
+			}
+			// the drive that follows this event (to show "next: x mi")
+			nextDrive = evs.slice(i + 1).find((x) => x.type === 'drive');
+			const drive = nextDrive ? `${nextDrive.miles.toFixed(1)} mi · ${Math.round(nextDrive.min)} min` : '';
+			if (e.type === 'stop') {
+				no++;
+				const s = e.node <= stops.length ? stops[e.node - 1] : null;
+				const v = s && s.visit;
+				const meet = S.meet.on && e.node === n;
+				rows.push(`<tr${meet ? ' class="x meet"' : ''}><td class="no">${no}</td><td class="t">${hhmm(e.at)}<br><small>to ${hhmm(e.at + e.min)}</small></td><td><b>${esc(meet ? 'Be here by ' + hhmm(S.meet.at) : nameOf(e.node))}</b>${v && v.client ? '<br><small>' + esc(v.client) + '</small>' : ''}</td><td>${esc(addrOf(e.node))}${v && v.phone ? '<br><small>📞 ' + esc(v.phone) + '</small>' : ''}</td><td class="c">${e.min ? Math.round(e.min) + ' min' : ''}</td><td><small>${esc(v ? [v.notes, v.crew ? 'Crew: ' + v.crew : ''].filter(Boolean).join(' · ') : '')}</small></td><td class="c"><small>${drive ? 'Next: ' + drive : ''}</small></td><td class="box">☐</td></tr>`);
+			} else if (e.type === 'lunch') {
+				const r = R.restNear && R.restNear[e.node - 1];
+				rows.push(`<tr class="x lunch"><td>🍔</td><td class="t">${hhmm(e.at)}</td><td colspan="5"><b>Lunch, ${e.len} min</b>${r && e.restMiles ? ' — ' + esc(r.name) + (r.address ? ', ' + esc(r.address) : '') + ` (${r.miles.toFixed(1)} mi away)` : ' — at the job site'}</td><td class="box">☐</td></tr>`);
+			} else if (e.type === 'wait') rows.push(`<tr class="x"><td>⏳</td><td class="t">${hhmm(e.at)}</td><td colspan="6">${Math.round(e.min)} min early — wait</td></tr>`);
+		}
+		// a simple diagram of the route (not to scale with roads — just the order)
+		const order = [0, ...best.order, n + 1];
+		const la = pts.map((p) => p.lat), lo = pts.map((p) => p.lng), k = Math.cos((la[0] * Math.PI) / 180);
+		const x0 = Math.min(...lo), x1 = Math.max(...lo), y0 = Math.min(...la), y1 = Math.max(...la);
+		const W = 520, H = 300, sc = Math.min((W - 60) / Math.max(1e-6, (x1 - x0) * k), (H - 60) / Math.max(1e-6, y1 - y0));
+		const P2 = (p) => [30 + (p.lng - x0) * k * sc + ((W - 60) - (x1 - x0) * k * sc) / 2, H - 30 - (p.lat - y0) * sc - ((H - 60) - (y1 - y0) * sc) / 2];
+		const line = order.map((i) => P2(pts[i]).map((v) => v.toFixed(1)).join(',')).join(' ');
+		const dots = order.map((node, i) => { const [x, y] = P2(pts[node]); const lbl = node === 0 ? 'S' : node === n + 1 ? (S.endSame ? '' : 'E') : String(i); return lbl ? `<g><circle cx="${x}" cy="${y}" r="11" fill="${node === 0 || node === n + 1 ? '#1e88e5' : '#1f7a46'}"/><text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">${lbl}</text></g>` : ''; }).join('');
+		const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;border:1px solid #ccc;border-radius:8px"><polyline points="${line}" fill="none" stroke="#1f7a46" stroke-width="2.5" stroke-dasharray="6 4"/>${dots}<text x="${W - 22}" y="20" font-size="12" font-weight="700">N↑</text></svg>`;
+		const gm = gmapsLinks(best, pts, n).map((a) => a.href);
+		const totals = `${no} stop${no === 1 ? '' : 's'} · ${best.miles.toFixed(1)} mi · ${Math.round(best.driveMin)} min driving · back by ${hhmm(best.end)}`;
+		const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Route – ${esc(day)}</title><style>
+			body{font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111;margin:24px;background:#fff}
+			h1{font-size:22px;margin:0}h2{font-size:15px;margin:16px 0 6px}.sub{color:#444;margin:2px 0 10px}
+			table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border-bottom:1px solid #bbb;padding:7px 6px;text-align:left;vertical-align:top}
+			th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;background:#f1f4f1}td.no{font-size:20px;font-weight:800;text-align:center;width:34px}
+			td.t{white-space:nowrap;font-weight:700}td.c{white-space:nowrap}td.box{font-size:22px;text-align:center;width:30px}tr{page-break-inside:avoid}
+			tr.x td{background:#fafafa}tr.lunch td{background:#fff8e1}tr.fuel td{background:#fff1e6}tr.meet td{background:#e8f4ff}small{color:#555}
+			.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.notes{border:1px solid #bbb;border-radius:8px;height:90px;margin-top:6px}
+			.links{font-size:11px;word-break:break-all;color:#333}.np{margin:12px 0}.np button{font:inherit;padding:10px 18px;border-radius:999px;border:0;background:#1f7a46;color:#fff;font-weight:700;cursor:pointer}
+			@media print{.np{display:none}body{margin:10mm}}
+		</style></head><body>
+		<p class="np"><button onclick="print()">🖨️ Print</button></p>
+		<div class="top"><div><h1>${esc(pro.business || 'Route sheet')}</h1><p class="sub"><b>${esc(day)}</b>${S.crew ? ' · ' + esc(S.crew) : ''} · Leave ${hhmm(P.start)} from ${esc(S.start)}</p><p class="sub">${totals}</p></div>${svg}</div>
+		<table><thead><tr><th>#</th><th>Time</th><th>Job</th><th>Address</th><th>On site</th><th>Notes</th><th>Then drive</th><th>Done</th></tr></thead><tbody>
+		<tr class="x"><td>🏠</td><td class="t">${hhmm(P.start)}</td><td colspan="5"><b>Leave</b> — ${esc(S.start)}</td><td class="box">☐</td></tr>
+		${rows.join('')}
+		<tr class="x"><td>🏁</td><td class="t">${hhmm(best.end)}</td><td colspan="5"><b>${S.endSame ? 'Back at the yard' : 'End'}</b> — ${esc(S.endSame ? S.start : S.end)}</td><td class="box">☐</td></tr>
+		</tbody></table>
+		<h2>Notes</h2><div class="notes"></div>
+		<p class="links">Directions: ${gm.map(esc).join('<br>')}</p>
+		</body></html>`;
+		const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+		if (asPage) { const w = window.open(url, '_blank'); if (!w) location.href = url; return; }
+		const fr = document.createElement('iframe');
+		fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+		fr.src = url;
+		fr.onload = () => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { window.open(url, '_blank'); } setTimeout(() => { fr.remove(); }, 60000); };
+		document.body.append(fr);
 	}
 	const kpi = (e, v, l) => h('div', { class: 'ds-kpi' }, h('span', null, e), h('b', null, v), h('small', null, l));
 	function gmapsLinks(best, pts, n) {

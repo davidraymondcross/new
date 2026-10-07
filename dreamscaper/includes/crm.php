@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DREAMSCAPER_CRM_DB', 2 );
+define( 'DREAMSCAPER_CRM_DB', 3 );
 
 /* --------------------------------------------------------------------- schema */
 
@@ -176,6 +176,7 @@ function dreamscaper_crm_install_db() {
 			sent_at datetime DEFAULT NULL,
 			reminded_at datetime DEFAULT NULL,
 			reminders smallint(6) NOT NULL DEFAULT 0,
+			opts longtext NULL,
 			created datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY token (token),
@@ -712,11 +713,16 @@ function dreamscaper_crm_tick() {
 		if ( function_exists( 'dreamscaper_sub_can_send' ) && ! dreamscaper_sub_can_send( (int) $inv->pro_id ) ) {
 			continue; // resumes when the account is active again
 		}
-		$next = gmdate( 'Y-m-d', strtotime( $inv->next_at . ( 'weekly' === $inv->recur ? ' +1 week' : ( 'yearly' === $inv->recur ? ' +1 year' : ' +1 month' ) ) ) );
+		$iopts = dreamscaper_json( isset( $inv->opts ) ? $inv->opts : '' );
+		$next  = function_exists( 'dreamscaper_invoice_next_date' ) ? dreamscaper_invoice_next_date( $inv->recur, $iopts, $inv->next_at ) : null;
+		$next  = $next ? $next : gmdate( 'Y-m-d', strtotime( $inv->next_at . ( 'weekly' === $inv->recur ? ' +1 week' : ( 'yearly' === $inv->recur ? ' +1 year' : ' +1 month' ) ) ) );
+		// the copy keeps the same payment terms (days between invoice date and due date) and starts its reminders afresh
+		$gap   = $inv->due ? max( 0, (int) round( ( strtotime( $inv->due ) - strtotime( substr( $inv->created, 0, 10 ) ) ) / DAY_IN_SECONDS ) ) : 14;
+		unset( $iopts['sent'], $iopts['date'] );
 		$wpdb->update( $I, array( 'recur' => '', 'next_at' => null ), array( 'id' => $inv->id ) );
 		$copy = (array) $inv;
 		unset( $copy['id'] );
-		$copy = array_merge( $copy, array( 'number' => dreamscaper_next_number( $inv->pro_id, 'INV' ), 'status' => 'sent', 'token' => dreamscaper_token(), 'stripe_session' => '', 'paid_at' => null, 'sent_at' => dreamscaper_now(), 'created' => dreamscaper_now(), 'due' => gmdate( 'Y-m-d', strtotime( '+14 days' ) ), 'next_at' => $next ) );
+		$copy = array_merge( $copy, array( 'number' => dreamscaper_next_number( $inv->pro_id, 'INV' ), 'status' => 'sent', 'token' => dreamscaper_token(), 'stripe_session' => '', 'paid_at' => null, 'sent_at' => dreamscaper_now(), 'created' => dreamscaper_now(), 'due' => gmdate( 'Y-m-d', strtotime( '+' . $gap . ' days' ) ), 'next_at' => $next, 'opts' => $iopts ? wp_json_encode( $iopts ) : null, 'reminders' => 0, 'reminded_at' => null ) );
 		$wpdb->insert( $I, $copy );
 		$new = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $I WHERE id=%d", $wpdb->insert_id ) );
 		if ( $new ) {
@@ -744,6 +750,9 @@ function dreamscaper_crm_tick_nudges() {
 		$p = $pro( $inv->pro_id );
 		if ( ! $p || ! dreamscaper_sub_can_send( $p->user_id ) ) {
 			continue;
+		}
+		if ( ! empty( $inv->opts ) && false !== strpos( $inv->opts, '"remind"' ) ) {
+			continue; // invoices made with the new editor follow their own reminder plan (includes/invoices.php)
 		}
 		$t = dreamscaper_tpl_get( $p, 'invoice_overdue' );
 		if ( ! $t['on'] ) {
@@ -789,7 +798,7 @@ function dreamscaper_crm_tick_nudges() {
 }
 
 /** Email an invoice to its customer (the contractor's “Invoice sent” message). */
-function dreamscaper_invoice_email( $inv ) {
+function dreamscaper_invoice_email( $inv, $channels = null, $msg = array() ) {
 	$p = dreamscaper_pro_row( $inv->pro_id );
 	$c = $inv->client_id ? dreamscaper_crm_get( 'clients', $inv->client_id, $inv->pro_id ) : null;
 	if ( ! $p || ! $c ) {
@@ -797,10 +806,23 @@ function dreamscaper_invoice_email( $inv ) {
 	}
 	$q   = $inv->quote_id ? dreamscaper_crm_get( 'quotes', $inv->quote_id, $inv->pro_id ) : null;
 	$tid = $q && function_exists( 'dreamscaper_thread_for_quote' ) ? dreamscaper_thread_for_quote( $q ) : 0;
-	$res = dreamscaper_tpl_send( $p, 'invoice_sent', array( 'invoice' => $inv, 'client' => $c, 'quote' => $q ), dreamscaper_tpl_to_client( $c ), array(
+	$o   = array(
 		'force' => true, 'link' => dreamscaper_invoice_url( $inv->token ), 'button' => $p->stripe_ready ? 'View & pay invoice' : 'View invoice',
 		'thread_id' => $tid, 'ref_type' => 'invoice', 'ref_id' => $inv->id, 'target' => $inv->id,
-	) );
+	);
+	if ( $channels ) {
+		$o['channels'] = $channels;
+		$o['quiet']    = false; // sent on purpose, right now
+	}
+	foreach ( array( 'subject', 'email', 'sms' ) as $k ) {
+		if ( ! empty( $msg[ $k ] ) ) {
+			$o[ $k ] = 'subject' === $k ? sanitize_text_field( $msg[ $k ] ) : sanitize_textarea_field( $msg[ $k ] );
+		}
+	}
+	$res = dreamscaper_tpl_send( $p, 'invoice_sent', array( 'invoice' => $inv, 'client' => $c, 'quote' => $q ), dreamscaper_tpl_to_client( $c ), $o );
+	if ( $channels ) {
+		return (bool) $res['sent'];
+	}
 	if ( in_array( 'email', $res['channels'], true ) ) {
 		dreamscaper_crm_log( $inv->pro_id, $inv->client_id, $inv->quote_id, 'invoice', 'Invoice ' . $inv->number . ' emailed to ' . $c->email, 0 );
 	}
@@ -856,6 +878,8 @@ require_once __DIR__ . '/trust.php';
 require_once __DIR__ . '/planwiz.php';
 require_once __DIR__ . '/measure.php';
 require_once __DIR__ . '/routes.php';
+require_once __DIR__ . '/invoices.php';
+require_once __DIR__ . '/equipment.php';
 require_once __DIR__ . '/crm-api.php';
 require_once __DIR__ . '/crm-portal.php';
 require_once __DIR__ . '/crm-pay.php';
